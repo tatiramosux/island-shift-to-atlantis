@@ -1,0 +1,7 @@
+node_modules
+dist
+*.bak*
+*.tsbuildinfo
+.vercel
+.claude/
+.env*

@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Atlântida — galeria de personagens</title>
+    <style>
+      body { margin: 0; background: #2a6fba; font-family: 'Courier New', monospace; color: #fff7e0; }
+      #v { width: 100vw; height: 100vh; position: relative; }
+      #t { position: absolute; left: 12px; top: 8px; z-index: 2; font-size: 14px; text-shadow: 2px 2px 0 #0c1630; }
+    </style>
+  </head>
+  <body>
+    <div id="t">Galeria: arraste para girar, roda para zoom</div>
+    <div id="v"></div>
+    <script type="module" src="/src/play/gallery.ts"></script>
+  </body>
+</html>

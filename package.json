@@ -1,0 +1,31 @@
+{
+  "name": "island-shift-to-atlantis",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -b",
+    "simular": "tsx scripts/simulate.ts",
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "build:itch": "tsc -b && vite build --mode itch",
+    "server": "tsx server/index.ts",
+    "start": "tsx server/index.ts",
+    "host": "vite build && tsx server/index.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "0.187.0",
+    "@types/ws": "^8.18.2",
+    "tsx": "^4.23.15",
+    "typescript": "latest",
+    "vite": "^8.3.8",
+    "vitest": "latest"
+  },
+  "dependencies": {
+    "lucide": "^1.74.0",
+    "three": "0.187.0",
+    "ws": "^8.23.0"
+  }
+}

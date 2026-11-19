@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <!-- aberto pela Tela de Início do celular: sem as barras do navegador -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Island Shift" />
+    <title>Island Shift to Atlantis</title>
+    <!-- ícones: aba do navegador, Tela de Início do iPhone e do Android -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Nunito:wght@800;900&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #121212;
+        --panel: #1a1a1a;
+        --glass: rgba(26, 26, 26, 0.93);
+        --card: #262626;
+        --card2: #303030;
+        --line: #3a3a3a;
+        --btn: #2e2e2e;
+        --btn-hover: #3c3c3c;
+        --btn-on: #4a4a4a;
+        --text: #f2f2f2;
+        --muted: #a8a8a8;
+        --accent: #ffe14d;
+        --warn: #f5b324;
+        --ok: #2f7d3a;
+        --ok-line: #5bd16b;
+        --error: #ff8b8b;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; overflow: hidden; }
+      #app { position: fixed; inset: 0; }
+      #view { position: absolute; inset: 0; }
+      button {
+        font: inherit; color: var(--text); background: var(--btn); border: 1px solid #555; border-radius: 8px; padding: 8px 12px; cursor: pointer;
+        display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      }
+      button:hover:not(:disabled) { background: var(--btn-hover); }
+      button.on { background: var(--btn-on); border-color: #fff; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      button.primary { background: var(--ok); border-color: var(--ok-line); font-weight: 700; }
+      button.primary:hover:not(:disabled) { background: #378f44; }
+      button:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+      input { font: inherit; color: var(--text); background: #101010; border: 1px solid #555; border-radius: 8px; padding: 0 12px; height: 48px; width: 100%; }
+      input:focus-visible { outline: 3px solid #fff; outline-offset: 1px; }
+      svg.icon { flex: none; }
+      * { scrollbar-width: thin; scrollbar-color: #4a4a4a transparent; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 999px; border: 3px solid transparent; background-clip: content-box; }
+      .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; border: 1px solid #0006; }
+      .muted { color: var(--muted); font-size: 13px; }
+
+      /* ---------- HUD do jogo: cartões de vidro por cima do tabuleiro ---------- */
+      .hud { position: absolute; z-index: 3; }
+      .hud-card { background: var(--glass); padding: 8px 10px; border: 1px solid #555; border-radius: 10px; }
+      .hud-card h2 { margin: 0 0 7px; text-align: center; font-size: 13px; line-height: 1.2; letter-spacing: 0.04em; }
+      .hud-tl { top: 10px; left: 10px; display: flex; flex-direction: column; gap: 2px; padding: 4px; background: var(--glass); border: 1px solid #555; border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28); }
+      .hud-tl button { width: 44px; height: 44px; padding: 0; background: transparent; border-color: transparent; position: relative; }
+      .hud-tl button:hover:not(:disabled) { background: var(--card2); }
+      .hud-tl button + button::before { content: ''; position: absolute; left: 8px; right: 8px; top: -2px; height: 1px; background: #4d4d4d; pointer-events: none; }
+      .hud-tc { top: 10px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+      .hud-tc > * { pointer-events: auto; }
+      .turnchip { display: flex; align-items: center; gap: 8px; background: var(--glass); border: 2px solid #888; border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
+      .turnchip .badge { background: var(--ok); border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
+      .turnchip .badge:empty { display: none; }
+      .phases { display: flex; gap: 4px; }
+      .ph { display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #2a2a2a; color: #b8b8b8; white-space: nowrap; text-align: center; }
+      .ph.on { background: #4a4a4a; color: #fff; outline: 1px solid #e0e0e0; font-weight: 700; }
+      .hud-tr { top: 10px; right: 10px; width: 200px; }
+      .score { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 5px 8px; font-size: 13px; }
+      .score .res { display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
+      .score .res span { display: inline-flex; align-items: center; gap: 3px; }
+      .score .who { display: flex; flex-direction: column; line-height: 1.15; }
+      .score .who small { color: var(--muted); font-size: 11px; display: flex; gap: 3px; align-items: center; margin-top: 2px; }
+      .score .turn { color: var(--accent); font-weight: 700; }
+      .pip { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #fff9; display: inline-block; }
+      .pip.float { border-radius: 50%; background: transparent !important; }
+      .pip.dead { opacity: 0.25; }
+      .pip.boat { border-radius: 2px 2px 6px 6px; }
+      .pip.aboard { outline: 2px solid #ffd84a; outline-offset: 1px; }
+
+      .hud-bc { left: 50%; transform: translateX(-50%); bottom: 10px; width: min(1120px, calc(100% - 20px)); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; pointer-events: none; }
+      .hud-bc { align-items: end; } /* cada cartão com a altura de que precisa, colados embaixo */
+      .hud-bc .actionbar { order: 1; min-width: 0; }
+      .hud-bc .combo { order: 2; }
+      .hud-bc > * { pointer-events: auto; }
+      /* um cartão só para Convocações e Dado, separados por uma barra; cada um em duas fileiras */
+      .combo { display: flex; align-items: stretch; gap: 10px; }
+      .combo section { display: flex; flex-direction: column; align-items: center; }
+      .combo .vbar { width: 1px; background: #4a4a4a; margin: 2px 0; }
+      .slots, .dicefaces { display: grid; grid-template-columns: repeat(2, 54px); gap: 6px; }
+      .slot, .face { position: relative; width: 54px; height: 60px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
+      .slot { flex-direction: column; justify-content: flex-start; }
+      .slot img { width: 44px; height: 44px; margin-top: 2px; }
+      .slot .cost { position: absolute; bottom: 2px; left: 0; right: 0; font-size: 11px; font-weight: 700; color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 2px; }
+      .slot:disabled { opacity: 0.4; }
+      .slot.on { outline: 2px solid var(--accent); background: var(--btn-on); }
+      .face { opacity: 0.55; display: grid; place-items: center; }
+      .face img { display: block; width: 44px; height: 44px; }
+      .face small { position: absolute; right: 3px; bottom: 1px; font-size: 10px; font-weight: 800; color: var(--accent); }
+      .face.on { opacity: 1; background: var(--btn-on); outline: 2px solid var(--accent); }
+      .combo .cap { text-align: center; font-size: 11px; color: var(--muted); margin-top: 6px; max-width: 120px; }
+      .actionbar { background: var(--glass); border: 1px solid #444; border-radius: 12px; padding: 8px 10px; max-height: 36vh; overflow: auto; font-size: 14px; }
+      .actionbar { display: flex; flex-direction: column; justify-content: center; }
+      .actionbar .prompt { margin: 0 0 6px; font-size: 13px; line-height: 1.35; text-align: center; }
+      .actionbar .prompt b { font-weight: 800; }
+      .actionbar .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
+      .actionbar .row:first-child { margin-top: 0; }
+      .actionbar .row button { min-height: 38px; padding: 6px 10px; font-size: 13px; }
+      .logpanel { top: 10px; left: 70px; width: 290px; max-height: 40vh; overflow: auto; font-size: 12px; line-height: 1.4; }
+      .logpanel div { padding: 3px 0; border-bottom: 1px solid #333; color: #cfcfcf; }
+      #chooser { position: absolute; z-index: 6; background: var(--glass); border: 1px solid var(--accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 5px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
+      button.dice-help { display: inline-grid; place-items: center; vertical-align: -3px; margin-left: 5px; width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1px solid #666; background: transparent; color: #cfcfcf; cursor: pointer; }
+      button.dice-help:hover, button.dice-help.open { background: var(--btn-on); color: #fff; border-color: var(--accent); }
+      #pop { position: absolute; z-index: 7; width: 270px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 10px 12px; background: #1a1a1a; border: 1px solid #777; border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.4; text-align: left; }
+      #pop p { margin: 6px 0 0; }
+      #pop .pop-head { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+      #pop .pop-head img { width: 34px; height: 34px; }
+      #pop .pop-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+      #pop .pop-state { color: #b8b8b8; }
+      #pop .pop-state.ok { color: #7fe08c; }
+      #pop button.primary { width: 100%; margin-top: 10px; min-height: 44px; }
+      .slot.off { opacity: 0.45; }
+      /* balão de quadrinhos: as opções saem da casa tocada, com a pontinha apontando para ela */
+      #chooser.icons { flex-direction: row; gap: 8px; padding: 8px 10px; background: #fffdf2; border: 3px solid #1a1a1a; border-radius: 18px; box-shadow: 0 4px 0 #1a1a1a, 0 10px 20px rgba(0, 0, 0, 0.35); transform: translate(-50%, calc(-100% - 16px)); animation: bubble 0.16s ease-out; }
+      #chooser.icons::after { content: ''; position: absolute; left: 50%; bottom: -13px; width: 18px; height: 18px; background: #fffdf2; border-right: 3px solid #1a1a1a; border-bottom: 3px solid #1a1a1a; transform: translateX(-50%) rotate(45deg); }
+      #chooser.icons button { position: relative; z-index: 1; width: 54px; height: 54px; padding: 0; justify-content: center; border-radius: 50%; background: var(--accent); border: 3px solid #1a1a1a; color: #1a1a1a; box-shadow: 0 3px 0 #1a1a1a; }
+      #chooser.icons button:hover { filter: brightness(1.08); }
+      #chooser.icons button:active { transform: translateY(2px); box-shadow: 0 1px 0 #1a1a1a; }
+      #chooser.icons button svg { width: 26px; height: 26px; stroke-width: 2.6; }
+      @keyframes bubble { from { opacity: 0; transform: translate(-50%, calc(-100% - 6px)) scale(0.85); } }
+      .phases button.dice-help { align-self: center; margin-left: 2px; }
+      .gest-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+      .gest-list li { display: flex; align-items: center; gap: 14px; }
+      .gest-list li span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.35; }
+      .gest-list li b { font-size: 15px; }
+      .gest-art { flex: 0 0 auto; width: 108px; height: auto; border-radius: 13px; }
+      .modal h4 { margin: 12px 0 4px; font-size: 15px; color: var(--accent); }
+      .actionbar .builders { align-items: stretch; }
+      .bcard { display: flex; align-items: center; gap: 6px; padding: 3px 12px 3px 4px; min-height: 52px; }
+      .bcard img { width: 44px; height: 44px; }
+      .bcard.off { opacity: 0.5; }
+      .key { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; border: 1px solid #fff9; }
+      .key.y { background: #ffe21a; } .key.b { background: #35b8ff; } .key.r { background: #ff8a2a; } .key.g { background: #3fd47a; } .key.t { background: #ffc21a; box-shadow: 0 0 6px #ffc21a; }
+      #chooser[hidden], [hidden] { display: none !important; }
+      #toast { position: absolute; z-index: 4; left: 50%; bottom: 170px; transform: translateX(-50%); max-width: min(520px, 90%); padding: 8px 14px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 14%, #1a1a1a); border: 1px solid var(--warn); color: #ffe9b8; font-size: 13px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-align: center; }
+      #toast.show { opacity: 1; }
+      /* rolagem do dado: um dado grande gira no meio da tela, troca de face e para na criatura sorteada */
+      #roll { position: absolute; z-index: 5; left: 50%; top: 42%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
+      #roll[hidden] { display: none; }
+      #roll .die { width: 96px; height: 96px; border-radius: 18px; background: linear-gradient(145deg, #fffaf0, #d9cdb4); border: 3px solid #3a2a1a; box-shadow: 0 10px 24px #0008, inset 0 -6px 0 #0002; display: grid; place-items: center; }
+      #roll .die img { width: 72px; height: 72px; }
+      #roll.spin .die { animation: dieSpin 0.18s linear infinite; }
+      #roll.land .die { animation: dieLand 0.35s ease-out; outline: 3px solid var(--accent); }
+      #roll b { min-height: 1.2em; padding: 4px 12px; border-radius: 10px; background: #000a; color: #fff; font-size: 16px; opacity: 0; transition: opacity 0.2s; }
+      #roll.land b { opacity: 1; }
+      @keyframes dieSpin { 0% { transform: rotate(0) translateY(0); } 25% { transform: rotate(14deg) translateY(-10px); } 50% { transform: rotate(0) translateY(0); } 75% { transform: rotate(-14deg) translateY(-10px); } 100% { transform: rotate(0) translateY(0); } }
+      @keyframes dieLand { 0% { transform: scale(1.35); } 60% { transform: scale(0.92); } 100% { transform: scale(1); } }
+      @media (prefers-reduced-motion: reduce) { #roll.spin .die, #roll.land .die { animation: none; } }
+
+      /* ---------- tela inicial ---------- */
+      .home { position: absolute; inset: 0; z-index: 5; overflow: auto; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 18px 16px; background: linear-gradient(180deg, rgba(18, 18, 18, 0) 0%, rgba(18, 18, 18, 0.5) 100%); pointer-events: none; }
+      .home > * { flex: none; pointer-events: auto; }
+      .home > .logo { margin-top: auto; }
+      /* título: letras de inscrição de templo (Cinzel) em azul-marinho, com contorno de espuma para ler sobre o mar */
+      .logo { margin: 0; text-align: center; line-height: 1; pointer-events: none !important; filter: drop-shadow(0 3px 0 #04122b) drop-shadow(0 0 12px rgba(143, 230, 255, 0.45)) drop-shadow(0 8px 12px rgba(0, 0, 0, 0.35)); }
+      /* o contorno fica numa cópia branca ATRÁS das letras (não por cima), assim o azul aparece inteiro */
+      .logo span { display: block; position: relative; isolation: isolate; }
+      .logo span b { font-weight: inherit; background: linear-gradient(180deg, #2a6fc0 0%, #0f3473 52%, #061638 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+      .logo span::before { content: attr(data-t); position: absolute; inset: 0; z-index: -1; color: #e9fbff; }
+      /* contorno de cantos arredondados: várias sombras em círculo em volta da letra (o text-stroke deixa as pontas quadradas) */
+      .logo .l1::before { text-shadow: 0.075em 0.000em 0 #e9fbff, 0.072em 0.019em 0 #e9fbff, 0.065em 0.037em 0 #e9fbff, 0.053em 0.053em 0 #e9fbff, 0.038em 0.065em 0 #e9fbff, 0.019em 0.072em 0 #e9fbff, 0.000em 0.075em 0 #e9fbff, -0.019em 0.072em 0 #e9fbff, -0.037em 0.065em 0 #e9fbff, -0.053em 0.053em 0 #e9fbff, -0.065em 0.037em 0 #e9fbff, -0.072em 0.019em 0 #e9fbff, -0.075em 0.000em 0 #e9fbff, -0.072em -0.019em 0 #e9fbff, -0.065em -0.037em 0 #e9fbff, -0.053em -0.053em 0 #e9fbff, -0.038em -0.065em 0 #e9fbff, -0.019em -0.072em 0 #e9fbff, -0.000em -0.075em 0 #e9fbff, 0.019em -0.072em 0 #e9fbff, 0.038em -0.065em 0 #e9fbff, 0.053em -0.053em 0 #e9fbff, 0.065em -0.038em 0 #e9fbff, 0.072em -0.019em 0 #e9fbff, 0.040em 0.000em 0 #e9fbff, 0.037em 0.015em 0 #e9fbff, 0.028em 0.028em 0 #e9fbff, 0.015em 0.037em 0 #e9fbff, 0.000em 0.040em 0 #e9fbff, -0.015em 0.037em 0 #e9fbff, -0.028em 0.028em 0 #e9fbff, -0.037em 0.015em 0 #e9fbff, -0.040em 0.000em 0 #e9fbff, -0.037em -0.015em 0 #e9fbff, -0.028em -0.028em 0 #e9fbff, -0.015em -0.037em 0 #e9fbff, -0.000em -0.040em 0 #e9fbff, 0.015em -0.037em 0 #e9fbff, 0.028em -0.028em 0 #e9fbff, 0.037em -0.015em 0 #e9fbff; }
+      .logo .l2::before { text-shadow: 0.130em 0.000em 0 #e9fbff, 0.124em 0.040em 0 #e9fbff, 0.105em 0.076em 0 #e9fbff, 0.076em 0.105em 0 #e9fbff, 0.040em 0.124em 0 #e9fbff, 0.000em 0.130em 0 #e9fbff, -0.040em 0.124em 0 #e9fbff, -0.076em 0.105em 0 #e9fbff, -0.105em 0.076em 0 #e9fbff, -0.124em 0.040em 0 #e9fbff, -0.130em 0.000em 0 #e9fbff, -0.124em -0.040em 0 #e9fbff, -0.105em -0.076em 0 #e9fbff, -0.076em -0.105em 0 #e9fbff, -0.040em -0.124em 0 #e9fbff, -0.000em -0.130em 0 #e9fbff, 0.040em -0.124em 0 #e9fbff, 0.076em -0.105em 0 #e9fbff, 0.105em -0.076em 0 #e9fbff, 0.124em -0.040em 0 #e9fbff, 0.070em 0.000em 0 #e9fbff, 0.061em 0.035em 0 #e9fbff, 0.035em 0.061em 0 #e9fbff, 0.000em 0.070em 0 #e9fbff, -0.035em 0.061em 0 #e9fbff, -0.061em 0.035em 0 #e9fbff, -0.070em 0.000em 0 #e9fbff, -0.061em -0.035em 0 #e9fbff, -0.035em -0.061em 0 #e9fbff, -0.000em -0.070em 0 #e9fbff, 0.035em -0.061em 0 #e9fbff, 0.061em -0.035em 0 #e9fbff; }
+      .logo .l1 { font-family: 'Cinzel Decorative', Georgia, serif; font-weight: 900; font-size: clamp(42px, 11vw, 96px); letter-spacing: 0.04em; }
+      .logo .l2 { font-family: Nunito, system-ui, sans-serif; font-weight: 900; font-size: clamp(17px, 4.2vw, 34px); letter-spacing: 0.22em; margin-top: 8px; text-transform: uppercase; }
+      .tagline { margin: 0; color: #ececec; font-size: 15px; line-height: 1.45; text-align: center; max-width: 640px; background: var(--glass); padding: 10px 16px 12px; border-radius: 12px; }
+      /* troca de idioma (EN / PT): canto superior direito da tela inicial */
+      .langsw { position: fixed; top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right)); display: flex; gap: 4px; padding: 3px; background: var(--glass); border-radius: 10px; z-index: 6; }
+      .langsw button { min-height: 32px; min-width: 40px; padding: 0 8px; border: 0; background: transparent; color: #cfcfcf; font-weight: 800; font-size: 13px; letter-spacing: 0.06em; border-radius: 8px; cursor: pointer; }
+      .langsw button.on { background: var(--card2); color: #fff; box-shadow: inset 0 0 0 1px #777; }
+      .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px 18px; width: min(640px, 100%); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35); }
+      .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 8px; padding: 4px; background: #101010; border-radius: 12px; }
+      .tab { min-height: 44px; border: 0; background: transparent; color: #cfcfcf; font-weight: 700; font-size: 14px; gap: 8px; }
+      .tab.on { background: var(--card2); color: #fff; box-shadow: inset 0 0 0 1px #777; }
+      .step { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin: 16px 0 8px; font-size: 15px; font-weight: 700; }
+      .step:first-child { margin-top: 4px; }
+      .step b { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--accent); color: #111; font-size: 13px; }
+      .step small { color: var(--muted); font-size: 12px; font-weight: 400; }
+      .choices { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+      .choices button { height: 48px; font-size: 17px; }
+      .actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+      .actions button { height: 48px; font-size: 16px; }
+      .field { display: grid; gap: 8px; }
+      .field .two { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; }
+      .field .two button { height: 48px; }
+      .codebox { text-align: center; font-size: 40px; letter-spacing: 0.3em; font-weight: 800; color: var(--accent); background: #101010; border-radius: 12px; padding: 8px 0 8px 0.3em; margin: 6px 0; }
+      .seats { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 6px; }
+      .seats li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-radius: 8px; }
+      .notice { display: flex; align-items: center; gap: 8px; margin: 8px 0; padding: 8px 10px; font-size: 13px; font-weight: 600; color: #ffe9b8; background: color-mix(in srgb, var(--warn) 14%, #1a1a1a); border: 1px solid var(--warn); border-radius: 8px; }
+      .notice a { color: var(--accent); }
+
+      /* ---------- janelas ---------- */
+      .modal { position: absolute; inset: 0; z-index: 8; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+      .modal .card { max-height: 90vh; overflow: auto; }
+      .modal h3 { margin: 0 0 10px; font-size: 20px; }
+      .modal p, .modal li { line-height: 1.5; font-size: 14px; color: #dedede; }
+      .modal ul { padding-left: 18px; margin: 6px 0 12px; }
+      .winner { text-align: center; }
+      .winner h3 { font-size: 30px; color: var(--accent); }
+
+      @media (max-height: 820px) { .tagline { display: none; } .logo .l1 { font-size: clamp(38px, 9vw, 76px); } .logo .l2 { font-size: clamp(15px, 3.4vw, 26px); } }
+      @media (max-height: 680px) { .logo .l1 { font-size: clamp(32px, 7vw, 54px); } .logo .l2 { font-size: clamp(13px, 2.6vw, 19px); } .home { gap: 8px; padding-top: 10px; } }
+      /* câmera: pílula separada do menu, sempre à vista */
+      .cam { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; padding-top: 2px; border-top: 1px solid #4d4d4d; }
+      .cam[hidden] { display: none; }
+      .cam button + button::before { content: ''; position: absolute; left: 8px; right: 8px; top: -2px; height: 1px; background: #4d4d4d; pointer-events: none; }
+      .hud-tl button.on { background: var(--card2); }
+      /* aba com seta embaixo dos botões fixos: abre e recolhe os demais controles */
+      .hud-tl .tools-tab { height: 22px !important; margin-top: 2px; border-radius: 8px; border-top: 1px solid #555; }
+      .hud-tl .tools-tab::before { display: none; }
+      .tools-list { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; margin-top: 2px; border-top: 1px solid #555; }
+      .tools-list[hidden] { display: none; }
+      .tools-list > button + button::before { content: ''; position: absolute; left: 8px; right: 8px; top: -2px; height: 1px; background: #4d4d4d; pointer-events: none; }
+      @media (max-width: 760px) {
+        .hud-tl button { width: 40px; height: 40px; }
+        .cam .zoomonly { display: none; }
+        .hud-tc { left: 74px; right: 116px; transform: none; align-items: center; }
+        .phases { flex-wrap: wrap; justify-content: center; }
+        .turnchip { padding: 3px 10px; font-size: 13px; white-space: normal; text-align: center; }
+        .turnchip .badge { white-space: nowrap; flex-shrink: 0; }
+        .ph { font-size: 10px; padding: 4px 6px; }
+        .phases { gap: 3px; }
+        /* placar compacto: só a cor, os cristais e os tridentes (os nomes aparecem no chip de vez) */
+        .hud-tr { right: 6px; top: 8px; width: auto; padding: 5px 7px; }
+        .hud-tr h2 { font-size: 11px; margin-bottom: 4px; }
+        .score { grid-template-columns: auto auto; gap: 4px 6px; font-size: 12px; }
+        .score .who { display: none; }
+        /* continua tudo numa linha só: instruções à esquerda, convocações e dado ao lado */
+        .hud-bc { grid-template-columns: minmax(0, 1fr) auto; bottom: 6px; width: calc(100% - 12px); gap: 6px; }
+        .hud-bc .actionbar { max-height: 34vh; min-width: 0; padding: 6px 8px; }
+        .actionbar .prompt { font-size: 12px; }
+        .hud-card { padding: 6px 8px; }
+        .hud-card h2 { font-size: 11px; margin-bottom: 4px; }
+        .slots, .dicefaces { grid-template-columns: repeat(2, 46px); gap: 4px; }
+        .slot, .face { width: 46px; height: 52px; }
+        .slot img, .face img { width: 38px; height: 38px; }
+        .combo .cap { display: none; }
+        .logpanel { left: 60px; top: 60px; width: min(280px, calc(100% - 70px)); }
+        #toast { bottom: 190px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="view"></div>
+
+      <div id="hud" hidden>
+        <div class="hud hud-tl" id="tools"></div>
+        <div class="cam" id="camera" role="toolbar" aria-label="Camera" data-pt-aria="Câmera" hidden></div>
+        <div class="hud hud-tc">
+          <div class="turnchip" id="turnchip"><span class="dot" id="turnDot"></span><b id="turnText"></b><span class="badge" id="turnBadge"></span></div>
+          <div class="phases" id="phases">
+            <span class="ph" data-ph="action" data-pt="1 Ação">1 Action</span><span class="ph" data-ph="flood" data-pt="2 Maré">2 Tide</span><span class="ph" data-ph="creatures" data-pt="3 Criaturas">3 Creatures</span><button type="button" class="dice-help" id="helpPhase" aria-label="Rules for this phase" data-pt-aria="Regras desta fase" aria-haspopup="dialog" title="Rules for this phase" data-pt-title="Regras desta fase"></button>
+          </div>
+        </div>
+        <div class="hud hud-tr hud-card"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
+        <div class="hud logpanel hud-card" id="logpanel" hidden></div>
+        <div class="hud hud-bc">
+          <div class="hud-card combo">
+            <section><h2><span data-pt="Convocações">Summons</span><button type="button" class="dice-help" id="helpSummons" aria-label="How summons work" data-pt-aria="Como funcionam as convocações" aria-haspopup="dialog"></button></h2><div class="slots" id="summons"></div></section>
+            <i class="vbar"></i>
+            <section><h2><span data-pt="Dado">Die</span><button type="button" class="dice-help" id="helpDice" aria-label="How the die works" data-pt-aria="Como funciona o dado" aria-haspopup="dialog"></button></h2><div class="dicefaces" id="dice"></div><div class="cap" id="diecap" data-pt="Sorteia a criatura">Picks the creature</div></section>
+          </div>
+          <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
+        </div>
+      </div>
+      <div id="toast"></div>
+      <div id="roll" aria-live="polite" hidden><div class="die"><img alt="" /></div><b></b></div>
+      <div id="chooser" hidden></div>
+      <div id="pop" role="dialog" hidden></div>
+
+      <div class="home" id="home"></div>
+      <div class="modal" id="modal" hidden></div>
+    </div>
+    <script type="module" src="/src/play/main.ts"></script>
+  </body>
+</html>

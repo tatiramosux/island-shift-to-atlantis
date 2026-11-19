@@ -1,0 +1,13 @@
+# Render: site + salas em rede (WebSocket) num único serviço.
+# Para criar: Render > New > Blueprint > escolher este repositório.
+services:
+  - type: web
+    name: atlantida-cidade-submersa
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 22
