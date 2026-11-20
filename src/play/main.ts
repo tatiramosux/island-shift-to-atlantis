@@ -936,6 +936,8 @@ tools.append(
   btn('', () => showPause(), { icon: Menu, title: 'Menu' }),
   soundBtn,
   ...(standalone ? [] : [fsBtn]), // aberto pela Tela de Início já está em tela cheia
+  btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
+  btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
   toolsTab,
   toolsList,
 );
@@ -1196,7 +1198,7 @@ const placeHomeShips = () => {
   if (inGame) return;
   const v = $('view');
   const portrait = v.clientWidth / Math.max(1, v.clientHeight) < 0.9;
-  const spots = portrait ? [{ x: -1.5, y: 0.2 }, { x: 0.17, y: 0.11 }, { x: 0.84, y: 0.43 }] : [{ x: -1.5, y: 0.2 }, { x: 0.08, y: 0.51 }, { x: 0.91, y: 0.51 }];
+  const spots = portrait ? [{ x: -1.5, y: 0.2 }, { x: 0.17, y: 0.11 }, { x: 0.97, y: 0.27 }] : [{ x: -1.5, y: 0.2 }, { x: 0.08, y: 0.51 }, { x: 0.91, y: 0.51 }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)

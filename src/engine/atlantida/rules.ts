@@ -71,7 +71,7 @@ const canJoinBoat = (s: GameState, h: Hex, p: number): boolean => {
  */
 const SHIP_RING = ISLAND_RADIUS + 2;
 const SHIP_SPOTS: Hex[] = [hex(SHIP_RING, 0), hex(SHIP_RING, -SHIP_RING), hex(0, -SHIP_RING), hex(-SHIP_RING, 0), hex(-SHIP_RING, SHIP_RING), hex(0, SHIP_RING)];
-const SHIP_PICK: Record<number, number[]> = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 4] };
+const SHIP_PICK: Record<number, number[]> = { 2: [4, 1], 3: [4, 0, 2], 4: [4, 5, 1, 2] }; // 2 jogadores: navios nos cantos inferior esquerdo e superior direito da tela
 export const shipSpots = (players: number): Hex[] => SHIP_PICK[players].map((i) => SHIP_SPOTS[i]);
 export const builderAt = (s: GameState, h: Hex): Builder | undefined => s.builders.find((b) => isAlive(b) && b.hex && hexEquals(b.hex, h));
 export const creatureAt = (s: GameState, h: Hex): Creature | undefined => s.creatures.find((c) => c.hex && hexEquals(c.hex, h));

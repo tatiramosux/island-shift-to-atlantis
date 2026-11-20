@@ -100,10 +100,10 @@ describe('final por fuga', () => {
     let s = blank('short');
     const b0 = s.builders.find((b) => b.id === 'p0b0')!;
     b0.status = 'boat';
-    b0.hex = H(5, 0);
-    put(s, 'p1b0', H(1, 1));
+    b0.hex = H(-5, 5);
+    put(s, 'p1b0', H(-2, 1));
     s.crystals = [2, 5];
-    const r = applyAction(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(6, 0) });
+    const r = applyAction(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 6) });
     expect(r.ok).toBe(true);
     s = (r as { ok: true; state: GameState }).state;
     expect(s.escape).toEqual({ by: 0 });

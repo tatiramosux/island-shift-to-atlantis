@@ -881,10 +881,10 @@ describe('como se vence', () => {
 
   it('da praia o pirata entra no bote, rema até 2 casas e sobe no navio', () => {
     let s = blank();
-    put(s, 'p0b0', H(4, 0));
-    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(5, 0) }).state;
+    put(s, 'p0b0', H(-4, 4));
+    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(-5, 5) }).state;
     expect(s.builders[0].status).toBe('boat');
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(6, 0) }).state; // o navio do time 0
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 6) }).state; // o navio do time 0
     expect(s.builders[0].status).toBe('aboard');
     expect(s.builders[0].hex).toBeNull();
   });
@@ -892,20 +892,20 @@ describe('como se vence', () => {
   it('não sobe no navio dos outros', () => {
     const s = blank();
     s.builders[0].status = 'boat';
-    s.builders[0].hex = H(-5, 0);
-    bad(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 0) });
+    s.builders[0].hex = H(5, -5);
+    bad(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(6, -6) });
   });
 
   it('cabem 2 piratas do mesmo time no bote, e eles remam juntos até o navio', () => {
     let s = blank();
-    put(s, 'p0b0', H(4, 0));
-    put(s, 'p0b1', H(3, 0));
+    put(s, 'p0b0', H(-4, 4));
+    put(s, 'p0b1', H(-3, 3));
     s.actionsLeft = 5;
-    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(5, 0) }).state;
-    s = ok(s, { type: 'move', player: 0, builderId: 'p0b1', to: H(4, 0) }).state;
-    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b1', to: H(5, 0) }).state; // entra no mesmo bote
+    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(-5, 5) }).state;
+    s = ok(s, { type: 'move', player: 0, builderId: 'p0b1', to: H(-4, 4) }).state;
+    s = ok(s, { type: 'launch', player: 0, builderId: 'p0b1', to: H(-5, 5) }).state; // entra no mesmo bote
     expect(s.builders.filter((b) => b.owner === 0).every((b) => b.status === 'boat')).toBe(true);
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(6, 0) }).state;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 6) }).state;
     expect(s.builders.filter((b) => b.owner === 0).every((b) => b.status === 'aboard')).toBe(true);
     expect(s.actionsLeft).toBe(1);
   });
@@ -915,12 +915,12 @@ describe('como se vence', () => {
     for (const id of ['p0b0', 'p0b1']) {
       const b = s.builders.find((x) => x.id === id)!;
       b.status = 'boat';
-      b.hex = H(5, 0);
+      b.hex = H(-5, 5);
     }
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(6, -2) }).state;
-    expect(s.builders.filter((b) => b.owner === 0).every((b) => hexKey(b.hex!) === hexKey(H(6, -2)))).toBe(true);
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(5, -1) }).state;
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(4, -1) }).state;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-4, 6) }).state;
+    expect(s.builders.filter((b) => b.owner === 0).every((b) => hexKey(b.hex!) === hexKey(H(-4, 6)))).toBe(true);
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-4, 5) }).state;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-3, 4) }).state;
     expect(s.builders.find((b) => b.id === 'p0b1')!.status).toBe('board');
     expect(s.builders.find((b) => b.id === 'p0b0')!.status).toBe('boat');
   });
@@ -929,9 +929,9 @@ describe('como se vence', () => {
     const s = blank();
     const b = s.builders.find((x) => x.id === 'p1b0')!;
     b.status = 'boat';
-    b.hex = H(5, 0);
-    put(s, 'p0b0', H(4, 0));
-    bad(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(5, 0) });
+    b.hex = H(-5, 5);
+    put(s, 'p0b0', H(-4, 4));
+    bad(s, { type: 'launch', player: 0, builderId: 'p0b0', to: H(-5, 5) });
   });
 
   it('o Polvo vira o bote com 2: os dois ficam boiando, cada um numa casa', () => {
@@ -967,11 +967,11 @@ describe('como se vence', () => {
     s.builders.find((b) => b.id === 'p0b0')!.hex = null;
     const b1 = s.builders.find((b) => b.id === 'p0b1')!;
     b1.status = 'boat';
-    b1.hex = H(5, 0);
-    put(s, 'p1b0', H(-3, 0));
+    b1.hex = H(-5, 5);
+    put(s, 'p1b0', H(3, -3));
     s.crystals[1] = 5;
     s.actionsLeft = 3;
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(6, 0) }).state;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-6, 6) }).state;
     expect(s.phase).toBe('ended');
     expect(s.winners).toEqual([1]); // 5 cristais contra 3
   });
@@ -980,10 +980,10 @@ describe('como se vence', () => {
     let s = climb(blank());
     const b1 = s.builders.find((b) => b.id === 'p0b1')!;
     b1.status = 'boat';
-    b1.hex = H(5, 0);
+    b1.hex = H(-5, 5);
     s.actionsLeft = 3;
-    put(s, 'p1b0', H(-3, 0));
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(6, 0) }).state;
+    put(s, 'p1b0', H(3, -3));
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-6, 6) }).state;
     expect(s.phase).toBe('action'); // o p0b0 ainda está no Castelo
   });
 
@@ -992,9 +992,9 @@ describe('como se vence', () => {
     s.builders.find((b) => b.id === 'p0b0')!.status = 'aboard';
     const b1 = s.builders.find((b) => b.id === 'p0b1')!;
     b1.status = 'boat';
-    b1.hex = H(5, 0);
-    put(s, 'p1b0', H(-3, 0));
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(6, 0) }).state;
+    b1.hex = H(-5, 5);
+    put(s, 'p1b0', H(3, -3));
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-6, 6) }).state;
     expect(s.phase).toBe('action');
   });
 
@@ -1004,11 +1004,11 @@ describe('como se vence', () => {
     s.builders.find((b) => b.id === 'p0b0')!.hex = null;
     const b1 = s.builders.find((b) => b.id === 'p0b1')!;
     b1.status = 'boat';
-    b1.hex = H(5, 0);
-    put(s, 'p1b0', H(-3, 0));
+    b1.hex = H(-5, 5);
+    put(s, 'p1b0', H(3, -3));
     s.crystals[1] = 3;
     s.actionsLeft = 3;
-    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(6, 0) }).state;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-6, 6) }).state;
     expect(s.winners).toEqual([0]);
     expect(s.winReason).toBe('ship');
   });
