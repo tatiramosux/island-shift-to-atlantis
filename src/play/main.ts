@@ -1195,6 +1195,10 @@ const demoGame = () => {
  * da tela. Deitada: um de cada lado do nome do jogo. Em pé (celular): o dos piratas no alto à esquerda e o dos robôs
  * mais embaixo à direita, sem cobrir a ilha. O 3º navio fica fora da tela.
  */
+const cacheKey = () => {
+  const v = $('view');
+  return `${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
+};
 const placeHomeShips = () => {
   if (inGame) return;
   const v = $('view');
@@ -1223,6 +1227,11 @@ const placeHomeShips = () => {
     return best.h;
   });
   stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
+  try {
+    sessionStorage.setItem('ais-ships', JSON.stringify({ k: cacheKey(), ships: game.ships }));
+  } catch {
+    /* sem armazenamento: só perde o atalho */
+  }
 };
 // só reposiciona se a largura ou o formato da tela mudaram: a barra do navegador do celular (muda só a altura) não faz os navios pularem
 let shipsLayout = '';
@@ -1467,30 +1476,23 @@ stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
 stage.setHomeMode(true);
 if (ONLINE_AVAILABLE && new URLSearchParams(location.search).get('sala')) homeTab = 'net';
 renderHome();
-placeHomeShips();
-// o título muda de tamanho quando a fonte chega e os navios se reposicionam: o tabuleiro só aparece depois disso (sem "pulo")
-const viewEl = $('view');
-viewEl.style.opacity = '0';
-let homeShown = false;
-const shipSig = () => JSON.stringify(game.ships);
-const showHomeView = async () => {
-  if (homeShown) return;
-  homeShown = true;
-  // espera o layout assentar (fonte, tamanho do título e da câmera): reposiciona até o resultado se repetir
-  let last = '';
-  for (let i = 0; i < 12; i++) {
-    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 60)));
+try {
+  const c = JSON.parse(sessionStorage.getItem('ais-ships') ?? 'null') as { k: string; ships: Hex[] } | null;
+  if (c && c.k === cacheKey() && c.ships.length === game.ships.length) {
+    game.ships = c.ships; // mesma tela da última vez: navios já no lugar final
+    stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
+  } else placeHomeShips();
+} catch {
+  placeHomeShips();
+}
+// o título muda de tamanho quando a fonte chega: os navios são reposicionados depois disso. A última posição fica guardada
+// (por formato de tela), então ao recarregar (trocar PT/EN) eles já aparecem no lugar final e nada pisca nem pula
+void (document.fonts?.ready ?? Promise.resolve()).then(() =>
+  setTimeout(() => {
     placeHomeShips();
-    const sig = shipSig();
-    if (sig === last) break;
-    last = sig;
-  }
-  shipsLayout = layoutOf();
-  viewEl.style.transition = 'opacity 0.25s';
-  viewEl.style.opacity = '1';
-};
-void (document.fonts?.ready ?? Promise.resolve()).then(() => void showHomeView());
-setTimeout(() => void showHomeView(), 1500); // se a fonte demorar, mostra assim mesmo
+    shipsLayout = layoutOf();
+  }, 80),
+);
 
 // atalho de teste (só em desenvolvimento)
 if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__atl = { stage, get game() { return game; }, apply, startLocal, opts, showEnd, play };
