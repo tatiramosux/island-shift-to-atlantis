@@ -919,6 +919,8 @@ toolsList.append(
   musicBtn,
   btn('', () => showRules(), { icon: BookOpen, title: t('How to play and goal', 'Como jogar e objetivo') }),
   btn('', () => showGestures(), { icon: Pointer, title: t('How to move the board (gestures)', 'Como mexer no tabuleiro (gestos)') }),
+  btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
+  btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
   camBtn,
   camera,
 );
@@ -936,8 +938,6 @@ tools.append(
   btn('', () => showPause(), { icon: Menu, title: 'Menu' }),
   soundBtn,
   ...(standalone ? [] : [fsBtn]), // aberto pela Tela de Início já está em tela cheia
-  btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
-  btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
   toolsTab,
   toolsList,
 );
@@ -946,8 +946,6 @@ const zoomBtn = (b: HTMLButtonElement) => (b.classList.add('zoomonly'), b);
 camera.append(
   zoomBtn(btn('', () => stage.zoomBy(1.25), { icon: Plus, title: t('Zoom in', 'Aproximar') })),
   zoomBtn(btn('', () => stage.zoomBy(0.8), { icon: Minus, title: t('Zoom out', 'Afastar') })),
-  btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
-  btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
   btn('', () => stage.resetView(), { icon: Crosshair, title: t('Recenter and reset the view', 'Centralizar e voltar à visão inicial') }),
 );
 const toggleLog = () => {

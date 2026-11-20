@@ -11,7 +11,8 @@ import { Models } from './models';
 import { buildSummon } from './summons';
 
 /** Zoom inicial da partida: um pouco afastado para caberem a ilha e os navios dos times. */
-const GAME_ZOOM = 0.82;
+/** Zoom da partida: no celular (tela estreita) mais perto; em tela larga o tabuleiro e os navios precisam caber. */
+const gameZoom = () => (innerWidth < 760 ? 1.32 : 0.82);
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
 export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'dig' | 'treasure' | 'wave' | 'both';
@@ -22,7 +23,7 @@ export interface StageScene {
 }
 
 /** Ângulo isométrico: 45° de azimute e 30° de elevação (isométrica); a tela inicial usa 135°. */
-export const FRONT_AZ = Math.PI / 4;
+export const FRONT_AZ = 2.28; // visão inicial escolhida (≈131°): navios em cima à esquerda e embaixo no centro
 export const HOME_AZ = (3 * Math.PI) / 4;
 const ELEV = Math.PI / 6;
 
@@ -268,7 +269,7 @@ export class Stage3D {
   /** Tela inicial: o tabuleiro sobe na tela e fica um pouco menor, para o logo e o painel ficarem embaixo. */
   setHomeMode(on: boolean) {
     this.home = on;
-    this.zoom = on ? 0.8 : GAME_ZOOM;
+    this.zoom = on ? 0.8 : gameZoom();
     this.resize();
   }
   zoomBy(f: number) {
@@ -283,7 +284,7 @@ export class Stage3D {
   }
   resetView() {
     this.azTarget = FRONT_AZ;
-    this.zoom = GAME_ZOOM;
+    this.zoom = gameZoom();
     this.target.set(0, 0, 0);
     this.resize();
   }
