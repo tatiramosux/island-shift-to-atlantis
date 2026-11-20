@@ -67,6 +67,16 @@ const SOUNDS: Record<string, Note[]> = {
   lose: seq(['E4', 'D#4', 'D4', 'C#4'], 0.2, 'square', 0.35, 0.04),
   turn: [{ f: NOTE('A5'), d: 0.07, w: 'triangle', v: 0.4 }, { f: NOTE('D6'), d: 0.1, w: 'triangle', v: 0.4, at: 0.08 }],
   error: [{ f: 160, d: 0.12, w: 'square', v: 0.35 }],
+  // a ilha afunda (3,4 s): ronco grave, estalos de rachadura, mar subindo, borbulhas e o glub final
+  sink: [
+    { f: 62, to: 28, d: 3.3, w: 'square', v: 0.32 },
+    { f: 220, to: 70, d: 3.0, w: 'noise', v: 0.3 },
+    ...[0.05, 0.3, 0.55, 0.8, 1.05, 1.3, 1.6, 1.9].map((at, i) => ({ f: 700 + (i % 3) * 400, to: 120, d: 0.09, w: 'noise' as Wave, v: 0.5, at })),
+    { f: 300, to: 1600, d: 1.1, w: 'noise', v: 0.4, at: 1.0 },
+    { f: 1600, to: 180, d: 1.3, w: 'noise', v: 0.45, at: 2.0 },
+    ...[2.3, 2.45, 2.62, 2.8, 2.95].map((at, i) => ({ f: 260 + i * 70, to: 700 + i * 110, d: 0.08, w: 'triangle' as Wave, v: 0.45, at })),
+    { f: 180, to: 45, d: 0.55, w: 'triangle', v: 0.6, at: 3.0 },
+  ],
 };
 export type SoundName = keyof typeof SOUNDS;
 

@@ -27,7 +27,7 @@ import { chooseAction } from '../game/bot';
 import { drawRobotFamilies, setSeatLooks, teamColor, teamName } from '../game/players';
 import { ONLINE_AVAILABLE, ONLINE_SITE, wsUrl, type SeatInfo, type ServerMsg } from '../net/protocol';
 import { FRONT_AZ, HOME_AZ, Stage3D, type Highlight } from '../stage/Stage3D';
-import { icons, type IconName } from '../stage/icons';
+import { icons, teamIcons, type IconName } from '../stage/icons';
 import { getLang, setLang, t } from '../i18n';
 import { logoSvg } from './logo';
 import { isMuted, isMusicOn, play, setMuted, setMusicOn, unlockAudio, type SoundName } from './sfx';
@@ -262,7 +262,13 @@ const SOUND_OF: [string, SoundName][] = [
 ];
 const soundFor = (events: GameEvent[]) => {
   const over = events.find((e) => e.type === 'gameOver');
-  if (over) return play((over.winners as number[] | null)?.some((w) => mine(w)) ? 'win' : 'lose');
+  const verdict = () => play((over?.winners as number[] | null)?.some((w) => mine(w)) ? 'win' : 'lose');
+  if (over && events.some((e) => e.type === 'islandVanishes')) {
+    play('sink'); // a ilha afunda (3,4 s) e só então o som de vitória ou derrota, junto com o aviso de fim
+    setTimeout(verdict, 3800);
+    return;
+  }
+  if (over) return verdict();
   for (const [type, s] of SOUND_OF) if (events.some((e) => e.type === type)) return play(s);
 };
 
@@ -845,7 +851,7 @@ const drawScene = () => {
   });
   if (game.pendingFlood) hl.set(hexKey(game.pendingFlood.hex), 'flood'); // casa sorteada esperando o tridente
   // fase final: as casas que a próxima onda vai varrer ficam com espuma (por baixo das jogadas possíveis)
-  if (game.wave !== null && game.wave !== undefined && inGame) for (const h of waveCells(game, game.wave)) if (!hl.has(hexKey(h))) hl.set(hexKey(h), 'wave');
+  if (game.wave !== null && game.wave !== undefined && inGame && !game.vanished && game.phase !== 'ended') for (const h of waveCells(game, game.wave)) if (!hl.has(hexKey(h))) hl.set(hexKey(h), 'wave');
   stage.update({ state: game, highlights: hl, selectedBuilder: isHumanTurn() && game.phase === 'action' ? selBuilder : null });
 };
 
@@ -1116,7 +1122,8 @@ const showEnd = () => {
     ? { ship: t('Escaped on the ship with the most crystals. The island vanished into the sea and those left behind are adrift.', 'Fugiu no navio com mais cristais. A ilha sumiu no mar e quem ficou está boiando.'), crystals: t('Nobody escaped in time: the island vanished and whoever had the most crystals won.', 'Ninguém fugiu a tempo: a ilha sumiu e venceu quem tinha mais cristais.') }
     : { ship: t('Got the whole team on the ship and escaped with the treasure.', 'Embarcou o time todo no navio e fugiu com o tesouro.'), temple: t('Reached the top of the Castle of Atlantis.', 'Chegou ao topo do Castelo de Atlântida.'), crystals: t('Gathered the most crystals by the end of the match.', 'Juntou mais cristais até o fim da partida.'), last: t('Was the last one standing.', 'Foi o último de pé.'), draw: t('Nobody was left.', 'Ninguém sobrou.') }
   )[(game.winReason ?? 'draw') as 'ship'];
-  c.innerHTML = `<h3>${w.length ? t(`${pname(w[0])} wins!`, `${pname(w[0])} venceu!`) : t('Draw', 'Empate')}</h3><p>${why}</p>`;
+  const team = w.length ? `<div class="winteam" style="--team:${teamColor(w[0])}">${teamIcons(w[0]).map((u) => `<img src="${u}" alt="" width="96" height="96">`).join('')}</div>` : '';
+  c.innerHTML = team + `<h3>${w.length ? t(`${pname(w[0])} wins!`, `${pname(w[0])} venceu!`) : t('Draw', 'Empate')}</h3><p>${why}</p>`;
   c.appendChild(row(btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { primary: true }), btn(t('See the board', 'Ver o tabuleiro'), closeModal)));
   modal(c);
 };
@@ -1134,11 +1141,7 @@ const enterGame = () => {
   refresh();
   stage.setHomeMode(false);
   stage.turnTo(FRONT_AZ);
-  if (session.kind === 'hot') faceActor();
-  else {
-    const me = viewer();
-    if (me >= 0) stage.faceSide(game.builders.filter((b) => b.owner === me && b.hex).map((b) => b.hex!));
-  }
+  if (session.kind === 'hot') faceActor(); // passa e joga: o tabuleiro gira para quem joga; contra bots a visão inicial é fixa
   schedule();
 };
 
@@ -1196,7 +1199,7 @@ const placeHomeShips = () => {
   if (inGame) return;
   const v = $('view');
   const portrait = v.clientWidth / Math.max(1, v.clientHeight) < 0.9;
-  const spots = portrait ? [{ x: -1.5, y: 0.2 }, { x: 0.17, y: 0.11 }, { x: 0.97, y: 0.27 }] : [{ x: -1.5, y: 0.2 }, { x: 0.08, y: 0.51 }, { x: 0.91, y: 0.51 }];
+  const spots = portrait ? [{ x: -1.5, y: 0.2 }, { x: 0.17, y: 0.11 }, { x: 0.82, y: 0.29 }] : [{ x: -1.5, y: 0.2 }, { x: 0.08, y: 0.51 }, { x: 0.91, y: 0.51 }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)
@@ -1221,7 +1224,19 @@ const placeHomeShips = () => {
   });
   stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
 };
-addEventListener('resize', () => setTimeout(placeHomeShips, 60));
+// só reposiciona se a largura ou o formato da tela mudaram: a barra do navegador do celular (muda só a altura) não faz os navios pularem
+let shipsLayout = '';
+const layoutOf = () => {
+  const v = $('view');
+  return `${Math.round(v.clientWidth / 24)}|${v.clientWidth / Math.max(1, v.clientHeight) < 0.9}`;
+};
+addEventListener('resize', () =>
+  setTimeout(() => {
+    if (layoutOf() === shipsLayout) return;
+    shipsLayout = layoutOf();
+    placeHomeShips();
+  }, 60),
+);
 
 const leaveGame = () => {
   if (timer) clearTimeout(timer);
@@ -1453,7 +1468,29 @@ stage.setHomeMode(true);
 if (ONLINE_AVAILABLE && new URLSearchParams(location.search).get('sala')) homeTab = 'net';
 renderHome();
 placeHomeShips();
-void document.fonts?.ready.then(() => setTimeout(placeHomeShips, 50)); // o título muda de tamanho quando a fonte chega
+// o título muda de tamanho quando a fonte chega e os navios se reposicionam: o tabuleiro só aparece depois disso (sem "pulo")
+const viewEl = $('view');
+viewEl.style.opacity = '0';
+let homeShown = false;
+const shipSig = () => JSON.stringify(game.ships);
+const showHomeView = async () => {
+  if (homeShown) return;
+  homeShown = true;
+  // espera o layout assentar (fonte, tamanho do título e da câmera): reposiciona até o resultado se repetir
+  let last = '';
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 60)));
+    placeHomeShips();
+    const sig = shipSig();
+    if (sig === last) break;
+    last = sig;
+  }
+  shipsLayout = layoutOf();
+  viewEl.style.transition = 'opacity 0.25s';
+  viewEl.style.opacity = '1';
+};
+void (document.fonts?.ready ?? Promise.resolve()).then(() => void showHomeView());
+setTimeout(() => void showHomeView(), 1500); // se a fonte demorar, mostra assim mesmo
 
 // atalho de teste (só em desenvolvimento)
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__atl = { stage, get game() { return game; }, apply, startLocal, opts };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__atl = { stage, get game() { return game; }, apply, startLocal, opts, showEnd, play };

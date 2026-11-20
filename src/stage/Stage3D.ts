@@ -23,7 +23,7 @@ export interface StageScene {
 }
 
 /** Ângulo isométrico: 45° de azimute e 30° de elevação (isométrica); a tela inicial usa 135°. */
-export const FRONT_AZ = 2.28; // visão inicial escolhida (≈131°): navios em cima à esquerda e embaixo no centro
+export const FRONT_AZ = 2.62; // visão inicial fixa (≈150°): navio cinza no alto à esquerda, marrom embaixo à direita
 export const HOME_AZ = (3 * Math.PI) / 4;
 const ELEV = Math.PI / 6;
 
@@ -415,10 +415,57 @@ export class Stage3D {
     if (!sc.state.vanished && this.vanishAt) {
       this.vanishAt = 0; // nova partida: a ilha volta ao lugar
       this.cellsGroup.position.set(0, 0, 0);
+      this.resetSink();
     }
     this.syncCells(sc.state);
     this.syncEntities(sc.state);
     this.syncHighlights(sc);
+  }
+
+  /* ---------- a ilha afunda ---------- */
+
+  private sunk = new Set<THREE.Group>();
+  private ripplesAt = 0;
+  /** Volta cada casa ao lugar (nova partida depois de a ilha afundar). */
+  private resetSink() {
+    for (const rec of this.cellObjs.values()) {
+      rec.group.position.y = 0;
+      rec.group.rotation.set(0, 0, 0);
+    }
+    this.sunk.clear();
+    this.ripplesAt = 0;
+  }
+  /** Casa por casa, da borda para o centro: racha, tomba, afunda com respingos; no fim, ondas se abrem no mar. */
+  private sinkCells(ms: number) {
+    for (const rec of this.cellObjs.values()) {
+      const g = rec.group;
+      const r = Math.hypot(g.position.x, g.position.z) / 1.73; // anel da casa
+      const jitter = (Math.sin(g.position.x * 12.9 + g.position.z * 78.2) * 0.5 + 0.5) * 200;
+      const delay = Math.max(0, 4.5 - r) * 300 + jitter;
+      const p = Math.min(1, Math.max(0, (ms - delay) / 1500));
+      if (p > 0 && !this.sunk.has(g)) {
+        this.sunk.add(g);
+        this.burst(g.position.x, 0.5, g.position.z, '#dff6ff', 5, 0, 1.6);
+        this.burst(g.position.x, 0.4, g.position.z, '#7fc4e8', 3, 0.05, 1.1);
+      }
+      const e = p * p;
+      g.position.y = -e * 9;
+      const tilt = Math.sin(g.position.x * 3.1 + g.position.z * 1.7) * 0.45 * Math.min(1, p * 3);
+      g.rotation.set(tilt, 0, -tilt * 0.8);
+    }
+    if (ms > 2300 && !this.ripplesAt) {
+      this.ripplesAt = ms;
+      for (let i = 0; i < 3; i++) {
+        const ring = new THREE.Mesh(new THREE.RingGeometry(0.92, 1, 56), new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }));
+        this.addFx(ring, 1.6, i * 0.35, (p) => {
+          ring.rotation.x = -Math.PI / 2;
+          ring.position.set(0, 0.07, 0);
+          ring.scale.setScalar(2 + p * 11);
+          (ring.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - p);
+        });
+      }
+      for (let i = 0; i < 4; i++) this.burst((Math.random() - 0.5) * 4, 0.1, (Math.random() - 0.5) * 4, '#bfe6f5', 6, i * 0.25, 1.0);
+    }
   }
 
   private mark(o: THREE.Object3D, h: Hex) {
@@ -944,9 +991,9 @@ export class Stage3D {
     // a ilha some: treme, afunda no mar e desaparece (os piratas ficam nas boias, que já estão na água)
     if (this.vanishAt) {
       const p = Math.min(1, (now - this.vanishAt) / 3400);
-      const e = p * p * (3 - 2 * p);
-      const shake = (1 - p) * 0.07 * Math.sin(t * 38);
-      this.cellsGroup.position.set(shake, -e * 11, -shake);
+      const shake = (1 - p) * 0.05 * Math.sin(t * 38);
+      this.cellsGroup.position.set(shake, 0, -shake);
+      this.sinkCells(now - this.vanishAt);
     }
     for (const { obj, phase } of this.shimmers) {
       // a crista da onda passa em diagonal pelas casas: na crista o hexágono clareia, depois apaga
@@ -978,8 +1025,9 @@ export class Stage3D {
     const ryRight = [ryCam + ISO_TURN, ryCam - ISO_TURN].find((r) => Math.sin(r) * camRight.x + Math.cos(r) * camRight.z > 0) ?? ryCam + ISO_TURN;
     const ryLeft = ryRight === ryCam + ISO_TURN ? ryCam - ISO_TURN : ryCam + ISO_TURN;
     for (const e of this.ents.values()) {
-      const dist = e.pos.distanceTo(e.target);
-      e.pos.lerp(e.target, k);
+      const dist = this.home ? 0 : e.pos.distanceTo(e.target);
+      if (this.home) e.pos.copy(e.target); // tela inicial: nada desliza nem pula; os navios só boiam no lugar
+      else e.pos.lerp(e.target, k);
       const hop = Math.min(0.35, dist * 0.3);
       const bob = e.floating ? Math.sin(t * 1.6 + (e.kind.includes('-boat-') ? e.pos.x : e.phase)) * 0.08 : 0; // quem divide o bote balança junto
       e.group.position.set(e.pos.x, e.pos.y + hop + bob, e.pos.z);
