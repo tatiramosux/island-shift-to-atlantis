@@ -77,6 +77,30 @@ const SOUNDS: Record<string, Note[]> = {
     ...[2.3, 2.45, 2.62, 2.8, 2.95].map((at, i) => ({ f: 260 + i * 70, to: 700 + i * 110, d: 0.08, w: 'triangle' as Wave, v: 0.45, at })),
     { f: 180, to: 45, d: 0.55, w: 'triangle', v: 0.6, at: 3.0 },
   ],
+  // Polvo: o tentáculo estica (estalo molhado), aperta o pirata e arremessa
+  tentacle: [{ f: 300, to: 900, d: 0.45, w: 'noise', v: 0.35 }, { f: 110, to: 260, d: 0.4, w: 'square', v: 0.25 }, { f: 160, to: 340, d: 0.3, w: 'triangle', v: 0.3, at: 0.1 }],
+  squeeze: [{ f: 220, to: 120, d: 0.12, w: 'square', v: 0.4 }, { f: 200, to: 110, d: 0.12, w: 'square', v: 0.4, at: 0.14 }, { f: 600, to: 300, d: 0.25, w: 'noise', v: 0.25 }],
+  whoosh: [{ f: 400, to: 2400, d: 0.35, w: 'noise', v: 0.45 }, { f: 500, to: 900, d: 0.3, w: 'triangle', v: 0.25 }],
+  // Leviatã: rugido, a cauda corta o ar e agarra
+  roar: [{ f: 70, to: 150, d: 0.25, w: 'square', v: 0.4 }, { f: 150, to: 60, d: 0.45, w: 'square', v: 0.4, at: 0.22 }, { f: 500, to: 200, d: 0.6, w: 'noise', v: 0.3 }],
+  tailWhip: [{ f: 90, to: 45, d: 0.5, w: 'square', v: 0.4 }, { f: 250, to: 1200, d: 0.35, w: 'noise', v: 0.4 }, { f: 700, to: 140, d: 0.25, w: 'square', v: 0.25, at: 0.3 }],
+  bigSplash: [
+    { f: 1400, to: 200, d: 0.5, w: 'noise', v: 0.55 },
+    { f: 200, to: 60, d: 0.35, w: 'triangle', v: 0.6 },
+    ...[0.2, 0.32, 0.45].map((at, i) => ({ f: 280 + i * 90, to: 700 + i * 120, d: 0.08, w: 'triangle' as Wave, v: 0.4, at })),
+  ],
+  // grito de quem é agarrado e jogado: agudo subindo e caindo, duas vezes
+  scream: [
+    { f: 700, to: 1500, d: 0.35, w: 'square', v: 0.3 },
+    { f: 1500, to: 500, d: 0.5, w: 'square', v: 0.3, at: 0.35 },
+    { f: 900, to: 1700, d: 0.3, w: 'triangle', v: 0.3, at: 0.1 },
+  ],
+  // o fim se aproxima: sirene subindo e três pancadas
+  climax: [
+    { f: 200, to: 3200, d: 1.4, w: 'noise', v: 0.4 },
+    { f: 110, to: 440, d: 1.4, w: 'square', v: 0.25 },
+    ...[1.3, 1.5, 1.7].map((at) => ({ f: 120, to: 45, d: 0.2, w: 'square' as Wave, v: 0.55, at })),
+  ],
 };
 export type SoundName = keyof typeof SOUNDS;
 
@@ -138,7 +162,42 @@ export const setMuted = (m: boolean) => {
   }
 };
 
+/** Vibração do aparelho (onde o navegador permite, como no Android): cada ação tem o seu toque; liga e desliga à parte do som. */
+const BUZZ: Partial<Record<SoundName, number | number[]>> = {
+  move: 12, dig: 25, build: [20, 30, 20], push: 40, swim: 15, row: 20, launch: 30, castle: [60, 40, 60, 40, 140],
+  quake: [80, 40, 80, 40, 80], flood: [40, 30, 40], splash: 35, wave: [120, 50, 120], waveWarning: [60, 80, 60],
+  dieLand: 30, creature: 25, grab: 40, smash: [90, 40, 120], summon: [30, 30, 60], win: [80, 50, 80, 50, 200], turn: 15,
+  error: [30, 40, 30], sink: [150, 60, 150, 60, 250], tentacle: [30, 20, 50], squeeze: [70, 30, 70], whoosh: 25,
+  roar: [120, 40, 160], tailWhip: [40, 20, 60], bigSplash: [60, 30, 140], scream: [30, 20, 30, 20, 30], climax: [200, 80, 200, 80, 200],
+};
+const VIBE_KEY = 'atlantida.vibracao';
+let vibeOn = (() => {
+  try {
+    return localStorage.getItem(VIBE_KEY) !== 'off';
+  } catch {
+    return true;
+  }
+})();
+export const isVibeOn = () => vibeOn;
+export const setVibeOn = (on: boolean) => {
+  vibeOn = on;
+  try {
+    localStorage.setItem(VIBE_KEY, on ? 'on' : 'off');
+  } catch {
+    /* sem armazenamento: vale só nesta visita */
+  }
+  if (on) buzz('push'); // um toque de teste
+};
+const buzz = (name: SoundName) => {
+  try {
+    if (vibeOn && typeof navigator !== 'undefined' && 'vibrate' in navigator && BUZZ[name]) navigator.vibrate(BUZZ[name]!);
+  } catch {
+    /* sem vibração neste aparelho */
+  }
+};
+
 export const play = (name: SoundName) => {
+  buzz(name);
   const ac = audio();
   if (!ac || !master || ac.state !== 'running') return;
   const t0 = ac.currentTime + 0.01;
@@ -189,22 +248,54 @@ let musicTimer: ReturnType<typeof setInterval> | null = null;
 let nextStep = 0;
 let nextTime = 0;
 
-// cada passo é uma colcheia; 8 compassos de 8 passos, em lá menor ('-' = pausa)
-const MELODY = [
-  'A4', '-', 'C5', 'E5', 'D5', 'C5', 'B4', '-',
-  'G4', '-', 'B4', 'D5', 'C5', 'B4', 'A4', '-',
-  'A4', '-', 'C5', 'E5', 'G5', 'E5', 'D5', 'C5',
-  'B4', 'G4', 'B4', 'D5', 'E5', '-', '-', '-',
-  'F5', '-', 'E5', 'D5', 'C5', '-', 'A4', '-',
-  'G4', '-', 'B4', 'D5', 'C5', 'B4', 'A4', 'G4',
-  'A4', 'C5', 'E5', 'A5', 'G5', 'E5', 'D5', 'B4',
-  'A4', '-', 'E4', '-', 'A4', '-', '-', '-',
-];
-// baixo: fundamental e quinta de cada compasso (Am G Am G F G Am E)
-const BASS: [string, string][] = [['A2', 'E3'], ['G2', 'D3'], ['A2', 'E3'], ['G2', 'D3'], ['F2', 'C3'], ['G2', 'D3'], ['A2', 'E3'], ['E2', 'B2']];
-const STEP = 60 / 132 / 2; // colcheia a 132 batidas por minuto
+/** Uma faixa: 8 compassos de 8 passos (colcheias). '-' = pausa. `bass` = nota de cada compasso. */
+interface Track {
+  melody: string[];
+  bass: string[][];
+  step: number; // duração de um passo (s)
+  gain: number;
+  drums: boolean;
+}
+const TRACKS: Record<'calm' | 'climax', Track> = {
+  // cantiga de marinheiro em lá menor; baixo: fundamental e quinta de cada compasso (Am G Am G F G Am E)
+  calm: {
+    melody: [
+      'A4', '-', 'C5', 'E5', 'D5', 'C5', 'B4', '-',
+      'G4', '-', 'B4', 'D5', 'C5', 'B4', 'A4', '-',
+      'A4', '-', 'C5', 'E5', 'G5', 'E5', 'D5', 'C5',
+      'B4', 'G4', 'B4', 'D5', 'E5', '-', '-', '-',
+      'F5', '-', 'E5', 'D5', 'C5', '-', 'A4', '-',
+      'G4', '-', 'B4', 'D5', 'C5', 'B4', 'A4', 'G4',
+      'A4', 'C5', 'E5', 'A5', 'G5', 'E5', 'D5', 'B4',
+      'A4', '-', 'E4', '-', 'A4', '-', '-', '-',
+    ],
+    bass: [['A2', 'E3'], ['G2', 'D3'], ['A2', 'E3'], ['G2', 'D3'], ['F2', 'C3'], ['G2', 'D3'], ['A2', 'E3'], ['E2', 'B2']],
+    step: 60 / 132 / 2,
+    gain: 0.06,
+    drums: false,
+  },
+  // clímax (reta final): mais rápida, baixo pulsando em colcheias, arpejos agudos e bateria (Am F C G Am F E E)
+  climax: {
+    melody: [
+      'A4', 'C5', 'E5', 'A5', 'G5', 'E5', 'C5', 'E5',
+      'F4', 'A4', 'C5', 'F5', 'E5', 'C5', 'A4', 'C5',
+      'E5', 'G5', 'C6', 'G5', 'E5', 'G5', 'D5', 'C5',
+      'B4', 'D5', 'G5', 'B5', 'A5', 'G5', 'D5', 'B4',
+      'A4', 'C5', 'E5', 'A5', 'C6', 'A5', 'E5', 'C5',
+      'F5', 'A5', 'C6', 'A5', 'F5', 'A5', 'C6', 'F6',
+      'E5', 'G#5', 'B5', 'E6', 'B5', 'G#5', 'B5', 'E6',
+      'E5', 'G#5', 'B5', 'E6', 'D6', 'B5', 'G#5', 'E5',
+    ],
+    bass: [['A2'], ['F2'], ['C3'], ['G2'], ['A2'], ['F2'], ['E2'], ['E2']],
+    step: 60 / 156 / 2,
+    gain: 0.085,
+    drums: true,
+  },
+};
+let track: Track = TRACKS.calm;
+let climaxOn = false;
 
-const tone = (ac: AudioContext, dest: AudioNode, f: number, start: number, d: number, w: Wave, v: number) => {
+const tone = (ac: AudioContext, dest: AudioNode, f: number, start: number, d: number, w: Wave, v: number, to?: number) => {
   const g = ac.createGain();
   g.gain.setValueAtTime(0.0001, start);
   g.gain.exponentialRampToValueAtTime(v, start + 0.008);
@@ -222,7 +313,8 @@ const tone = (ac: AudioContext, dest: AudioNode, f: number, start: number, d: nu
   } else {
     const o = ac.createOscillator();
     o.type = w;
-    o.frequency.value = f;
+    o.frequency.setValueAtTime(f, start);
+    if (to) o.frequency.exponentialRampToValueAtTime(to, start + d);
     o.connect(g);
     o.start(start);
     o.stop(start + d + 0.02);
@@ -233,22 +325,47 @@ const scheduleMusic = () => {
   const ac = ctx;
   if (!ac || !musicGain || ac.state !== 'running') return;
   if (nextTime < ac.currentTime) nextTime = ac.currentTime + 0.05;
+  const { melody, bass, step, drums } = track;
   while (nextTime < ac.currentTime + 0.25) {
-    const i = nextStep % MELODY.length;
+    const i = nextStep % melody.length;
     const bar = Math.floor(i / 8);
     const beat = i % 8;
-    const m = MELODY[i];
+    const m = melody[i];
     if (m !== '-') {
       // a nota dura até a próxima (pausas seguram a anterior um pouco)
       let len = 1;
-      while (len < 3 && MELODY[(i + len) % MELODY.length] === '-') len++;
-      tone(ac, musicGain, NOTE(m), nextTime, STEP * len * 0.9, 'square', 0.22);
+      while (len < 3 && melody[(i + len) % melody.length] === '-') len++;
+      tone(ac, musicGain, NOTE(m), nextTime, step * len * 0.9, 'square', drums ? 0.2 : 0.22);
+      if (drums) tone(ac, musicGain, NOTE(m) / 2, nextTime, step * 0.9, 'square', 0.08); // oitava abaixo: soa mais cheio
     }
-    if (beat % 2 === 0) tone(ac, musicGain, NOTE(BASS[bar][beat % 4 === 0 ? 0 : 1]), nextTime, STEP * 1.8, 'triangle', 0.5);
-    tone(ac, musicGain, 7000, nextTime, beat % 4 === 2 ? 0.06 : 0.02, 'noise', beat % 4 === 2 ? 0.18 : 0.07); // chocalho
-    nextTime += STEP;
+    if (drums) {
+      const root = NOTE(bass[bar][0]);
+      tone(ac, musicGain, beat % 2 ? root * 2 : root, nextTime, step * 0.85, 'triangle', beat % 2 ? 0.32 : 0.55); // baixo pulsando
+      if (beat % 4 === 0) tone(ac, musicGain, 150, nextTime, 0.14, 'triangle', 0.7, 45); // bumbo
+      if (beat % 4 === 2) tone(ac, musicGain, 1800, nextTime, 0.1, 'noise', 0.32); // caixa
+      tone(ac, musicGain, 7500, nextTime, 0.025, 'noise', beat % 2 ? 0.1 : 0.16); // chimbal
+      // sinal de alarme: dois apitos (agudo, grave) no início de cada compasso, como sirene de aviso
+      if (beat === 0) tone(ac, musicGain, 1318, nextTime, step * 1.6, 'square', 0.16);
+      if (beat === 2) tone(ac, musicGain, 988, nextTime, step * 1.6, 'square', 0.16);
+      if (beat === 4) tone(ac, musicGain, 1318, nextTime, step * 1.6, 'square', 0.16);
+    } else {
+      if (beat % 2 === 0) tone(ac, musicGain, NOTE(bass[bar][beat % 4 === 0 ? 0 : 1]), nextTime, step * 1.8, 'triangle', 0.5);
+      tone(ac, musicGain, 7000, nextTime, beat % 4 === 2 ? 0.06 : 0.02, 'noise', beat % 4 === 2 ? 0.18 : 0.07); // chocalho
+    }
+    nextTime += step;
     nextStep++;
   }
+};
+
+/** Reta final da partida: troca a cantiga pela faixa de clímax (e volta quando a partida acaba). */
+export const setClimax = (on: boolean) => {
+  if (on === climaxOn) return;
+  climaxOn = on;
+  track = on ? TRACKS.climax : TRACKS.calm;
+  nextStep = 0;
+  nextTime = 0;
+  if (musicGain) musicGain.gain.value = track.gain;
+  if (on) play('climax');
 };
 
 const startMusic = () => {
@@ -257,7 +374,7 @@ const startMusic = () => {
   if (!ac) return;
   if (!musicGain) {
     musicGain = ac.createGain();
-    musicGain.gain.value = 0.06; // bem baixinha, por trás dos efeitos
+    musicGain.gain.value = track.gain; // baixinha, por trás dos efeitos
     musicGain.connect(ac.destination);
   }
   nextTime = 0;

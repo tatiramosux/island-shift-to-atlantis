@@ -44,6 +44,10 @@ interface Entity {
   armL?: THREE.Object3D;
   swingAt?: number; // quando começou a martelada
   faceTo?: THREE.Vector3; // bote: vira a pose isométrica para o lado da tela onde está o navio do time
+  /** Cena roteirizada (agarrado por tentáculo ou cauda): o roteiro manda na posição em vez de a casa nova. */
+  script?: { t0: number; dur: number; step: (p: number, pos: THREE.Vector3) => void };
+  spinZ?: number;
+  zzz?: THREE.Group; // os Z de quando o personagem dorme
 }
 
 export class Stage3D {
@@ -418,8 +422,36 @@ export class Stage3D {
       this.resetSink();
     }
     this.syncCells(sc.state);
+    this.syncPrincess(sc.state);
     this.syncEntities(sc.state);
     this.syncHighlights(sc);
+  }
+
+  /* ---------- a princesa espera no topo do Castelo até alguém chegar lá ---------- */
+
+  private princessObj: THREE.Group | null = null;
+  private syncPrincess(s: GameState) {
+    const t = s.cells['0,0'];
+    const waiting = !!t && t.floors >= 3 && s.castleTaken === null && !s.vanished && s.phase !== 'ended';
+    if (!waiting) {
+      if (this.princessObj) this.princessObj.visible = false;
+      return;
+    }
+    if (!this.princessObj) {
+      const m = this.models;
+      const g = new THREE.Group();
+      const dress = m.solid('#ff6fb5');
+      g.add(m.box(0.2, 0.1, 0.2, dress, 0, 0.05, 0), m.box(0.15, 0.1, 0.15, dress, 0, 0.15, 0), m.box(0.1, 0.09, 0.1, m.solid('#ffd7b8'), 0, 0.3, 0));
+      g.add(m.box(0.13, 0.05, 0.13, m.solid('#f3c846'), 0, 0.37, -0.01), m.box(0.12, 0.12, 0.03, m.solid('#f3c846'), 0, 0.3, -0.07));
+      g.add(m.box(0.1, 0.04, 0.1, m.solid('#e7b830', 0.5), 0, 0.42, 0)); // coroa
+      g.add(m.box(0.04, 0.12, 0.04, m.solid('#ffd7b8'), -0.1, 0.2, 0), m.box(0.04, 0.12, 0.04, m.solid('#ffd7b8'), 0.1, 0.24, 0));
+      g.scale.setScalar(1.7);
+      this.scene.add(g);
+      this.princessObj = g;
+    }
+    const w = worldOf(t.hex);
+    this.princessObj.visible = true;
+    this.princessObj.position.set(w.x, topOf(t) + 0.55, w.z);
   }
 
   /* ---------- a ilha afunda ---------- */
@@ -674,7 +706,8 @@ export class Stage3D {
           aboard.forEach((b, i) => {
             const fig = this.models.builder(b.owner, Number(b.id.slice(-1)));
             fig.scale.setScalar(1.4);
-            fig.position.set(ship.position.x, 0.8, ship.position.z + (i - 0.5) * 0.45);
+            // na proa, lado a lado: o meio do convés é ocupado pelas velas (barco) e pelas chaminés e luzes (robôs)
+            fig.position.set(ship.position.x + (i - 0.5) * 0.5, 0.8, ship.position.z + 1.35);
             g.add(fig);
           });
           return g;
@@ -753,6 +786,238 @@ export class Stage3D {
         this.hlGroup.add(ring);
       }
     }
+  }
+
+  /* ---------- sono: ninguém joga há um tempo, todos cochilam com Z subindo ---------- */
+  private sleeping = false;
+  private zTex: THREE.CanvasTexture | null = null;
+
+  setSleeping(on: boolean) {
+    if (on === this.sleeping) return;
+    this.sleeping = on;
+    if (!on) return;
+    if (!this.zTex) {
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d')!;
+      g.font = 'bold 52px sans-serif';
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.lineWidth = 8;
+      g.strokeStyle = '#1b2a4a';
+      g.strokeText('Z', 32, 34);
+      g.fillStyle = '#ffffff';
+      g.fillText('Z', 32, 34);
+      this.zTex = new THREE.CanvasTexture(c);
+    }
+    for (const e of this.ents.values()) {
+      if (!e.armR || e.zzz) continue;
+      const grp = new THREE.Group();
+      for (let i = 0; i < 3; i++) grp.add(new THREE.Sprite(new THREE.SpriteMaterial({ map: this.zTex, transparent: true, depthTest: false })));
+      e.group.add(grp);
+      e.zzz = grp;
+    }
+  }
+
+  /* ---------- arremesso: tentáculo do Polvo e cauda do Leviatã agarram o pirata e jogam na água ---------- */
+
+  /** Chamado nos instantes-chave da cena (o jogo liga isto aos sons). */
+  sfx: ((name: string) => void) | null = null;
+
+  private later(sec: number, fn: () => void) {
+    let done = false;
+    this.addFx(new THREE.Object3D(), sec + 0.3, 0, (p) => {
+      if (!done && p * (sec + 0.3) >= sec) {
+        done = true;
+        fn();
+      }
+    });
+  }
+
+  /**
+   * Membro comprido feito de cubinhos: sai do corpo, pode se levantar (rise), esticar como elástico (fica mais fino
+   * quanto mais estica) e enrolar o pirata (wrap = quanto da ponta já está espiralada em volta dele).
+   */
+  private makeLimb(mats: THREE.Material[], base: number, tipSize: number, extra?: { stripes: boolean; spike: THREE.Material; tip: THREE.Material; tipCubes: number }) {
+    const SEGS = extra ? 56 : 44;
+    const COIL = Math.round(SEGS * 0.34); // cubos que podem virar a espiral
+    const group = new THREE.Group();
+    const cubes: THREE.Mesh[] = [];
+    const spikes: THREE.Mesh[] = [];
+    for (let i = 0; i < SEGS; i++) {
+      const mat = extra
+        ? i >= SEGS - extra.tipCubes
+          ? extra.tip // nadadeira vermelha na ponta
+          : mats[Math.floor(i / 2) % mats.length] // listras de dois em dois, como no corpo
+        : mats[Math.min(mats.length - 1, Math.floor((i / SEGS) * mats.length * 0.999))];
+      const m = new THREE.Mesh(this.bit, mat);
+      group.add(m);
+      cubes.push(m);
+      if (extra && i % 3 === 0 && i < SEGS - COIL) {
+        const sp = new THREE.Mesh(this.bit, extra.spike); // espinho vermelho nas costas
+        group.add(sp);
+        spikes.push(sp);
+      }
+    }
+    const pts = cubes.map(() => new THREE.Vector3());
+    const mid = new THREE.Vector3();
+    const end = new THREE.Vector3();
+    const zero = new THREE.Vector3();
+    const update = (
+      root: THREE.Vector3,
+      tip: THREE.Vector3,
+      t: number,
+      o: { wrap?: number; rise?: number; away?: THREE.Vector3; rest?: number; radius?: number } = {},
+    ) => {
+      const wrap = o.wrap ?? 0;
+      const rise = o.rise ?? 0;
+      const radius = o.radius ?? 0.35;
+      const len = root.distanceTo(tip);
+      end.copy(tip);
+      end.x += radius * wrap; // onde a espiral começa
+      mid.copy(root).lerp(end, 0.5);
+      mid.y += Math.min(1.1, len * 0.28) + Math.sin(t * 7) * 0.05;
+      mid.addScaledVector(o.away ?? zero, rise * 1.5); // levantada, a cauda faz uma curva para trás
+      const nb = Math.max(2, Math.floor(SEGS - COIL * wrap)); // cubos que ficam no corpo; o resto vira a espiral
+      for (let i = 0; i < SEGS; i++) {
+        const out = pts[i];
+        if (i < nb) {
+          const u = i / nb;
+          const a = (1 - u) * (1 - u);
+          const b = 2 * (1 - u) * u;
+          const d = u * u;
+          const wob = Math.sin(t * 8 + i * 0.7) * 0.06 * Math.sin(u * Math.PI);
+          out.set(a * root.x + b * mid.x + d * end.x + wob, a * root.y + b * mid.y + d * end.y + Math.abs(wob) * 0.4, a * root.z + b * mid.z + d * end.z - wob);
+        } else {
+          const k = (i - nb) / Math.max(1, SEGS - nb - 1);
+          const ang = k * Math.PI * 3.2; // uma volta e meia em volta do pirata
+          const r = radius * wrap * (1 - k * 0.25);
+          out.set(tip.x + Math.cos(ang) * r, tip.y - 0.3 * wrap + k * 0.75 * wrap, tip.z + Math.sin(ang) * r);
+        }
+      }
+      // elástico: esticado fica fino; só encolhe até certo ponto
+      const rest = o.rest ?? 1.5;
+      const el = Math.min(1.15, Math.max(0.5, rest / Math.max(0.01, len)));
+      const fade = Math.min(1, len / 0.9); // recolhido, some dentro do corpo
+      cubes.forEach((c, i) => {
+        const u = i / (SEGS - 1);
+        const sp = i < SEGS - 1 ? pts[i].distanceTo(pts[i + 1]) : 0;
+        const size = Math.max((base + (tipSize - base) * u) * el, sp * 1.02) * fade;
+        c.position.copy(pts[i]);
+        c.scale.setScalar(extra && i >= SEGS - extra.tipCubes ? size * 1.25 : size);
+        if (extra && i % 3 === 0 && spikes[i / 3]) {
+          const spk = spikes[i / 3];
+          spk.position.set(pts[i].x, pts[i].y + size * 0.62, pts[i].z);
+          spk.scale.set(size * 0.3, size * 0.45, size * 0.4);
+        }
+      });
+    };
+    return { group, update };
+  }
+
+  private playThrow(kind: 'octopus' | 'leviathan', creatureId: string, victimIds: string[]) {
+    const c = this.ents.get(creatureId);
+    const victims = victimIds.map((id) => this.ents.get(id)).filter((v): v is Entity => !!v);
+    if (!c || !victims.length) return;
+    const octo = kind === 'octopus';
+    const T = octo ? { wait: 0.45, reach: 0.5, lift: 0.4, swing: 0.55, back: 0.45 } : { wait: 0.5, reach: 0.6, lift: 0.3, swing: 0.45, back: 0.55 };
+    const hold = T.wait + T.reach + T.lift + T.swing; // quanto tempo o pirata fica nas mãos da criatura
+    const total = hold + T.back;
+    const ease = (x: number) => x * x * (3 - 2 * x);
+    const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+    const start = victims[0].pos.clone();
+    const end = victims[0].target.clone();
+    const body = c.target.clone();
+    const toward = new THREE.Vector3(start.x - body.x, 0, start.z - body.z).normalize();
+    const root = body.clone().addScaledVector(toward, octo ? 0.8 : 0.35).add(new THREE.Vector3(0, 0.05, 0));
+    if (!octo) root.copy(body).add(new THREE.Vector3(0.62 * 0.95, 0.12, 0.0).applyQuaternion(c.group.quaternion)); // sai da ponta do rabo dele, onde fica a nadadeira
+    const lift = start.clone().lerp(body, 0.25);
+    lift.y = start.y + 1.6;
+    const apex = lift.clone().lerp(end, 0.5);
+    apex.y = Math.max(lift.y, end.y) + 1.2;
+    const along = (a: THREE.Vector3, b: THREE.Vector3, m: THREE.Vector3, u: number, out: THREE.Vector3) => {
+      const q = 1 - u;
+      return out.set(q * q * a.x + 2 * q * u * m.x + u * u * b.x, q * q * a.y + 2 * q * u * m.y + u * u * b.y, q * q * a.z + 2 * q * u * m.z + u * u * b.z);
+    };
+    // posição do pirata (pés) em cada instante da cena; fora das mãos da criatura, ele fica onde estava até ser agarrado
+    const base = (tt: number, out: THREE.Vector3) => {
+      const t1 = T.wait + T.reach;
+      if (tt < t1) return out.copy(start);
+      if (tt < t1 + T.lift) return out.copy(start).lerp(lift, ease((tt - t1) / T.lift));
+      if (tt < hold) return along(lift, end, apex, ease((tt - t1 - T.lift) / T.swing), out);
+      return out.copy(end);
+    };
+    victims.forEach((v, i) => {
+      const off = new THREE.Vector3(i * 0.35, 0, i * 0.2); // o segundo do bote vai um pouco ao lado
+
+      v.script = {
+        t0: this.clock.elapsedTime,
+        dur: hold,
+        step: (p, pos) => {
+          const tt = p * hold;
+          base(tt, pos);
+          if (tt >= T.wait + T.reach) pos.add(off);
+          const sw = clamp01((tt - T.wait - T.reach - T.lift) / T.swing);
+          v.spinZ = tt > T.wait + T.reach + T.lift ? ease(sw) * Math.PI * (octo ? 2 : 3) : Math.sin(tt * 14) * 0.3;
+
+        },
+      };
+    });
+    // o membro: tentáculo roxo com ventosas claras, ou a cauda do Leviatã (roxa com listras lilás e a nadadeira vermelha na ponta)
+    const mats = octo
+      ? [this.models.solid('#7d2c6e'), this.models.solid('#b0439a'), this.models.solid('#c95bb3'), this.models.solid('#b0439a')]
+      : [this.models.solid('#6a2c9e'), this.models.solid('#d59cff', 0.2)]; // roxo e lilás, como o corpo do Leviatã
+    const limb = this.makeLimb(mats, octo ? 0.32 : 0.42, octo ? 0.09 : 0.17, octo ? undefined : { stripes: true, spike: this.models.solid('#d8232a'), tip: this.models.solid('#d8232a'), tipCubes: 3 });
+    const tip = new THREE.Vector3();
+    const vp = new THREE.Vector3();
+    const raised = root.clone().add(new THREE.Vector3(0, octo ? 1.5 : 2.0, 0)); // cauda levantada, pronta para o golpe
+    const away = toward.clone().multiplyScalar(-1);
+    const backOut = (x: number) => 1 + 2.2 * Math.pow(x - 1, 3) + 1.2 * Math.pow(x - 1, 2); // passa um pouco do alvo e volta, como elástico
+    const opt = { wrap: 0, rise: 0, away, rest: octo ? 1.3 : 1.8, radius: octo ? 0.3 : 0.42 };
+    this.addFx(limb.group, total, 0, (p) => {
+      const tt = p * total;
+      const t1 = T.wait + T.reach;
+      const grab = start.clone().add(new THREE.Vector3(0, 0.5, 0));
+      if (tt < T.wait) {
+        // 1) levanta devagar, curvando para trás
+        const u = ease(tt / T.wait);
+        tip.copy(root).lerp(raised, u);
+        tip.addScaledVector(away, Math.sin(tt * 6) * 0.04);
+        opt.rise = u;
+        opt.wrap = 0;
+      } else if (tt < t1) {
+        // 2) dispara como elástico até o pirata e, perto do fim, se enrola nele
+        const u = (tt - T.wait) / T.reach;
+        tip.copy(raised).lerp(grab, backOut(ease(u)));
+        opt.rise = 1 - ease(u);
+        opt.wrap = clamp01((u - 0.5) / 0.5);
+      } else if (tt < hold) {
+        // 3) segura o pirata enrolado e o leva
+        base(tt, vp);
+        tip.copy(vp).add(new THREE.Vector3(0, 0.5, 0));
+        opt.rise = 0;
+        opt.wrap = 1;
+      } else {
+        // 4) solta (desenrola), chicoteia para cima e recolhe
+        const u = (tt - hold) / T.back;
+        if (u < 0.4) tip.copy(end).add(new THREE.Vector3(0, 0.5, 0)).lerp(raised, ease(u / 0.4));
+        else tip.copy(raised).lerp(root, ease((u - 0.4) / 0.6));
+        opt.rise = 0.5;
+        opt.wrap = 1 - clamp01(u / 0.25);
+      }
+      limb.update(root, tip, tt, opt);
+    });
+    // sons e respingos nos instantes certos
+    this.later(T.wait, () => this.sfx?.(octo ? 'tentacle' : 'tailWhip'));
+    this.later(T.wait + T.reach, () => this.sfx?.(octo ? 'squeeze' : 'roar'));
+    this.later(T.wait + T.reach + T.lift, () => this.sfx?.('whoosh'));
+    this.later(T.wait + T.reach + 0.05, () => this.sfx?.('scream'));
+    this.later(hold, () => {
+      this.sfx?.('bigSplash');
+      this.burst(end.x, 0.3, end.z, '#bfe6f5', 18, 0, 2.6);
+      this.burst(end.x, 0.3, end.z, '#ffffff', 8, 0.05, 1.8);
+    });
+    this.burst(start.x, start.y + 0.4, start.z, '#bfe6f5', 6, T.wait + T.reach, 1.4);
   }
 
   /* ---------- convocações: o personagem entra em cena, age e some ---------- */
@@ -842,6 +1107,10 @@ export class Stage3D {
   }
 
   playEvents(events: { type: string; [k: string]: unknown }[], s: GameState) {
+    // o Leviatã agarra com a cauda e joga: quem vai junto (os dois do bote) sai na mesma cena
+    const flung = new Map<string, string[]>();
+    for (const e of events) if (e.type === 'leviathanPush') flung.set(hexKey(e.from as Hex), [...(flung.get(hexKey(e.from as Hex)) ?? []), e.builderId as string]);
+    for (const ids of flung.values()) this.playThrow('leviathan', 'leviathan', ids);
     for (const e of events) {
       if (e.type === 'summon') this.playSummon(e, s);
       if (e.type === 'flood') {
@@ -852,6 +1121,7 @@ export class Stage3D {
         this.burst(w.x, 0.6, w.z, '#8a8f99', 5, 0.1, 1.3);
       }
       if (e.type === 'sentinelWake') this.playBlast(e.at as Hex, e.pushFrom as Hex, s);
+      if (e.type === 'octopusGrab') this.playThrow('octopus', 'octopus', [e.builderId as string]);
       if (e.type === 'build' || e.type === 'dig') {
         const b = this.ents.get(e.builderId as string);
         if (b) b.swingAt = this.clock.elapsedTime;
@@ -983,6 +1253,7 @@ export class Stage3D {
       rec.group.scale.y = rec.from + (1 - rec.from) * ease;
     }
     this.seaTime.value = t;
+    if (this.princessObj?.visible) this.princessObj.rotation.y = Math.sin(t * 1.4) * 0.5; // a princesa acena do topo
     // dia vira noite aos poucos, conforme Atlântida emerge (e a luz também segue devagar quando uma nova partida começa)
     if (Math.abs(this.skyTarget - this.skyNow) > 0.0005) {
       this.skyNow += (this.skyTarget - this.skyNow) * (1 - Math.exp(-dt * 1.4));
@@ -1025,9 +1296,17 @@ export class Stage3D {
     const ryRight = [ryCam + ISO_TURN, ryCam - ISO_TURN].find((r) => Math.sin(r) * camRight.x + Math.cos(r) * camRight.z > 0) ?? ryCam + ISO_TURN;
     const ryLeft = ryRight === ryCam + ISO_TURN ? ryCam - ISO_TURN : ryCam + ISO_TURN;
     for (const e of this.ents.values()) {
-      const dist = this.home ? 0 : e.pos.distanceTo(e.target);
+      if (e.script) {
+        const sp = (t - e.script.t0) / e.script.dur;
+        if (sp >= 1) {
+          e.script = undefined;
+          e.spinZ = undefined;
+          e.pos.copy(e.target);
+        } else e.script.step(Math.max(0, sp), e.pos);
+      }
+      const dist = this.home || e.script ? 0 : e.pos.distanceTo(e.target);
       if (this.home) e.pos.copy(e.target); // tela inicial: nada desliza nem pula; os navios só boiam no lugar
-      else e.pos.lerp(e.target, k);
+      else if (!e.script) e.pos.lerp(e.target, k);
       const hop = Math.min(0.35, dist * 0.3);
       const bob = e.floating ? Math.sin(t * 1.6 + (e.kind.includes('-boat-') ? e.pos.x : e.phase)) * 0.08 : 0; // quem divide o bote balança junto
       e.group.position.set(e.pos.x, e.pos.y + hop + bob, e.pos.z);
@@ -1050,6 +1329,34 @@ export class Stage3D {
         const sw = t - (e.swingAt ?? -9);
         e.armL.rotation.x = Math.sin(t * 2 + e.phase) * 0.06;
         e.armR.rotation.x = sw < 0.7 ? -1.5 + Math.sin((sw / 0.7) * Math.PI * 3) * 0.9 : -0.25 + Math.sin(t * 2 + e.phase + 2) * 0.06;
+      }
+      if (this.sleeping && e.armR && e.armL && !e.script && !e.kind.endsWith('-floating')) {
+        // dormindo: tombado de lado, cabeça caída, respirando devagar
+        e.armL.rotation.x = e.armR.rotation.x = 0.12;
+        e.armL.rotation.z = e.armR.rotation.z = 0;
+        e.group.rotation.z = 0.24 + Math.sin(t * 1.3 + e.phase) * 0.025;
+        e.group.rotation.x = 0.14 + Math.sin(t * 1.3 + e.phase) * 0.02;
+      }
+      if (e.zzz) {
+        e.zzz.visible = this.sleeping && !e.script;
+        e.zzz.children.forEach((z, i) => {
+          const u = (t * 0.45 + i / 3 + e.phase * 0.1) % 1;
+          z.position.set(0.1 + u * 0.35, 1.35 + u * 0.8, 0);
+          z.scale.setScalar(0.22 + u * 0.3);
+          ((z as THREE.Sprite).material as THREE.SpriteMaterial).opacity = Math.min(1, (1 - u) * 1.6);
+        });
+      }
+      if (e.script && e.spinZ !== undefined) {
+        // arremessado: gira no ar, esperneando e se debatendo (não duro nem quadrado)
+        const f = t * 21 + e.phase;
+        e.group.rotation.z = e.spinZ + Math.sin(f * 0.7) * 0.35;
+        e.group.rotation.x = Math.sin(f * 0.5) * 0.5;
+        if (e.armR && e.armL) {
+          e.armL.rotation.x = -2.5 + Math.sin(f) * 0.8;
+          e.armR.rotation.x = -2.5 + Math.sin(f + 2.4) * 0.8;
+          e.armL.rotation.z = -1 - Math.sin(f * 1.3) * 0.5;
+          e.armR.rotation.z = 1 + Math.sin(f * 1.1) * 0.5;
+        }
       }
     }
     const pulse = 0.35 + 0.12 * Math.sin(t * 5);

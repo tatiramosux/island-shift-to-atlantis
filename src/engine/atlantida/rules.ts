@@ -89,7 +89,8 @@ const landFree = (s: GameState, h: Hex): boolean => {
   return !builderAt(s, h) && !creatureAt(s, h);
 };
 /** Valor do cristal do topo do Castelo. */
-export const CASTLE_CRYSTAL = 3;
+/** A princesa do Castelo: quem a resgata e embarca no navio com ela ganha este bônus (não vence na hora). */
+export const PRINCESS_BONUS = 4;
 /** Casa colada na entrada do Castelo (o portão em arco do desenho fica deste lado): ali não se constrói escada. */
 export const CASTLE_GATE: Hex = hex(0, 1);
 const canBuild = (s: GameState, c: Cell): boolean => {
@@ -250,6 +251,7 @@ export const createGame = ({ players, seed, settings }: NewGameOptions): GameSta
     creatures,
     ships,
     castleTaken: null,
+    princess: null,
     wave: null,
     crystals: Array(players).fill(0),
     tridents: Array(players).fill(0),
@@ -297,8 +299,8 @@ const enter = (s: GameState, b: Builder, ev: GameEvent[]) => {
   const c = cellAt(s, b.hex!)!;
   if (c.temple && c.floors === MAX_FLOORS && s.castleTaken === null) {
     s.castleTaken = b.owner;
-    s.crystals[b.owner] += CASTLE_CRYSTAL; // o cristal do topo do Castelo (só existe um)
-    ev.push({ type: 'castleCrystal', owner: b.owner, hex: c.hex, value: CASTLE_CRYSTAL });
+    s.princess = { by: b.owner, safe: false }; // no topo do Castelo estava a princesa: agora ela acompanha o time
+    ev.push({ type: 'castleCrystal', owner: b.owner, hex: c.hex, value: 0 });
   }
   if (c.state !== 'atlantis') return;
   switch (c.tile) {
@@ -760,9 +762,15 @@ export const islandProgress = (s: GameState): number => {
 export const leavingTime = (s: GameState): boolean =>
   s.settings.ending === 'escape' ? s.escape != null || islandProgress(s) >= 0.75 : s.castleTaken !== null;
 
+/** Quem fica boiando só leva metade do tesouro (arredondada para baixo): fugir vale, mas não mais que juntar muito. */
+export const finalScore = (s: GameState, p: number): number => {
+  const aboard = s.builders.some((b) => b.owner === p && b.status === 'aboard');
+  return aboard ? s.crystals[p] : Math.floor(s.crystals[p] / 2);
+};
+
 /**
- * Final por fuga: a ilha some no mar. Quem ainda estava em terra ou de bote fica boiando. Vence quem tiver mais cristais
- * entre os times com pelo menos um pirata no navio (empate: quem fugiu primeiro); sem ninguém no navio, vale a contagem geral.
+ * Final por fuga: a ilha some no mar. Quem ainda estava em terra ou de bote fica boiando. Vence quem tiver mais pontos:
+ * cada time que fugiu conta todos os seus cristais; quem ficou boiando conta só metade. Empate: quem fugiu primeiro, depois quem estava no navio.
  */
 const vanishIsland = (s: GameState, ev: GameEvent[]) => {
   const left = s.builders.filter((b) => b.status === 'board' || b.status === 'boat');
@@ -770,13 +778,14 @@ const vanishIsland = (s: GameState, ev: GameEvent[]) => {
   s.vanished = true;
   ev.push({ type: 'islandVanishes', left: left.map((b) => b.id) });
   const order = Array.from({ length: s.playerCount }, (_, i) => i);
-  const aboard = order.filter((p) => s.builders.some((b) => b.owner === p && b.status === 'aboard'));
-  const pool = aboard.length ? aboard : order;
-  const best = Math.max(...pool.map((p) => s.crystals[p]));
-  const tied = pool.filter((p) => s.crystals[p] === best);
-  const winner = (s.escape != null && tied.includes(s.escape.by) ? s.escape.by : tied[0])!;
+  const aboardNow = (p: number) => s.builders.some((b) => b.owner === p && b.status === 'aboard');
+  const anyAboard = order.some(aboardNow);
+  const points = (p: number) => (anyAboard ? finalScore(s, p) : s.crystals[p]);
+  const best = Math.max(...order.map(points));
+  const tied = order.filter((p) => points(p) === best);
+  const winner = (s.escape != null && tied.includes(s.escape.by) ? s.escape.by : (tied.find(aboardNow) ?? tied[0]))!;
   s.winners = [winner];
-  s.winReason = aboard.length ? 'ship' : 'crystals';
+  s.winReason = aboardNow(winner) ? 'ship' : 'crystals';
   s.phase = 'ended';
   ev.push({ type: 'gameOver', winners: s.winners, reason: s.winReason });
 };
@@ -818,10 +827,16 @@ const finalize = (s: GameState, ev: GameEvent[], justPlayed: number) => {
   ev.push({ type: 'gameOver', winners: s.winners, reason: s.winReason });
 };
 
-const climbAboard = (b: Builder, ev: GameEvent[]) => {
+const climbAboard = (s: GameState, b: Builder, ev: GameEvent[]) => {
   ev.push({ type: 'aboard', builderId: b.id, owner: b.owner, from: b.hex });
   b.status = 'aboard';
   b.hex = null;
+  // a princesa está a salvo quando alguém do time que a resgatou chega ao navio: bônus grande
+  if (s.princess && !s.princess.safe && s.princess.by === b.owner) {
+    s.princess.safe = true;
+    s.crystals[b.owner] += PRINCESS_BONUS;
+    ev.push({ type: 'princessSafe', owner: b.owner, value: PRINCESS_BONUS });
+  }
 };
 
 const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
@@ -851,7 +866,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
     case 'swim': {
       const b = s.builders.find((x) => x.id === a.builderId)!;
       s.actionsLeft -= 1;
-      if (hexEquals(a.to, s.ships[a.player])) return climbAboard(b, ev);
+      if (hexEquals(a.to, s.ships[a.player])) return climbAboard(s, b, ev);
       if (canJoinBoat(s, a.to, a.player)) {
         b.hex = a.to;
         b.status = 'boat'; // subiu no bote do companheiro
@@ -893,7 +908,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       // o bote leva todo mundo que está nele
       const crew = boatMates(s, b.hex!);
       if (hexEquals(a.to, s.ships[a.player])) {
-        crew.forEach((m) => climbAboard(m, ev));
+        crew.forEach((m) => climbAboard(s, m, ev));
         return;
       }
       if (!isWater(a.to)) {

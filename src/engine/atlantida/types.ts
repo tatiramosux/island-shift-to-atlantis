@@ -128,6 +128,8 @@ export interface GameState {
   ships: Hex[];
   /** quem pegou o cristal do topo do Castelo (só existe um); null = ainda está lá. */
   castleTaken: number | null;
+  /** A princesa do Castelo: quem a resgatou e se já está a salvo no navio (aí vale o bônus). */
+  princess: { by: number; safe: boolean } | null;
   /** fase final: lado (0 a 5) de onde vem a próxima onda gigante, avisado uma rodada antes; null = nenhuma à vista. */
   wave?: number | null;
   /** final por fuga: time que chegou primeiro ao navio (a ilha some quando a vez volta a ele); undefined = ninguém ainda. */

@@ -96,6 +96,21 @@ describe('partida curta, média e longa', () => {
 });
 
 describe('final por fuga', () => {
+  it('a princesa só vale o bônus (+4) quando o time que a resgatou embarca no navio', () => {
+    const s = blank('short');
+    s.princess = { by: 0, safe: false };
+    s.castleTaken = 0;
+    const b0 = s.builders.find((b) => b.id === 'p0b0')!;
+    b0.status = 'boat';
+    b0.hex = H(-5, 5);
+    put(s, 'p1b0', H(-2, 1));
+    const r = applyAction(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 6) });
+    expect(r.ok).toBe(true);
+    const n = (r as { ok: true; state: GameState }).state;
+    expect(n.princess).toEqual({ by: 0, safe: true });
+    expect(n.crystals[0]).toBe(4);
+  });
+
   it('o primeiro navio dá uma última chamada: o outro time joga mais um turno e a ilha some', () => {
     let s = blank('short');
     const b0 = s.builders.find((b) => b.id === 'p0b0')!;

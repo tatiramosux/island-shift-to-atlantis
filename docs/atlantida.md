@@ -108,16 +108,16 @@ O jogo é de **tesouros e fuga**: ganha quem tiver **mais cristais** no fim.
 - **Navios:** cada time tem um navio ancorado no mar desde o começo (nas pontas do mar, longe dos outros).
 - **Bote:** de qualquer casa de praia (colada na água, nível 0 ou 1), o pirata entra num bote (1 ação). **Cabem 2 piratas do mesmo time** no bote: o segundo entra no bote do companheiro (da praia ou nadando) e cada remada leva os dois. Ao encostar numa praia, só desce quem remou. No bote ele rema até 2 casas de água por ação, pode encostar numa praia e descer, ou subir no navio do próprio time. Boiando, também dá para nadar até o navio.
 - **Perigo no mar:** o Polvo vira o bote e o pirata fica boiando; o Leviatã empurra botes e náufragos.
-- **Cristal do Castelo:** um pirata que entra no **3º andar** do Castelo pega o cristal que **vale 3**. Só existe um.
+- **Princesa do Castelo:** um pirata que entra no **3º andar** do Castelo resgata a **Princesa**. Só existe uma. Ela não dá cristais na hora: quando alguém do time embarca no navio, o time ganha **+4 cristais**. Não vence sozinha: continua ganhando quem tiver mais cristais.
 
-**Fase final.** Quando alguém pega o cristal do Castelo:
+**Fase final.** Quando alguém resgata a Princesa:
 
 - o terremoto passa a afundar **o dobro** de casas por rodada (8), e Atlântida emerge quase inteira;
 - começa a **onda gigante**: a cada virada de rodada, uma onda vem de um dos 6 lados da ilha. Ela é avisada uma rodada antes (espuma nas casas). Quem está no chão ou no 1º andar das **duas fileiras de borda** daquele lado cai no mar e fica boiando. Quem está no 2º andar ou mais alto, ou num Escudo, aguenta.
 
 A partida acaba quando:
 
-1. **Fuga:** o cristal do Castelo já foi pego e um time está com **todos** os piratas vivos no navio (ninguém fica para trás). Vence quem tiver mais cristais; no empate, quem fugiu.
+1. **Fuga:** a Princesa já foi resgatada e um time está com **todos** os piratas vivos no navio (ninguém fica para trás). Vence quem tiver mais cristais; no empate, quem fugiu.
 2. **Fim da ilha:** toda a superfície afundou.
 3. **Último de pé:** os outros jogadores ficaram sem piratas.
 

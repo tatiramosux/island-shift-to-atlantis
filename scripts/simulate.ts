@@ -20,6 +20,8 @@ const fullAtList: number[] = []; // rodada em que a ilha virou Atlântida inteir
 let vanished = 0;
 let fled = 0; // partidas em que alguém chegou ao navio antes de a ilha sumir sozinha
 let unfinished = 0;
+let upsets = 0; // venceu quem NÃO tinha mais cristais (o outro ficou preso na ilha)
+let upsetGap = 0;
 
 for (let g = 0; g < games; g++) {
   let s = autoSetup(createGame({ players, seed: g + 1, settings: LENGTH_PRESETS[length] }), g + 7);
@@ -41,6 +43,11 @@ for (let g = 0; g < games; g++) {
   crystalsWinner.push(s.crystals[s.winners![0]]);
   if (s.vanished) vanished++;
   if (s.escape != null) fled++;
+  const top = Math.max(...s.crystals);
+  if (s.crystals[s.winners![0]] < top) {
+    upsets++;
+    upsetGap += top - s.crystals[s.winners![0]];
+  }
   s.winners!.forEach((w) => wins[w]++);
   reasons[s.winReason!] = (reasons[s.winReason!] ?? 0) + 1;
 }
@@ -54,3 +61,4 @@ console.log('ilha virou Atlântida inteira na rodada (média):', avg(fullAtList)
 console.log('turnos (jogadas de vez) em média:', avg(turnsList));
 console.log('cristais do vencedor em média:', avg(crystalsWinner));
 if (length !== 'long') console.log(`ilha sumiu: ${vanished} | alguém fugiu antes do limite: ${fled}`);
+console.log(`vitória de quem tinha MENOS cristais: ${upsets} (diferença média ${upsets ? (upsetGap / upsets).toFixed(1) : '-'})`);

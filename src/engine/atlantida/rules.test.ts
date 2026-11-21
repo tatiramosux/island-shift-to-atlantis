@@ -853,9 +853,10 @@ describe('como se vence', () => {
     return ok(s, { type: 'move', player: 0, builderId: 'p0b0', to: ORIGIN }).state;
   };
 
-  it('o topo do Castelo dá o cristal de valor 3 (só um) e a partida continua', () => {
+  it('o topo do Castelo resgata a princesa (sem cristal na hora) e a partida continua', () => {
     const r = climb(blank());
-    expect(r.crystals[0]).toBe(3);
+    expect(r.crystals[0]).toBe(0);
+    expect(r.princess).toEqual({ by: 0, safe: false });
     expect(r.castleTaken).toBe(0);
     expect(r.phase).toBe('action');
   });
