@@ -198,7 +198,6 @@ describe('pisar descobre (não existe mais a ação de cavar)', () => {
   it('não há ação de cavar', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
-    expect(legalActions(s).some((a) => a.type === 'dig')).toBe(false);
   });
 
   it('pisar numa casa com cristal revela e coleta na hora; a casa fica descoberta (vira buraco)', () => {

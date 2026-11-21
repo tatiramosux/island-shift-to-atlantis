@@ -170,7 +170,6 @@ export type Action =
   | { type: 'placeBuilder'; player: number; hex: Hex }
   | { type: 'move'; player: number; builderId: string; to: Hex; portalTo?: Hex }
   | { type: 'swim'; player: number; builderId: string; to: Hex }
-  | { type: 'dig'; player: number; builderId: string; at: Hex }
   | { type: 'push'; player: number; builderId: string; targetId: string }
   /** da praia, o pirata entra num bote na água vizinha. */
   | { type: 'launch'; player: number; builderId: string; to: Hex }

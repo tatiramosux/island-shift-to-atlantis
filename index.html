@@ -133,7 +133,7 @@
       .face.on { opacity: 1; background: var(--btn-on); outline: 2px solid var(--accent); }
       .combo .cap { display: none; }
       /* cartão de aviso azul: o texto à esquerda e, quando há uma ação a cumprir, o botão ao lado, depois de uma barrinha */
-      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: var(--ap) 16px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
+      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: var(--ap) 16px; min-height: 56px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
       .actionbar.idle .prompt { text-align: center; white-space: nowrap; }
       .actionbar.idle { box-shadow: none; } /* vez do bot: continua azul, só sem o brilho */
       .actionbar .prompt { flex: 1 1 auto; min-width: 0; align-self: center; margin: 0; font-size: 13px; line-height: 1.35; text-align: left; }
@@ -359,7 +359,7 @@
         .score .who { display: none; }
         /* avisos em cima, convocações + dado numa fileira só embaixo */
         .hud-bc { width: calc(100% - 12px); gap: 5px; } /* folga externa original: 6 px de cada lado */
-        .hud-bc .actionbar { max-height: 30vh; min-height: 44px; --ap: 6px; padding: var(--ap) 16px; gap: 8px; }
+        .hud-bc .actionbar { max-height: 30vh; min-height: 56px; --ap: 6px; padding: var(--ap) 16px; gap: 8px; }
         .actionbar .prompt { font-size: 12px; }
         .hud-card { padding: 5px 7px; }
         .combo { gap: 6px; }

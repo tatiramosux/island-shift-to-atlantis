@@ -31,7 +31,6 @@ const SOUNDS: Record<string, Note[]> = {
   // pirata anda: dois passinhos
   move: [{ f: 520, d: 0.05, w: 'square', v: 0.35 }, { f: 700, d: 0.05, w: 'square', v: 0.3, at: 0.07 }],
   // descobrir: raspar de pá (ruído) e um "tim" de descoberta
-  dig: [{ f: 900, d: 0.09, w: 'noise', v: 0.35 }, { f: 700, d: 0.08, w: 'noise', v: 0.3, at: 0.12 }, { f: NOTE('E5'), d: 0.12, w: 'triangle', v: 0.5, at: 0.24 }],
   // construir: duas marteladas
   build: [{ f: 140, to: 70, d: 0.08, w: 'square', v: 0.55 }, { f: 160, to: 80, d: 0.08, w: 'square', v: 0.5, at: 0.13 }],
   push: [{ f: 300, to: 120, d: 0.14, w: 'square', v: 0.5 }],
@@ -42,6 +41,8 @@ const SOUNDS: Record<string, Note[]> = {
   // subiu no navio: fanfarra curta
   aboard: seq(['C5', 'E5', 'G5', 'C6'], 0.09, 'square', 0.4),
   // tesouros
+  // pulinho do tesouro saindo da casa (a melodia de cada tesouro vem logo depois)
+  loot: [{ f: 520, to: 1040, d: 0.08, w: 'square', v: 0.3 }],
   crystal: seq(['E5', 'G#5', 'B5', 'E6'], 0.06, 'square', 0.35),
   trident: seq(['G4', 'D5', 'G5'], 0.08, 'triangle', 0.55),
   calm: seq(['C5', 'A4', 'F4'], 0.12, 'triangle', 0.5),
@@ -194,7 +195,7 @@ export const setMuted = (m: boolean) => {
 
 /** Vibração do aparelho (onde o navegador permite, como no Android): cada ação tem o seu toque; liga e desliga à parte do som. */
 const BUZZ: Partial<Record<SoundName, number | number[]>> = {
-  move: 12, dig: 25, build: [20, 30, 20], push: 40, swim: 15, row: 20, launch: 30, castle: [60, 40, 60, 40, 140],
+  move: 12, build: [20, 30, 20], push: 40, swim: 15, row: 20, launch: 30, castle: [60, 40, 60, 40, 140],
   quake: [80, 40, 80, 40, 80], flood: [40, 30, 40], splash: 35, wave: [120, 50, 120], waveWarning: [60, 80, 60],
   dieLand: 30, creature: 25, grab: 40, smash: [90, 40, 120], summon: [30, 30, 60], win: [80, 50, 80, 50, 200], turn: 15,
   error: [30, 40, 30], crumble: [90, 40, 120], help: [30, 30, 30, 30, 60], nereus: [250, 80, 250, 80, 450], sink: [150, 60, 150, 60, 250], tentacle: [30, 20, 50], squeeze: [70, 30, 70], whoosh: 25,

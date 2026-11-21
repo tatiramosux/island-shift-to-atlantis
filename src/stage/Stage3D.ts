@@ -16,7 +16,7 @@ import { buildSummon } from './summons';
 const gameZoom = () => (innerWidth < 760 ? 1.32 : 0.82);
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
-export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'dig' | 'treasure' | 'wave' | 'both';
+export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'treasure' | 'wave' | 'both';
 export interface StageScene {
   state: GameState;
   highlights: Map<string, Highlight>;
@@ -49,6 +49,8 @@ interface Entity {
   script?: { t0: number; dur: number; step: (p: number, pos: THREE.Vector3) => void };
   spinZ?: number;
   zzz?: THREE.Group; // os Z de quando o personagem dorme
+  bubble?: THREE.Sprite; // balão "homem ao mar!" de quem boia
+  shouting?: boolean;
 }
 
 export class Stage3D {
@@ -195,7 +197,6 @@ export class Stage3D {
       // aviso de onda: espuma branco-azulada nas casas que a onda vai varrer
       wave: new THREE.MeshBasicMaterial({ color: 0xbff4ff, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }),
       waveEdge: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false, side: THREE.DoubleSide }),
-      dig: new THREE.MeshBasicMaterial({ color: 0x3fd47a, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
       digEdge: new THREE.MeshBasicMaterial({ color: 0xa6f5c4, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }),
       buildEdge: new THREE.MeshBasicMaterial({ color: 0x7fd6ff, transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide }),
       push: new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 0.45, depthWrite: false, side: THREE.DoubleSide }),
@@ -443,6 +444,9 @@ export class Stage3D {
   private princessObj: THREE.Group | null = null;
   private princessParts: ReturnType<typeof buildPrincess> | null = null;
   private princessBubble: THREE.Sprite | null = null;
+  /** Fala de quem está boiando (o idioma vem de fora). */
+  overboardLine = 'MAN OVERBOARD!';
+  private lastOverboard = -9;
   private lastHelp = -99;
   /** Balão de fala (letras brancas num balão colorido) que aparece sobre um personagem. */
   private makeBubble(text: string, color: string): THREE.Sprite {
@@ -450,18 +454,30 @@ export class Stage3D {
     c.width = 320;
     c.height = 220; // sobra espaço embaixo para o rabinho comprido: o balão fica longe do personagem
     const g = c.getContext('2d')!;
-    g.fillStyle = '#ffffff';
+    // balão e rabinho são UM desenho só: primeiro os contornos (grossos), depois os dois preenchimentos por cima,
+    // assim a linha de baixo do balão some onde o rabinho nasce e não há emenda
+    const box = () => g.roundRect(8, 8, 304, 84, 22);
+    const tail = () => {
+      g.moveTo(64, 80);
+      g.lineTo(46, 208);
+      g.lineTo(108, 80);
+      g.closePath();
+    };
     g.strokeStyle = '#1b2a4a';
-    g.lineWidth = 8;
+    g.lineWidth = 16; // metade fica por baixo do preenchimento: contorno de 8 px visível
+    g.lineJoin = 'round';
     g.beginPath();
-    g.roundRect(8, 8, 304, 84, 22);
-    g.fill();
+    box();
     g.stroke();
     g.beginPath();
-    g.moveTo(66, 90);
-    g.lineTo(46, 216);
-    g.lineTo(106, 90);
-    g.closePath();
+    tail();
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    box();
+    g.fill();
+    g.beginPath();
+    tail();
     g.fill();
     g.fillStyle = color;
     let px = 56;
@@ -471,8 +487,9 @@ export class Stage3D {
     g.textBaseline = 'middle';
     g.fillText(text, 160, 52);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
-    sp.center.set(46 / 320, 4 / 220); // a pontinha do rabinho fica no ponto da posição: ele sempre aponta para quem fala
+    sp.center.set(46 / 320, 12 / 220); // a pontinha do rabinho fica no ponto da posição: ele sempre aponta para quem fala
     sp.scale.set(2.6, (2.6 * 220) / 320, 1);
+    sp.renderOrder = 50; // por cima dos destaques de casas e dos efeitos
     sp.visible = false;
     return sp;
   }
@@ -488,11 +505,11 @@ export class Stage3D {
       if (!this.princessObj) {
         const g = new THREE.Group();
         const P = buildPrincess(this.models);
-        P.root.scale.setScalar(1.05); // do tamanho dos piratas (≈1.4 de altura)
+        P.root.scale.setScalar(1.25); // do tamanho dos piratas
         g.add(P.root);
         this.princessParts = P;
         this.princessBubble = this.makeBubble('HELP!', '#d8232a');
-        this.princessBubble.position.set(0, 1.55, 0); // a pontinha toca acima da cabeça; o balão fica bem acima
+        this.princessBubble.position.set(0, 1.8, 0); // a pontinha toca acima da cabeça; o balão fica bem acima
         g.add(this.princessBubble);
         this.scene.add(g);
         this.princessObj = g;
@@ -511,7 +528,7 @@ export class Stage3D {
     }
     if (!this.princessCarry) {
       this.princessCarry = buildPrincess(this.models).root;
-      this.princessCarry.scale.setScalar(1.05);
+      this.princessCarry.scale.setScalar(1.25);
     }
     if (this.princessCarry.parent !== host.group) {
       this.princessCarry.removeFromParent();
@@ -1223,6 +1240,73 @@ export class Stage3D {
     this.fx.push({ obj, t0: this.clock.elapsedTime + delay, dur, step });
   }
 
+  /** Ícone do tesouro desenhado na hora (cristal, tridente ou maré calma). */
+  private lootTexture(kind: 'crystal' | 'trident' | 'calm'): THREE.CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = c.height = 96;
+    const g = c.getContext('2d')!;
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    if (kind === 'crystal') {
+      g.fillStyle = '#7fe8ff';
+      g.strokeStyle = '#0d4f7a';
+      g.lineWidth = 6;
+      g.beginPath();
+      g.moveTo(48, 6); g.lineTo(80, 38); g.lineTo(48, 90); g.lineTo(16, 38);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.fillStyle = '#ffffffcc';
+      g.beginPath();
+      g.moveTo(48, 14); g.lineTo(30, 38); g.lineTo(48, 38);
+      g.closePath();
+      g.fill();
+    } else if (kind === 'trident') {
+      g.strokeStyle = '#0d3a5c';
+      g.lineWidth = 16;
+      const draw = () => {
+        g.beginPath(); g.moveTo(48, 92); g.lineTo(48, 24);
+        g.moveTo(24, 30); g.lineTo(24, 12); g.moveTo(72, 30); g.lineTo(72, 12); g.moveTo(24, 34); g.quadraticCurveTo(48, 64, 72, 34);
+        g.stroke();
+      };
+      draw();
+      g.strokeStyle = '#ffd23f';
+      g.lineWidth = 8;
+      draw();
+    } else {
+      g.fillStyle = '#bfeaff';
+      g.strokeStyle = '#0d4f7a';
+      g.lineWidth = 6;
+      g.beginPath(); g.arc(48, 48, 38, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.strokeStyle = '#2f8ad8';
+      g.lineWidth = 7;
+      for (const y of [38, 58]) {
+        g.beginPath(); g.moveTo(20, y); g.quadraticCurveTo(34, y - 12, 48, y); g.quadraticCurveTo(62, y + 12, 76, y); g.stroke();
+      }
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  /** Quem pega um tesouro: o ícone pula sobre a cabeça do pirata, sobe e some (como nos jogos de plataforma). */
+  playLoot(kind: 'crystal' | 'trident' | 'calm', hex: Hex, s: GameState) {
+    const w = worldOf(hex);
+    const y0 = this.ground(hex, s) + 1.5;
+    const mat = new THREE.SpriteMaterial({ map: this.lootTexture(kind), transparent: true, depthTest: false, depthWrite: false });
+    const sp = new THREE.Sprite(mat);
+    sp.renderOrder = 50;
+    this.addFx(sp, 1.3, 0.12, (p) => {
+      const hop = Math.sin(Math.min(1, p * 1.7) * Math.PI) * 0.55; // pulinho
+      sp.position.set(w.x, y0 + hop + p * 0.9, w.z);
+      const k = (0.55 + 0.45 * Math.min(1, p * 6)) * 0.95;
+      sp.scale.set(k, k, 1);
+      mat.opacity = p < 0.65 ? 1 : 1 - (p - 0.65) / 0.35;
+    });
+    this.burst(w.x, y0 - 0.3, w.z, kind === 'trident' ? '#ffd23f' : '#bff4ff', 6, 0.1, 1.6);
+    // som junto com o pulinho: um tique agudo e, logo depois, a musiquinha do tesouro
+    this.later(0.12, () => this.sfx?.('loot'));
+    this.later(0.2, () => this.sfx?.(kind));
+  }
+
   /** Jato de água da Sentinela: um feixe azul-claro sai dos olhos dela até o pirata, com respingos no fim. */
   playBlast(from: Hex, to: Hex, s: GameState) {
     const a = worldOf(from);
@@ -1322,7 +1406,10 @@ export class Stage3D {
         this.burst(w.x, 0.3, w.z, '#9bd6f0', 8, 0.05, 1.6);
         this.sfx?.('crumble');
       }
-      if (e.type === 'build' || e.type === 'dig') {
+      if (e.type === 'crystal') this.playLoot('crystal', e.hex as Hex, s);
+      if (e.type === 'tridentTaken') this.playLoot('trident', e.hex as Hex, s);
+      if (e.type === 'calmSea') this.playLoot('calm', e.hex as Hex, s);
+      if (e.type === 'build' || e.type === 'unearth') {
         const b = this.ents.get(e.builderId as string);
         if (b) b.swingAt = this.clock.elapsedTime;
       }
@@ -1536,6 +1623,24 @@ export class Stage3D {
         const toShip = (e.faceTo.x - e.target.x) * camRight.x + (e.faceTo.z - e.target.z) * camRight.z;
         e.group.rotation.y = toShip >= 0 ? ryRight : ryLeft;
       } else if (e.turns) e.group.rotation.y = faceRy + ISO_TURN;
+      // quem boia grita "homem ao mar!" de tempos em tempos (cada um no seu ritmo), no mesmo estilo da princesa
+      if (e.kind.endsWith('-floating')) {
+        if (!e.bubble) {
+          e.bubble = this.makeBubble(this.overboardLine, '#d9481c');
+          e.bubble.position.set(0, 1.6, 0);
+          e.group.add(e.bubble);
+        }
+        const on = (t + e.phase * 1.7) % 6 < 2.2;
+        if (on && !e.shouting && t - this.lastOverboard > 2.5) {
+          this.lastOverboard = t;
+          this.sfx?.('help');
+        }
+        e.shouting = on;
+        e.bubble.visible = on;
+      } else if (e.bubble) {
+        e.group.remove(e.bubble);
+        e.bubble = undefined;
+      }
       if (e.armR && e.armL && e.kind.endsWith('-floating')) {
         // desespero: braços para cima, se debatendo, e o corpo balançando na boia
         const f = t * 9 + e.phase;

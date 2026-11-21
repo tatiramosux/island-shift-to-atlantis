@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, X, Footprints, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -126,7 +126,7 @@ const evText = (e: GameEvent): string | null => {
   const P = (k: string) => teamName(e[k] as number);
   switch (e.type) {
     case 'crystal': return t(`${P('owner')} gained 1 crystal${e.surge ? ' (Surge Tide)' : ''}.`, `${P('owner')} ganhou 1 cristal${e.surge ? ' (Maré viva)' : ''}.`);
-    case 'dig': return e.tile === 'crystal' || e.tile === 'trident' || e.tile === 'calm' ? t(`${P('owner')} dug up a treasure: ${TILE_PT[e.tile as AtlantisTile]}!`, `${P('owner')} descobriu um tesouro: ${TILE_PT[e.tile as AtlantisTile]}!`) : t(`${P('owner')} dug up: ${TILE_PT[e.tile as AtlantisTile]}.`, `${P('owner')} descobriu: ${TILE_PT[e.tile as AtlantisTile]}.`);
+    case 'unearth': return e.tile === 'crystal' || e.tile === 'trident' || e.tile === 'calm' ? t(`${P('owner')} picked up a treasure: ${TILE_PT[e.tile as AtlantisTile]}!`, `${P('owner')} pegou um tesouro: ${TILE_PT[e.tile as AtlantisTile]}!`) : t(`${P('owner')} dug up: ${TILE_PT[e.tile as AtlantisTile]}.`, `${P('owner')} descobriu: ${TILE_PT[e.tile as AtlantisTile]}.`);
     case 'castleCrystal': return t(`${P('owner')} rescued the Princess from the Castle!`, `${P('owner')} resgatou a Princesa do Castelo!`);
     case 'princessSafe': return t(`${P('owner')} brought the Princess safely aboard (+${e.value} points)!`, `${P('owner')} levou a Princesa a salvo para o navio (+${e.value} pontos)!`);
     case 'launch': return t(`${bname(e.builderId as string)} got into a boat.`, `${bname(e.builderId as string)} entrou num bote.`);
@@ -173,7 +173,6 @@ const actText = (a: Action): string | null => {
     case 'swim': return t(`${n}: ${bname(a.builderId)} swims.`, `${n}: ${bname(a.builderId)} nada.`);
     case 'launch': return t(`${n}: ${bname(a.builderId)} gets into a boat.`, `${n}: ${bname(a.builderId)} entra num bote.`);
     case 'row': return t(`${n}: ${bname(a.builderId)} rows.`, `${n}: ${bname(a.builderId)} rema.`);
-    case 'dig': return t(`${n}: digs up a tile.`, `${n}: descobre uma casa.`);
     case 'push': return t(`${n}: pushes ${bname(a.targetId)}.`, `${n}: empurra ${bname(a.targetId)}.`);
     case 'endActions': return t(`${n}: ends their actions.`, `${n}: termina as ações.`);
     case 'flood': return t(`${n}: picks the tile that sinks.`, `${n}: escolhe a casa que afunda.`);
@@ -251,9 +250,6 @@ const SOUND_OF: [string, SoundName][] = [
   ['waveWarning', 'waveWarning'],
   ['eliminated', 'eliminated'],
   ['aboard', 'aboard'],
-  ['crystal', 'crystal'],
-  ['tridentTaken', 'trident'],
-  ['calmSea', 'calm'],
   ['leviathanSmash', 'smash'],
   ['crumble', 'crumble'],
   ['boatCapsized', 'splash'],
@@ -264,7 +260,6 @@ const SOUND_OF: [string, SoundName][] = [
   ['floodCancelled', 'trident'],
   ['quake', 'quake'],
   ['summon', 'summon'],
-  ['dig', 'dig'],
   ['push', 'push'],
   ['guardianPush', 'push'],
   ['sentinelWake', 'smash'],
@@ -365,7 +360,6 @@ const cellOf = (a: Action): Hex | null => {
     case 'swim':
     case 'launch':
     case 'row': return a.to;
-    case 'dig': return a.at;
     case 'push': return builderHex(a.targetId);
     case 'moveCreature': return a.to;
     case 'summon': return a.kind === 'triton' || a.kind === 'siren' ? builderHex(a.targetId) : a.kind === 'dolphin' ? a.to : a.at;
@@ -381,7 +375,7 @@ const candidates = (): Action[] => {
     case 'action':
       if (portalPick) return portalPick;
       if (mode.startsWith('summon:')) return legal.filter((a) => a.type === 'summon' && a.kind === mode.slice(7));
-      return legal.filter((a) => ['move', 'swim', 'launch', 'row', 'dig', 'push'].includes(a.type) && 'builderId' in a && a.builderId === selBuilder);
+      return legal.filter((a) => ['move', 'swim', 'launch', 'row', 'push'].includes(a.type) && 'builderId' in a && a.builderId === selBuilder);
     default: return [];
   }
 };
@@ -392,7 +386,6 @@ const label = (a: Action): string => {
     case 'swim': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : t('Swim here', 'Nadar até aqui');
     case 'launch': return t('Get into a boat', 'Entrar num bote');
     case 'row': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : isWaterHex(a.to) ? t('Row here', 'Remar até aqui') : t('Land on the beach', 'Descer na praia');
-    case 'dig': return t('Dig up what is here', 'Descobrir o que há aqui');
     case 'push': return t(`Push ${bname(a.targetId)}`, `Empurrar ${bname(a.targetId)}`);
     case 'moveCreature':
       if (!a.target) return t('Just move to this tile', 'Só ir para esta casa');
@@ -485,7 +478,7 @@ const onCell = (h: Hex, px: number, py: number) => {
   const box = $('chooser');
   box.innerHTML = '';
   // jogadas de pirata (andar, empurrar, nadar): só o ícone; o resto continua com texto
-  const ICONS: Record<string, IconNode> = { move: Footprints, push: Hand, swim: Waves, dig: Shovel, launch: Sailboat, row: Sailboat };
+  const ICONS: Record<string, IconNode> = { move: Footprints, push: Hand, swim: Waves, launch: Sailboat, row: Sailboat };
   const iconOnly = acts.every((a) => a.type in ICONS);
   box.classList.toggle('icons', iconOnly);
   acts.forEach((a) => {
@@ -597,7 +590,7 @@ document.addEventListener('keydown', (e) => e.key === 'Escape' && closePop());
 const TILE_INFO: Record<AtlantisTile, { treasure: boolean; get: string; use: string }> = {
   crystal: { treasure: true, get: t('Step on the tile with a pirate: stepping reveals what is under it, even before it sinks.', 'Pise na casa com um pirata: pisar revela o que há embaixo, mesmo antes de ela afundar.'), use: t('A <b>resource</b>: worth <b>1 point</b> if you keep it at the end, and it pays for <b>Summons</b> (bottom panel). Spending it costs you points.', 'É um <b>recurso</b>: vale <b>1 ponto</b> se você guardar até o fim, e paga as <b>Convocações</b> (painel de baixo). Gastar custa pontos.') },
   trident: { treasure: true, get: t('Step on the tile with a pirate (stepping reveals it).', 'Pise na casa com um pirata (pisar revela).'), use: t('Kept on the scoreboard (trident icon, next to the crystals). When the quake picks a tile to sink, a <b>Use trident</b> button appears: the tile does not sink.', 'Fica guardado no placar (ícone de tridente, ao lado dos cristais). Quando o terremoto sortear uma casa para afundar, aparece o botão <b>Usar tridente</b>: a casa não afunda.') },
-  calm: { treasure: true, get: t('Step on the tile with a pirate (or dig it with Dig).', 'Pise na casa com um pirata (ou cave com Descobrir).'), use: t('Works at once: the <b>next quake is skipped</b>.', 'Vale na hora: o <b>próximo terremoto é pulado</b>.') },
+  calm: { treasure: true, get: t('Step on the tile with a pirate.', 'Pise na casa com um pirata.'), use: t('Works at once: the <b>next quake is skipped</b>.', 'Vale na hora: o <b>próximo terremoto é pulado</b>.') },
   portal: { treasure: false, get: t('Walk onto it.', 'Ande até ela.'), use: t('Tap the tile and choose to <b>stop</b> or <b>go to another free Portal</b> (a shortcut across the map). It only works with <b>2 revealed Portals</b>: until then it stays <b>gray</b>, switched off.', 'Ao tocar na casa, escolha <b>parar</b> ou <b>ir para outro Portal livre</b> (atalho pelo mapa). Só funciona com <b>2 Portais revelados</b>: até lá ele fica <b>cinza</b>, desligado.') },
   fountain: { treasure: false, get: t('Walk onto it.', 'Ande até ela.'), use: t('Your next <b>Build</b> places 2 blocks at once (only on the Castle and the tiles next to it).', 'Seu próximo <b>Construir</b> põe 2 blocos de uma vez (só no Castelo e nas casas coladas nele).') },
   shield: { treasure: false, get: t('Stay on top of it.', 'Fique em cima dela.'), use: t('While you stand on it, the sea and the creatures <b>cannot take you</b>.', 'Enquanto você estiver em cima, o mar e as criaturas <b>não te levam</b>.') },
@@ -682,7 +675,7 @@ const showScorePop = (p: number) => {
   setTimeout(() => document.addEventListener('pointerdown', closeScorePop, { once: true }), 0);
 };
 
-const usableBuilder = (id: string) => legal.some((a) => 'builderId' in a && a.builderId === id && ['move', 'dig', 'push', 'swim', 'launch', 'row'].includes(a.type));
+const usableBuilder = (id: string) => legal.some((a) => 'builderId' in a && a.builderId === id && ['move', 'push', 'swim', 'launch', 'row'].includes(a.type));
 const ensureSelection = () => {
   if (!inGame) return;
   const me = viewer();
@@ -703,7 +696,14 @@ const renderHud = () => {
   dotEl.style.borderColor = teamColor(a);
   dotEl.style.background = game.phase === 'ended' ? teamColor(a) : '';
   // avatar: a carinha de quem joga agora, num círculo da cor do jogador
-  dotEl.replaceChildren(...(game.phase === 'ended' ? [] : [Object.assign(document.createElement('img'), { src: teamIcons(a)[0], alt: '' })]));
+  if (game.phase === 'ended') dotEl.replaceChildren();
+  else {
+    // a mesma <img> é reaproveitada: recriar a cada jogada fazia o avatar piscar
+    let face = dotEl.querySelector('img');
+    if (!face) dotEl.replaceChildren((face = Object.assign(document.createElement('img'), { alt: '' })));
+    const url = teamIcons(a)[0];
+    if (face.getAttribute('src') !== url) face.src = url;
+  }
   const tt = $('turnText');
   tt.replaceChildren(document.createTextNode(game.phase === 'ended' ? t('Match over', 'Fim da partida') : t(`${pname(a)}'s turn `, `Vez de ${pname(a)} `)));
   if (game.phase !== 'ended' && isBotSeat(a)) tt.appendChild(icon(Bot, 15));
@@ -846,10 +846,7 @@ const renderBar = () => {
     const has = (t: string) => legal.some((x) => x.type === t && 'builderId' in x && x.builderId === selBuilder);
     const bits: string[] = [];
     if (has('move') || has('swim')) bits.push(t('<span class="key y"></span> walk', '<span class="key y"></span> andar'));
-    const loot = legal.find((x) => x.type === 'move' && x.builderId === selBuilder && !x.portalTo && treasureAt(x.to)) as Extract<Action, { type: 'move' }> | undefined;
-    if (loot) bits.unshift(t(`<span class="key t"></span> <b>step on it to take: ${TILE_PT[treasureAt(loot.to)!]}</b>`, `<span class="key t"></span> <b>pise para pegar: ${TILE_PT[treasureAt(loot.to)!]}</b>`));
     if (has('launch') || has('row')) bits.push(t('<span class="key y"></span> boat to the ship', '<span class="key y"></span> bote até o navio'));
-    if (has('dig')) bits.push(t('<span class="key g"></span> dig', '<span class="key g"></span> descobrir'));
     if (has('push')) bits.push(t('<span class="key r"></span> push', '<span class="key r"></span> empurrar'));
     msg.innerHTML = portalPick
       ? t('<b>Portal:</b> tap one of the highlighted Portals to arrive there (tapping elsewhere cancels).', '<b>Portal:</b> toque num dos Portais destacados para chegar nele (tocar fora cancela).')
@@ -899,6 +896,7 @@ const renderLog = () => {
 
 const stage = new Stage3D($('view'), (h, x, y) => onCell(h, x, y));
 stage.nereusLine = t('MY PRINCESS!!', 'MINHA PRINCESA!!');
+stage.overboardLine = t('MAN OVERBOARD!', 'HOMEM AO MAR!');
 stage.sfx = (name) => play(name as SoundName);
 // sem jogada há um tempo: todo mundo cochila (Z subindo) até alguém tocar na tela de novo
 let lastAct = Date.now();
@@ -912,7 +910,7 @@ setInterval(() => {
 }, 1000);
 const drawScene = () => {
   const hl = new Map<string, Highlight>();
-  const kindOf = (a: Action): Highlight => (game.phase === 'flood' ? 'flood' : a.type === 'dig' ? 'dig' : a.type === 'push' ? 'push' : a.type === 'move' && !a.portalTo && treasureAt(a.to) ? 'treasure' : 'move');
+  const kindOf = (a: Action): Highlight => (game.phase === 'flood' ? 'flood' : a.type === 'push' ? 'push' : a.type === 'move' && !a.portalTo && treasureAt(a.to) ? 'treasure' : 'move');
   const seen = new Map<string, Set<Highlight>>();
   candidates().forEach((a) => {
     const c = cellOf(a);
@@ -922,8 +920,8 @@ const drawScene = () => {
     seen.set(hexKey(c), s);
   });
   seen.forEach((s, k) => {
-    // casa que aceita andar e (construir ou descobrir): amarela com borda azul
-    hl.set(k, s.has('treasure') ? 'treasure' : s.has('move') && s.has('dig') ? 'both' : s.has('move') ? 'move' : s.has('dig') ? 'dig' : s.has('push') ? 'push' : 'flood');
+    // casa que aceita andar: amarela
+    hl.set(k, s.has('treasure') ? 'treasure' : s.has('move') ? 'move' : s.has('push') ? 'push' : 'flood');
   });
   if (game.pendingFlood) hl.set(hexKey(game.pendingFlood.hex), 'flood'); // casa sorteada esperando o tridente
   // fase final: as casas que a próxima onda vai varrer ficam com espuma (por baixo das jogadas possíveis)
@@ -1255,7 +1253,7 @@ ${escapeRules()
 <h4>O jogo</h4>
 <p>Cada casa esconde uma peça de Atlântida que só aparece quando ela afunda.</p>
 <ul>
-<li><b>Sua vez tem 3 fases.</b> 1 Ação: 3 ações para andar (e descobrir), empurrar ou nadar. 2 Maré (terremoto): a mesa sorteia ${cfg().floodsPerRound} casas por rodada (da borda ou do meio), que se desfazem e revelam Atlântida. Ninguém escolhe. 3 Criaturas: role o dado e mova a criatura sorteada.</li>
+<li><b>Sua vez tem 3 fases.</b> 1 Ação: 3 ações para andar (e pegar tesouros), empurrar ou nadar. 2 Maré (terremoto): a mesa sorteia ${cfg().floodsPerRound} casas por rodada (da borda ou do meio), que se desfazem e revelam Atlântida. Ninguém escolhe. 3 Criaturas: role o dado e mova a criatura sorteada.</li>
 <li><b>Mover:</b> suba no máximo 1 andar por vez.</li>
 <li><b>Ninguém constrói.</b> Quando o Castelo desperta, ele emerge sozinho com <b>duas torres</b> (2 andares) e <b>escadas</b> (1 andar) ao lado, e a casa na frente do portão fica livre. As escadas deixam subir até 2 andares de uma vez. Quem está numa torre não pode ser empurrado (nem pelo Tritão), fica fora do alcance do Nereu, do Polvo e da Sentinela, e a onda gigante não o leva.</li>
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>

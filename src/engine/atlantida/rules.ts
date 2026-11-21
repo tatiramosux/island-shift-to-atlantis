@@ -302,7 +302,7 @@ const unearth = (s: GameState, b: Builder, c: Cell, ev: GameEvent[]) => {
   const tile = c.tile as AtlantisTile;
   c.dug = true;
   if (tile === 'crystal' || tile === 'trident' || tile === 'calm') c.taken = true; // o tesouro sai da casa
-  ev.push({ type: 'dig', builderId: b.id, owner: b.owner, hex: c.hex, tile });
+  ev.push({ type: 'unearth', builderId: b.id, owner: b.owner, hex: c.hex, tile });
   if (tile === 'crystal') {
     s.crystals[b.owner] += 1;
     c.tile = 'ruin'; // o cristal foi levado; sobra o buraco
@@ -1016,28 +1016,6 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       for (const m of crew) {
         m.hex = a.to;
         ev.push({ type: 'row', builderId: m.id, to: a.to });
-      }
-      return;
-    }
-    case 'dig': {
-      const c = cellAt(s, a.at)!;
-      const tile = c.tile as AtlantisTile;
-      c.dug = true;
-      if (tile === 'crystal' || tile === 'trident' || tile === 'calm') c.taken = true; // o tesouro sai da casa
-      s.actionsLeft -= 1;
-      ev.push({ type: 'dig', builderId: a.builderId, owner: a.player, hex: a.at, tile });
-      if (tile === 'crystal') {
-        s.crystals[a.player] += 1;
-        c.tile = 'ruin'; // o cristal foi levado; sobra o buraco
-        ev.push({ type: 'crystal', owner: a.player, hex: a.at });
-      } else if (tile === 'trident') {
-        s.tridents[a.player] += 1;
-        c.tile = 'ruin';
-        ev.push({ type: 'tridentTaken', owner: a.player, hex: a.at });
-      } else if (tile === 'calm') {
-        s.skipFlood += 1;
-        c.tile = 'ruin';
-        ev.push({ type: 'calmSea', owner: a.player, hex: a.at });
       }
       return;
     }
