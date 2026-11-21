@@ -757,6 +757,7 @@ const renderHud = () => {
     g1.append(icon(Gem, 14), `${game.crystals[p]}`);
     const g2 = document.createElement('span');
     g2.title = t('Tridents', 'Tridentes');
+    g2.className = 'tri';
     g2.append(icon(Trident, 14), String(game.tridents[p]));
     res.append(g1, g2);
     const pts = document.createElement('span');

@@ -47,10 +47,10 @@ interface Entity {
   spinZ?: number;
   zzz?: THREE.Group; // os Z de quando o personagem dorme
   bubble?: THREE.Sprite; // balão "homem ao mar!" de quem boia
-  idle?: { kind: 'look' | 'scratch' | 'spy' | 'watch'; t0: number; dur: number }; // movimento de espera em andamento
+  idle?: { kind: 'look' | 'scratch' | 'spy' | 'watch' | 'drink'; t0: number; dur: number }; // movimento de espera em andamento
   idleNext?: number;
   cparts?: { tentacles?: THREE.Object3D[]; flag?: THREE.Object3D; levi?: { head: THREE.Object3D; jaw: THREE.Object3D; tail: THREE.Object3D } } | null; // partes animáveis do Polvo e do Leviatã
-  props?: { spy: THREE.Group; watch: THREE.Group }; // luneta e relógio de bolso, que aparecem na mão esquerda
+  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
   shouting?: boolean;
 }
 
@@ -1572,11 +1572,26 @@ export class Stage3D {
     }
   }
 
+  // a luneta e a garrafa só podem estar na mão de um marujo por vez, e cada uma tem um intervalo bem longo entre usos
+  private spyBy: string | null = null;
+  private drinkBy: string | null = null;
+  private nextSpyAt = 0;
+  private nextDrinkAt = 0;
+
   private idleStop(e: Entity) {
+    const t = this.clock.elapsedTime;
+    if (e.idle?.kind === 'spy' && this.spyBy === e.id) {
+      this.spyBy = null;
+      this.nextSpyAt = t + 25 + Math.random() * 15;
+    }
+    if (e.idle?.kind === 'drink' && this.drinkBy === e.id) {
+      this.drinkBy = null;
+      this.nextDrinkAt = t + 30 + Math.random() * 20;
+    }
     e.idle = undefined;
     e.group.rotation.x = e.group.rotation.z = 0;
-    e.idleNext = this.clock.elapsedTime + 4 + Math.random() * 6;
-    if (e.props) e.props.spy.visible = e.props.watch.visible = false;
+    e.idleNext = t + 12 + Math.random() * 16; // bem espaçado
+    if (e.props) e.props.spy.visible = e.props.watch.visible = e.props.bottle.visible = false;
   }
 
   /** Um movimento de espera suave de vez em quando, cada pirata no seu ritmo. */
@@ -1591,15 +1606,23 @@ export class Stage3D {
       const watch = new THREE.Group(); // relógio de bolso: disco dourado com a correntinha
       watch.position.set(0, -0.31, 0.03);
       watch.add(m.box(0.09, 0.09, 0.02, gold, 0, 0, 0), m.box(0.06, 0.06, 0.025, m.solid('#fff7e0'), 0, 0, 0.004), m.box(0.012, 0.1, 0.012, gold, 0.03, 0.06, 0));
-      spy.visible = watch.visible = false;
-      e.armL!.add(spy, watch);
-      e.props = { spy, watch };
+      const bottle = new THREE.Group(); // garrafa verde com rolha
+      bottle.position.set(0, -0.3, 0.03);
+      const green = m.solid('#2f9e4f', 0.15);
+      bottle.add(m.box(0.07, 0.13, 0.07, green, 0, -0.04, 0), m.box(0.035, 0.07, 0.035, green, 0, 0.06, 0), m.box(0.04, 0.02, 0.04, brown, 0, 0.11, 0));
+      spy.visible = watch.visible = bottle.visible = false;
+      e.armL!.add(spy, watch, bottle);
+      e.props = { spy, watch, bottle };
     }
-    if (e.idleNext === undefined) e.idleNext = t + 2 + Math.random() * 8;
+    if (e.idleNext === undefined) e.idleNext = t + 6 + Math.random() * 16;
     if (!e.idle && t >= e.idleNext) {
       const r = Math.random();
-      const kind = r < 0.35 ? 'look' : r < 0.6 ? 'scratch' : r < 0.8 ? 'spy' : 'watch';
-      e.idle = { kind, t0: t, dur: kind === 'look' ? 2.8 : kind === 'scratch' ? 2.2 : kind === 'spy' ? 3.4 : 3 };
+      let kind: NonNullable<Entity['idle']>['kind'] = r < 0.38 ? 'look' : r < 0.64 ? 'scratch' : r < 0.8 ? 'watch' : r < 0.9 ? 'spy' : 'drink';
+      if (kind === 'spy' && (this.spyBy || t < this.nextSpyAt)) kind = 'look'; // a luneta só está na mão de um marujo por vez
+      if (kind === 'drink' && (this.drinkBy || t < this.nextDrinkAt)) kind = 'scratch'; // a garrafa também
+      if (kind === 'spy') this.spyBy = e.id;
+      if (kind === 'drink') this.drinkBy = e.id;
+      e.idle = { kind, t0: t, dur: kind === 'look' ? 2.8 : kind === 'scratch' ? 2.2 : kind === 'spy' ? 3.4 : kind === 'drink' ? 3.2 : 3 };
     }
     const id = e.idle;
     if (!id) return;
@@ -1609,6 +1632,7 @@ export class Stage3D {
     const kk = k * k * (3 - 2 * k);
     e.props.spy.visible = id.kind === 'spy';
     e.props.watch.visible = id.kind === 'watch';
+    e.props.bottle.visible = id.kind === 'drink';
     if (id.kind === 'look') {
       e.group.rotation.y += Math.sin(u * Math.PI * 2.4) * 0.7 * kk; // olha para um lado e para o outro
     } else if (id.kind === 'scratch') {
@@ -1619,6 +1643,11 @@ export class Stage3D {
       e.armL!.rotation.x = -1.9 * kk; // luneta no olho, varrendo o horizonte
       e.armL!.rotation.z = (-0.1 + Math.sin(u * Math.PI * 2) * 0.22) * kk;
       e.group.rotation.y += Math.sin(u * Math.PI * 2) * 0.3 * kk;
+    } else if (id.kind === 'drink') {
+      e.armL!.rotation.x = -2.2 * kk; // leva a garrafa à boca, inclina e bebe
+      e.armL!.rotation.z = -0.1 * kk;
+      e.props.bottle.rotation.x = (0.3 + Math.sin(u * Math.PI * 3) * 0.25) * kk; // vai virando a garrafa
+      e.group.rotation.x = -0.1 * kk; // cabeça (corpo) levemente para trás
     } else {
       e.armL!.rotation.x = -1.0 * kk; // tira o relógio do bolso e olha
       e.armL!.rotation.z = -0.1 * kk;
@@ -1881,6 +1910,12 @@ export class Stage3D {
       // movimentos de espera dos piratas em pé: olhar em volta, coçar a cabeça, luneta e relógio de bolso
       if (e.armL && e.armR && !this.sleeping && !e.script && !e.floating && !e.kind.includes('-boat') && dist < 0.05 && t - (e.swingAt ?? -9) > 0.8) this.idleStep(e, t);
       else if (e.idle) this.idleStop(e);
+      // balanço permanente de quem passou muito tempo no mar: oscila parado e rola mais forte ao andar
+      if (e.armL && !this.sleeping && !e.script && !e.floating && !e.kind.includes('-boat') && !e.kind.endsWith('-floating')) {
+        const walking = dist >= 0.05;
+        e.group.rotation.z += walking ? Math.sin(t * 8 + e.phase) * 0.09 : Math.sin(t * 1.5 + e.phase) * 0.04;
+        e.group.rotation.x += Math.sin(t * 1.1 + e.phase * 1.3) * (walking ? 0.03 : 0.012);
+      }
       if (!e.armL && !e.script && (!this.sleeping || e.id.startsWith('ship'))) this.creatureIdle(e, t); // a bandeira dos navios continua ao vento mesmo com todos dormindo
       if (this.sleeping && e.armR && e.armL && !e.script && !e.kind.endsWith('-floating')) {
         // dormindo: tombado de lado, cabeça caída, respirando devagar

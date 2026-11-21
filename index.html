@@ -88,7 +88,9 @@
       .hud-tr { top: 10px; right: 10px; width: 200px; }
       .score { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 5px 8px; font-size: 13px; }
       .score > * { cursor: pointer; }
-      .score .res { color: #8fdcff; }
+      .score .res { color: #fff; } /* números em branco */
+      .score .res svg { color: #8fdcff; } /* cristal azul */
+      .score .res .tri svg { color: #ffd84a; } /* tridente amarelo */
       .score .pts { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 34px; padding: 0 6px; font-weight: 900; font-size: 15px; color: #7be26a; background: #0a2a1a; border: 1.5px solid #2f7a2a; border-radius: 8px; font-variant-numeric: tabular-nums; }
       .score .pts.half { color: #ff9a8a; background: #33150f; border-color: #8a3a2a; }
       .score .pts small { font-size: 9px; font-weight: 700; }
