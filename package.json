@@ -24,6 +24,7 @@
     "vitest": "latest"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "lucide": "^1.74.0",
     "three": "0.187.0",
     "ws": "^8.23.0"
