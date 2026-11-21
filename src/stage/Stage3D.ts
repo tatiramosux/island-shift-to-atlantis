@@ -481,7 +481,7 @@ export class Stage3D {
   private syncPrincess(s: GameState) {
     const t = s.cells['0,0'];
     const live = !s.vanished && s.phase !== 'ended';
-    const waiting = !!t && t.state === 'island' && s.castleTaken === null && live; // desde o começo: presa no Castelo, para a meta ficar visível
+    const waiting = !!t && t.floors >= 3 && s.castleTaken === null && live; // ela só surge quando o 3º andar do Castelo aparece
     if (!waiting) {
       if (this.princessObj) this.princessObj.visible = false;
     } else {
