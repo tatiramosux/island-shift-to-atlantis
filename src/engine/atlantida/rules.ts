@@ -97,12 +97,6 @@ export const PRINCESS_BONUS = 4;
 export const TRIDENT_VALUE = 2;
 /** Casa colada na entrada do Castelo (o portão em arco do desenho fica deste lado): ali não se constrói escada. */
 export const CASTLE_GATE: Hex = hex(0, 1);
-const canBuild = (s: GameState, c: Cell): boolean => {
-  if (!landFree(s, c.hex)) return false;
-  if (!c.temple && c.ring !== 1) return false; // Regra: só se constrói no Castelo e nas casas coladas nele
-  if (hexEquals(c.hex, CASTLE_GATE)) return false; // a frente do portão fica livre
-  return !(c.temple && c.floors >= MAX_FLOORS); // o Templo não aceita cúpula
-};
 /** Descobrir: casa de superfície longe do Castelo (anel 2 em diante), ainda fechada e livre. */
 const waterFree = (s: GameState, h: Hex): boolean => isSea(s, h) && !isShip(s, h) && !builderAt(s, h) && !creatureAt(s, h);
 
@@ -254,6 +248,7 @@ export const createGame = ({ players, seed, settings }: NewGameOptions): GameSta
     creatures,
     ships,
     castleTaken: null,
+    castleRisen: false,
     princess: null,
     wave: null,
     crystals: Array(players).fill(0),
@@ -489,7 +484,6 @@ export const legalActions = (s: GameState): Action[] => {
               }
             }
           }
-          if (canBuild(s, c)) out.push({ type: 'build', player: p, builderId: b.id, at: n });
           const t = builderAt(s, n);
           if (t && t.status === 'board' && t.owner !== p && !onFortified(s, t) && pushDest(s, b.hex!, t)) out.push({ type: 'push', player: p, builderId: b.id, targetId: t.id });
         }
@@ -786,6 +780,32 @@ const endTurn = (s: GameState, ev: GameEvent[]) => {
   s.die = null;
 };
 
+/**
+ * Quando o Castelo desperta, Atlântida o ergue sozinha: 3 andares, duas torres de 2 andares ao lado e escadas de 1 andar
+ * (chão → escada → torre → Castelo), para qualquer pirata poder subir e resgatar a princesa. A casa do portão fica livre.
+ */
+const riseCastle = (s: GameState, ev: GameEvent[]) => {
+  if (s.castleRisen || !templeAwake(s)) return;
+  s.castleRisen = true;
+  const temple = cellAt(s, ORIGIN)!;
+  temple.floors = MAX_FLOORS;
+  const ring = hexNeighbors(ORIGIN);
+  const g = ring.findIndex((h) => hexEquals(h, CASTLE_GATE));
+  const at = (k: number) => ring[(g + k) % 6];
+  const towers = [at(2), at(4)];
+  const stairs = [at(1), at(3), at(5)];
+  const raise = (h: Hex, floors: number) => {
+    const c = cellAt(s, h);
+    if (c && !c.sunk) {
+      c.floors = Math.max(c.floors, floors);
+      c.dome = false;
+    }
+  };
+  towers.forEach((h) => raise(h, 2));
+  stairs.forEach((h) => raise(h, 1));
+  ev.push({ type: 'castleRises', hex: ORIGIN, towers, stairs });
+};
+
 /** A casa vira Atlântida (blocos somem, quem estava nela cai na água, salvo Escudo) e a peça de baixo é revelada. */
 const flipCell = (s: GameState, h: Hex, ev: GameEvent[]) => {
   const c = cellAt(s, h)!;
@@ -796,6 +816,7 @@ const flipCell = (s: GameState, h: Hex, ev: GameEvent[]) => {
   c.floors = tile === 'column' ? 1 : 0; // a Coluna já nasce com 1 andar
   for (const b of here) if (tile !== 'shield') dropIntoWater(s, b, ev);
   ev.push({ type: 'flood', hex: h, tile });
+  riseCastle(s, ev);
   const g = creatureOf(s, 'guardian');
   if (s.settings.guardian && !g.hex && !builderAt(s, h)) {
     g.hex = h;
@@ -965,18 +986,6 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         enter(s, b, ev);
         sentinelCheck(s, b, ev);
       } else ev.push({ type: 'swim', builderId: b.id, to: a.to });
-      return;
-    }
-    case 'build': {
-      const c = cellAt(s, a.at)!;
-      const blocks = s.fountain[a.player] ? 2 : 1; // Fonte: 2 blocos no próximo passo de construir
-      s.fountain[a.player] = false;
-      s.actionsLeft -= 1;
-      for (let i = 0; i < blocks && canBuild(s, c); i++) {
-        if (c.floors >= MAX_FLOORS) c.dome = true;
-        else c.floors += 1;
-      }
-      ev.push({ type: 'build', builderId: a.builderId, hex: a.at, floors: c.floors, dome: c.dome });
       return;
     }
     case 'launch': {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hex, hexDistance, hexKey, hexNeighbors, hexRing, type Hex } from '../hex';
 import {
+  CASTLE_GATE,
   ORIGIN,
   TILE_COUNTS,
   applyAction,
@@ -178,73 +179,25 @@ describe('mover', () => {
   });
 });
 
-describe('construir', () => {
-  it('sobe 3 andares e o 4º bloco é uma cúpula que bloqueia a casa', () => {
-    let s = blank();
-    put(s, 'p0b0', H(2, 0));
-    const at = H(1, 0);
-    for (let i = 1; i <= 3; i++) {
-      s.actionsLeft = 3;
-      s = ok(s, { type: 'build', player: 0, builderId: 'p0b0', at }).state;
-      expect(cell(s, at).floors).toBe(i);
-    }
-    s.actionsLeft = 3;
-    s = ok(s, { type: 'build', player: 0, builderId: 'p0b0', at }).state;
-    expect(cell(s, at).dome).toBe(true);
-    s.actionsLeft = 3;
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at });
-    bad(s, { type: 'move', player: 0, builderId: 'p0b0', to: at });
-  });
-
-  it('a casa na frente do portão do Castelo não recebe escada', () => {
-    const s = blank();
-    put(s, 'p0b0', H(1, 1)); // vizinha da entrada (0,1)
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(0, 1) });
-    ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(1, 0) }); // a casa ao lado aceita
-  });
-
-  it('não constrói em casa ocupada, longe do construtor ou no Templo adormecido', () => {
+describe('ninguém constrói', () => {
+  it('não existe ação de construir: o Castelo, as torres e as escadas surgem sozinhos', () => {
     const s = blank();
     put(s, 'p0b0', H(1, 0));
-    put(s, 'p1b0', H(2, 0));
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(2, 0) });
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(3, -1) });
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: ORIGIN }); // Templo ainda dorme
-    bad(s, { type: 'move', player: 0, builderId: 'p0b0', to: ORIGIN });
+    put(s, 'p1b0', H(-1, 0));
+    expect(legalActions(s).some((a) => (a as { type: string }).type === 'build')).toBe(false);
   });
 
-  it('o Templo desperta com 4 casas de Atlântida, aceita 3 andares e nunca cúpula', () => {
-    let s = blank();
-    wakeTemple(s);
-    put(s, 'p0b0', H(1, 0));
-    for (let i = 1; i <= 3; i++) {
-      s.actionsLeft = 3;
-      s = ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: ORIGIN }).state;
-      expect(cell(s, ORIGIN).floors).toBe(i);
-    }
-    s.actionsLeft = 3;
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: ORIGIN });
-  });
-
-  it('a Fonte põe 2 blocos no próximo passo de construir, uma vez só', () => {
-    let s = blank();
-    put(s, 'p0b0', H(2, 0));
-    s.fountain[0] = true;
-    s = ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(1, 0) }).state;
-    expect(cell(s, H(1, 0)).floors).toBe(2);
-    expect(s.fountain[0]).toBe(false);
-    s = ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(1, 0) }).state;
-    expect(cell(s, H(1, 0)).floors).toBe(3);
+  it('a casa do portão do Castelo e as vizinhas só recebem andares quando o Castelo se ergue', () => {
+    const s = blank();
+    expect(cell(s, ORIGIN).floors).toBe(0);
+    expect(hexRing(ORIGIN, 1).every((h) => cell(s, h).floors === 0)).toBe(true);
   });
 });
 
 describe('pisar descobre (não existe mais a ação de cavar)', () => {
-  it('só se constrói no Castelo e nas casas coladas nele; longe dele não há ação de cavar', () => {
+  it('não há ação de cavar', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(3, 0) });
-    bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(2, -1) });
-    ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(1, 0) });
     expect(legalActions(s).some((a) => a.type === 'dig')).toBe(false);
   });
 
@@ -483,6 +436,42 @@ describe('fase de Maré', () => {
     s = floodAt(s, H(4, 0));
     expect(s.pendingFlood).toBeNull();
     expect(cell(s, H(4, 0)).state).toBe('atlantis');
+  });
+});
+
+describe('o Castelo se ergue sozinho', () => {
+  it('ao despertar, vira 3 andares com 2 torres e 3 escadas, e a casa do portão fica livre', () => {
+    let s = blank();
+    put(s, 'p0b0', H(1, 0));
+    put(s, 'p1b0', H(-1, 0));
+    for (const h of hexRing(ORIGIN, 3).slice(0, 3)) sink(s, h); // 3 casas já emersas; a 4ª desperta o Castelo
+    s.settings = { ...s.settings, templeWake: 4 };
+    expect(cell(s, ORIGIN).floors).toBe(0);
+    s = floodAt(s, hexRing(ORIGIN, 3)[3]);
+    expect(s.castleRisen).toBe(true);
+    expect(cell(s, ORIGIN).floors).toBe(3);
+    const ring = hexRing(ORIGIN, 1).map((h) => cell(s, h).floors).sort();
+    expect(ring).toEqual([0, 1, 1, 1, 2, 2]); // portão livre, 3 escadas, 2 torres
+    expect(cell(s, CASTLE_GATE).floors).toBe(0);
+  });
+
+  it('um pirata sobe escada → torre → Castelo e resgata a princesa', () => {
+    let s = blank();
+    wakeTemple(s);
+    s.settings = { ...s.settings, templeWake: 4 };
+    put(s, 'p0b0', H(2, 0));
+    put(s, 'p1b0', H(-3, 0));
+    s = floodAt(s, hexRing(ORIGIN, 3)[5]); // desperta e ergue o Castelo
+    expect(s.castleRisen).toBe(true);
+    // caminho: casa do portão (0,1) → escada (-1,1) → torre (-1,0) → Castelo
+    const path = [H(1, 1), H(0, 1), H(-1, 1), H(-1, 0), ORIGIN];
+    put(s, 'p0b0', H(1, 1));
+    s.phase = 'action';
+    s.current = 0;
+    s.actionsLeft = 9;
+    for (const to of path.slice(1)) s = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to }).state;
+    expect(s.castleTaken).toBe(0);
+    expect(s.princess).toEqual({ by: 0, safe: false });
   });
 });
 

@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, ChevronDown, ChevronUp, Footprints, Hammer, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, ChevronDown, ChevronUp, Footprints, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -60,7 +60,7 @@ const SUMMONS = {
   colossus: { name: t('Coral Colossus', 'Colosso de coral'), tip: t('Instant dome: places a dome on any free tile except the Castle.', 'Cúpula relâmpago: coloca uma cúpula em qualquer casa livre que não seja o Castelo.') },
 } as const;
 type SummonKind = keyof typeof SUMMONS;
-type Mode = 'move' | 'build' | 'push' | 'swim' | `summon:${SummonKind}`;
+type Mode = 'move' | 'push' | 'swim' | `summon:${SummonKind}`;
 type Session = { kind: 'bots' } | { kind: 'hot' } | { kind: 'net' };
 interface NetState {
   ws: WebSocket;
@@ -154,6 +154,7 @@ const evText = (e: GameEvent): string | null => {
     case 'leviathanGrab': return t('The Leviathan lassoed a pirate with its tail!', 'O Leviatã laçou um pirata com a cauda!');
     case 'crumble': return t('A tile of Atlantis crumbled: now it is open sea.', 'Uma casa de Atlântida desmoronou: virou mar aberto.');
     case 'leviathanSmash': return t('The Leviathan smashed the top block of a tile.', 'O Leviatã derrubou o bloco de cima de uma casa.');
+    case 'castleRises': return t('The Castle of Atlantis rose from the sea, with two towers and stairs! The Princess waits at the top.', 'O Castelo de Atlântida emergiu do mar, com duas torres e escadas! A Princesa espera no topo.');
     case 'nereusPull': return t(`Nereus rose from the sea and dragged ${bname(e.builderId as string)} into the water!`, `Nereu surgiu do mar e arrastou ${bname(e.builderId as string)} para a água!`);
     case 'nereusSleeps': return t('Nereus rose from the sea, but found nobody within reach.', 'Nereu surgiu do mar, mas não achou ninguém ao alcance.');
     case 'guardianPush': return t('The Sentinel pushed a pirate.', 'A Sentinela empurrou um pirata.');
@@ -172,7 +173,6 @@ const actText = (a: Action): string | null => {
     case 'swim': return t(`${n}: ${bname(a.builderId)} swims.`, `${n}: ${bname(a.builderId)} nada.`);
     case 'launch': return t(`${n}: ${bname(a.builderId)} gets into a boat.`, `${n}: ${bname(a.builderId)} entra num bote.`);
     case 'row': return t(`${n}: ${bname(a.builderId)} rows.`, `${n}: ${bname(a.builderId)} rema.`);
-    case 'build': return t(`${n}: builds.`, `${n}: constrói.`);
     case 'dig': return t(`${n}: digs up a tile.`, `${n}: descobre uma casa.`);
     case 'push': return t(`${n}: pushes ${bname(a.targetId)}.`, `${n}: empurra ${bname(a.targetId)}.`);
     case 'endActions': return t(`${n}: ends their actions.`, `${n}: termina as ações.`);
@@ -257,6 +257,7 @@ const SOUND_OF: [string, SoundName][] = [
   ['leviathanSmash', 'smash'],
   ['crumble', 'crumble'],
   ['boatCapsized', 'splash'],
+  ['castleRises', 'castle'],
   ['nereusPull', 'swim'],
   ['floating', 'splash'],
   ['flood', 'flood'],
@@ -264,7 +265,6 @@ const SOUND_OF: [string, SoundName][] = [
   ['quake', 'quake'],
   ['summon', 'summon'],
   ['dig', 'dig'],
-  ['build', 'build'],
   ['push', 'push'],
   ['guardianPush', 'push'],
   ['sentinelWake', 'smash'],
@@ -303,6 +303,7 @@ const takeState = (events: GameEvent[]) => {
     if (mine && e.type === 'fountain') toast(t('Fountain: your next Build places 2 blocks.', 'Fonte: seu próximo Construir põe 2 blocos.'));
     if (mine && e.type === 'castleCrystal') toast(t('You rescued the Princess! Get to the ship: boarding with her gives a big bonus (+4).', 'Você resgatou a Princesa! Chegue ao navio: embarcar com ela dá um bônus grande (+4).'));
     if (mine && e.type === 'princessSafe') toast(t('Princess safe! +4 points.', 'Princesa a salvo! +4 pontos.'));
+    if (e.type === 'castleRises') toast(t('The Castle rose! Climb the stairs and towers to rescue the Princess at the top.', 'O Castelo emergiu! Suba pelas escadas e torres para resgatar a Princesa no topo.'));
     if (e.type === 'escapeStarted') toast(e.by === viewer() ? t('You reached the ship! The island will vanish: the others get one more turn to escape.', 'Você chegou ao navio! A ilha vai sumir: os outros têm mais um turno para fugir.') : t('Someone reached the ship! The island will vanish: you have one more turn to escape.', 'Alguém chegou ao navio! A ilha vai sumir: você tem mais um turno para fugir.'));
     if (e.type === 'islandVanishes') toast(t('The island vanished into the sea!', 'A ilha sumiu no mar!'));
     if (e.type === 'summon' && e.kind === 'siren') {
@@ -364,7 +365,6 @@ const cellOf = (a: Action): Hex | null => {
     case 'swim':
     case 'launch':
     case 'row': return a.to;
-    case 'build':
     case 'dig': return a.at;
     case 'push': return builderHex(a.targetId);
     case 'moveCreature': return a.to;
@@ -381,7 +381,7 @@ const candidates = (): Action[] => {
     case 'action':
       if (portalPick) return portalPick;
       if (mode.startsWith('summon:')) return legal.filter((a) => a.type === 'summon' && a.kind === mode.slice(7));
-      return legal.filter((a) => ['move', 'swim', 'launch', 'row', 'build', 'dig', 'push'].includes(a.type) && 'builderId' in a && a.builderId === selBuilder);
+      return legal.filter((a) => ['move', 'swim', 'launch', 'row', 'dig', 'push'].includes(a.type) && 'builderId' in a && a.builderId === selBuilder);
     default: return [];
   }
 };
@@ -392,7 +392,6 @@ const label = (a: Action): string => {
     case 'swim': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : t('Swim here', 'Nadar até aqui');
     case 'launch': return t('Get into a boat', 'Entrar num bote');
     case 'row': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : isWaterHex(a.to) ? t('Row here', 'Remar até aqui') : t('Land on the beach', 'Descer na praia');
-    case 'build': return t('Build here', 'Construir aqui');
     case 'dig': return t('Dig up what is here', 'Descobrir o que há aqui');
     case 'push': return t(`Push ${bname(a.targetId)}`, `Empurrar ${bname(a.targetId)}`);
     case 'moveCreature':
@@ -485,8 +484,8 @@ const onCell = (h: Hex, px: number, py: number) => {
   if (acts.length === 1) return apply(acts[0]);
   const box = $('chooser');
   box.innerHTML = '';
-  // jogadas de pirata (andar, construir, empurrar, nadar): só o ícone; o resto continua com texto
-  const ICONS: Record<string, IconNode> = { move: Footprints, build: Hammer, push: Hand, swim: Waves, dig: Shovel, launch: Sailboat, row: Sailboat };
+  // jogadas de pirata (andar, empurrar, nadar): só o ícone; o resto continua com texto
+  const ICONS: Record<string, IconNode> = { move: Footprints, push: Hand, swim: Waves, dig: Shovel, launch: Sailboat, row: Sailboat };
   const iconOnly = acts.every((a) => a.type in ICONS);
   box.classList.toggle('icons', iconOnly);
   acts.forEach((a) => {
@@ -641,7 +640,7 @@ bindHelp('helpPhase', t('Rules for this phase', 'Regras desta fase'), () => {
     : t(`<b>Goal:</b> discover treasure and collect crystals. The Princess waits on top of the Castle: rescue her and board the ship with her for a +4 bonus. After she is rescued, the first team to row all its pirates to its own ship ends the match: whoever has the most points wins.`, `<b>Objetivo:</b> descubra tesouros e junte cristais. A Princesa espera no topo do Castelo: resgate-a e embarque no navio com ela para ganhar +4 de bônus. Depois que ela for resgatada, o primeiro time que levar todos os piratas de bote até o próprio navio encerra a partida: vence quem tiver mais pontos.`);
   const byPhase: Record<string, string[]> = {
     setup: [t('<b>Setup:</b> tap a free tile on the edge to place your pirate.', '<b>Preparação:</b> toque numa casa livre da borda para colocar seu pirata.')],
-    action: [t('<b>1 Action:</b> you have 3 actions. Tap your pirate, then a colored tile to walk (stepping on a closed tile away from the Castle reveals the treasure under it), build (only next to the Castle, except in front of the gate) or push. Summon: 1 per turn, no action spent.', '<b>1 Ação:</b> você tem 3 ações. Toque no seu pirata e depois numa casa colorida para andar (pisar numa casa fechada longe do Castelo revela o tesouro que há embaixo), construir (só ao lado do Castelo, menos na frente do portão) ou empurrar. Convocação: 1 por turno, sem gastar ação.')],
+    action: [t('<b>1 Action:</b> you have 3 actions. Tap your pirate, then a colored tile to walk (stepping on a closed tile away from the Castle reveals the treasure under it) or push. Summon: 1 per turn, no action spent.', '<b>1 Ação:</b> você tem 3 ações. Toque no seu pirata e depois numa casa colorida para andar (pisar numa casa fechada longe do Castelo revela o tesouro que há embaixo) ou empurrar. Convocação: 1 por turno, sem gastar ação.')],
     flood: [t(`<b>2 Tide (quake):</b> the table randomly picks the tiles that crumble and reveal Atlantis (nobody chooses), ${game.settings.floodsPerRound} per round. Anyone on them falls in the water and floats. To take the treasure of a revealed tile, walk a pirate onto it.`, `<b>2 Maré (terremoto):</b> a mesa sorteia as casas que se desfazem e revelam Atlântida (ninguém escolhe), ${game.settings.floodsPerRound} por rodada. Quem estava nelas cai na água e fica boiando. Para pegar o tesouro de uma casa revelada, leve um pirata até ela.`)],
     creatures: [t('<b>3 Creatures:</b> the die picks a creature. Move it along the yellow tiles (the Octopus and Leviathan swim only in the sea and the holes where Atlantis crumbled); it lassos anyone up to 2 tiles away and throws them into the water.', '<b>3 Criaturas:</b> o dado sorteia uma criatura. Mova-a pelas casas amarelas (o Polvo e o Leviatã nadam só pelo mar e pelos buracos onde Atlântida desmoronou); ela laça quem estiver a até 2 casas e joga na água.')],
     ended: [t('The match is over.', 'A partida terminou.')],
@@ -683,7 +682,7 @@ const showScorePop = (p: number) => {
   setTimeout(() => document.addEventListener('pointerdown', closeScorePop, { once: true }), 0);
 };
 
-const usableBuilder = (id: string) => legal.some((a) => 'builderId' in a && a.builderId === id && ['move', 'build', 'dig', 'push', 'swim', 'launch', 'row'].includes(a.type));
+const usableBuilder = (id: string) => legal.some((a) => 'builderId' in a && a.builderId === id && ['move', 'dig', 'push', 'swim', 'launch', 'row'].includes(a.type));
 const ensureSelection = () => {
   if (!inGame) return;
   const me = viewer();
@@ -852,7 +851,6 @@ const renderBar = () => {
     const loot = legal.find((x) => x.type === 'move' && x.builderId === selBuilder && !x.portalTo && treasureAt(x.to)) as Extract<Action, { type: 'move' }> | undefined;
     if (loot) bits.unshift(t(`<span class="key t"></span> <b>step on it to take: ${TILE_PT[treasureAt(loot.to)!]}</b>`, `<span class="key t"></span> <b>pise para pegar: ${TILE_PT[treasureAt(loot.to)!]}</b>`));
     if (has('launch') || has('row')) bits.push(t('<span class="key y"></span> boat to the ship', '<span class="key y"></span> bote até o navio'));
-    if (has('build')) bits.push(t('<span class="key b"></span> build', '<span class="key b"></span> construir'));
     if (has('dig')) bits.push(t('<span class="key g"></span> dig', '<span class="key g"></span> descobrir'));
     if (has('push')) bits.push(t('<span class="key r"></span> push', '<span class="key r"></span> empurrar'));
     msg.innerHTML = portalPick
@@ -916,7 +914,7 @@ setInterval(() => {
 }, 1000);
 const drawScene = () => {
   const hl = new Map<string, Highlight>();
-  const kindOf = (a: Action): Highlight => (game.phase === 'flood' ? 'flood' : a.type === 'build' ? 'build' : a.type === 'dig' ? 'dig' : a.type === 'push' ? 'push' : a.type === 'move' && !a.portalTo && treasureAt(a.to) ? 'treasure' : 'move');
+  const kindOf = (a: Action): Highlight => (game.phase === 'flood' ? 'flood' : a.type === 'dig' ? 'dig' : a.type === 'push' ? 'push' : a.type === 'move' && !a.portalTo && treasureAt(a.to) ? 'treasure' : 'move');
   const seen = new Map<string, Set<Highlight>>();
   candidates().forEach((a) => {
     const c = cellOf(a);
@@ -927,7 +925,7 @@ const drawScene = () => {
   });
   seen.forEach((s, k) => {
     // casa que aceita andar e (construir ou descobrir): amarela com borda azul
-    hl.set(k, s.has('treasure') ? 'treasure' : s.has('move') && (s.has('build') || s.has('dig')) ? 'both' : s.has('move') ? 'move' : s.has('build') ? 'build' : s.has('dig') ? 'dig' : s.has('push') ? 'push' : 'flood');
+    hl.set(k, s.has('treasure') ? 'treasure' : s.has('move') && s.has('dig') ? 'both' : s.has('move') ? 'move' : s.has('dig') ? 'dig' : s.has('push') ? 'push' : 'flood');
   });
   if (game.pendingFlood) hl.set(hexKey(game.pendingFlood.hex), 'flood'); // casa sorteada esperando o tridente
   // fase final: as casas que a próxima onda vai varrer ficam com espuma (por baixo das jogadas possíveis)
@@ -1190,7 +1188,7 @@ const rulesHtml = () => t(`
 <h4>Goal</h4>
 <p>An island sinks while the ancient city of Atlantis rises from below. Gather as much treasure as you can and escape on your ship.</p>
 <ul>
-<li><b>Castle:</b> at the top (3rd floor) of the Castle of Atlantis, in the center, waits the Princess. There is only one. Rescue her and get on your ship with her to earn a +4 bonus (it does not win by itself: whoever has the most points still wins). The Castle wakes up, gates open, after ${cfg().templeWake} tiles have sunk (about ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "round" : "rounds"}).</li>
+<li><b>Castle:</b> at the top (3rd floor) of the Castle of Atlantis, in the center, waits the Princess. There is only one. Rescue her and get on your ship with her to earn a +4 bonus (it does not win by itself: whoever has the most points still wins). Nobody builds it: after ${cfg().templeWake} tiles have sunk (about ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "round" : "rounds"}) the Castle rises from the sea by itself, with two towers and stairs, and any pirate can climb up to her. Longer matches take more time, but the rule is the same.</li>
 ${escapeRules()
   ? `<li><b>Escape:</b> each team has a ship anchored at sea. From any beach, a pirate gets into a boat (1 action) and rows up to 2 tiles per action to the ship. The boat holds the team's 2 pirates. When <b>the first pirate</b> of any team boards a ship, the island is about to vanish: each of the other teams plays one more turn, then the island sinks into the sea. Anyone left on land is adrift and keeps only half of their crystals. If nobody escapes by round ${cfg().vanishRound}, the island vanishes anyway and Nereus, king of the seas and of Atlantis, keeps the treasure: nobody wins.</li>`
   : `<li><b>Escape:</b> each team has a ship anchored at sea. From any beach, a pirate gets into a boat (1 action) and rows up to 2 tiles per action to the ship. The boat holds the team's 2 pirates: the second one gets into the same boat and one stroke carries both. After the Princess is rescued, the first team with <b>all</b> its pirates on the ship ends the match. Nobody is left behind.</li>`}
@@ -1205,13 +1203,9 @@ ${escapeRules()
 <h4>The game</h4>
 <p>Each tile hides an Atlantis piece that only shows when it sinks.</p>
 <ul>
-<li><b>Your turn has 3 phases.</b> 1 Action: 3 actions to walk (and discover), build, push or swim. 2 Tide (quake): the table randomly picks ${cfg().floodsPerRound} tiles per round (from the edge or the middle) that crumble and reveal Atlantis. Nobody chooses. 3 Creatures: roll the die and move the creature it picks.</li>
+<li><b>Your turn has 3 phases.</b> 1 Action: 3 actions to walk (and discover), push or swim. 2 Tide (quake): the table randomly picks ${cfg().floodsPerRound} tiles per round (from the edge or the middle) that crumble and reveal Atlantis. Nobody chooses. 3 Creatures: roll the die and move the creature it picks.</li>
 <li><b>Move:</b> climb at most 1 floor at a time.</li>
-<li><b>Build</b> only on the Castle and the tiles next to it (up to 3 floors). Each floor is a structure with a function:
-<br>• <b>Stairway</b> (1st floor, only on tiles next to the Castle, except the one in front of the gate, which stays free): whoever stands on it climbs up to 2 floors at once. On other tiles the 1st floor is just a block.
-<br>• <b>Watchtower</b> (2nd): nobody can push whoever is on top (not even Triton), and the Octopus cannot reach them.
-<br>• <b>Lighthouse</b> (3rd): with a pirate on top, their tile and its neighbors do not sink in the Tide.
-<br>The 4th is a <b>coral dome</b>, which blocks the tile. On the Castle, the floors are golden halls with none of these effects.</li>
+<li><b>Nobody builds.</b> When the Castle wakes up it rises by itself with <b>two towers</b> (2 floors) and <b>stairs</b> (1 floor) beside it, and the tile in front of the gate stays free. Stairs let you climb up to 2 floors at once. Whoever stands on a tower cannot be pushed (not even by Triton), is out of reach of Nereus, the Octopus and the Sentinel, and cannot be washed away by the giant wave.</li>
 <li><b>Push:</b> a neighboring pirate moves 1 tile back, if the tile behind is free and on land.</li>
 <li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in.</li>
 <li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. Nobody is ever eliminated: the Octopus and Leviathan throw floaters farther away and flip boats (whoever was in it ends up floating). Atlantis is fragile: from round 3 a tile crumbles every round and the sea slowly opens channels into the island.</li>
@@ -1233,7 +1227,7 @@ ${escapeRules()
 <h4>Objetivo</h4>
 <p>Uma ilha afunda enquanto a cidade antiga de Atlântida emerge por baixo. Junte o máximo de tesouro e fuja no seu navio.</p>
 <ul>
-<li><b>Castelo:</b> no topo (3º andar) do Castelo de Atlântida, no centro, espera a Princesa. Só existe uma. Resgate-a e suba no seu navio com ela para ganhar +4 de bônus (ela não vence sozinha: quem tiver mais pontos continua ganhando). O Castelo desperta, com os portões abertos, depois de ${cfg().templeWake} casas afundadas (cerca de ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "rodada" : "rodadas"}).</li>
+<li><b>Castelo:</b> no topo (3º andar) do Castelo de Atlântida, no centro, espera a Princesa. Só existe uma. Resgate-a e suba no seu navio com ela para ganhar +4 de bônus (ela não vence sozinha: quem tiver mais pontos continua ganhando). Ninguém o constrói: depois de ${cfg().templeWake} casas afundadas (cerca de ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "rodada" : "rodadas"}) o Castelo emerge sozinho do mar, com duas torres e escadas, e qualquer pirata pode subir até ela. Partidas mais longas demoram mais, mas a regra é a mesma.</li>
 ${escapeRules()
   ? `<li><b>Fuga:</b> cada time tem um navio ancorado no mar. De qualquer praia, o pirata entra num bote (1 ação) e rema até 2 casas por ação até o navio. No bote cabem os 2 piratas do time. Quando <b>o primeiro pirata</b> de qualquer time sobe num navio, a ilha vai sumir: cada um dos outros times joga mais um turno, e a ilha afunda no mar. Quem ficou em terra fica boiando e só leva metade dos cristais. Se ninguém fugir até a rodada ${cfg().vanishRound}, a ilha some do mesmo jeito e Nereu, rei dos mares e de Atlântida, fica com o tesouro: ninguém vence.</li>`
   : `<li><b>Fuga:</b> cada time tem um navio ancorado no mar. De qualquer praia, o pirata entra num bote (1 ação) e rema até 2 casas por ação até o navio. No bote cabem os 2 piratas do time: o segundo entra no mesmo bote e uma remada leva os dois. Depois que a Princesa for resgatada, o primeiro time com <b>todos</b> os piratas no navio encerra a partida. Ninguém fica para trás.</li>`}
@@ -1248,13 +1242,9 @@ ${escapeRules()
 <h4>O jogo</h4>
 <p>Cada casa esconde uma peça de Atlântida que só aparece quando ela afunda.</p>
 <ul>
-<li><b>Sua vez tem 3 fases.</b> 1 Ação: 3 ações para andar (e descobrir), construir, empurrar ou nadar. 2 Maré (terremoto): a mesa sorteia ${cfg().floodsPerRound} casas por rodada (da borda ou do meio), que se desfazem e revelam Atlântida. Ninguém escolhe. 3 Criaturas: role o dado e mova a criatura sorteada.</li>
+<li><b>Sua vez tem 3 fases.</b> 1 Ação: 3 ações para andar (e descobrir), empurrar ou nadar. 2 Maré (terremoto): a mesa sorteia ${cfg().floodsPerRound} casas por rodada (da borda ou do meio), que se desfazem e revelam Atlântida. Ninguém escolhe. 3 Criaturas: role o dado e mova a criatura sorteada.</li>
 <li><b>Mover:</b> suba no máximo 1 andar por vez.</li>
-<li><b>Construir</b> só no Castelo e nas casas coladas nele (até 3 andares). Cada andar é uma construção com função:
-<br>• <b>Escadaria</b> (1º andar, só nas casas coladas no Castelo, menos a da frente do portão, que fica livre): quem está em cima dela sobe até 2 andares de uma vez. Nas outras casas o 1º andar é só um bloco.
-<br>• <b>Torre de vigia</b> (2º): ninguém empurra quem está em cima (nem o Tritão), e o Polvo não alcança.
-<br>• <b>Farol</b> (3º): com um pirata em cima, a casa dele e as vizinhas não afundam na Maré.
-<br>O 4º é uma <b>cúpula de coral</b>, que bloqueia a casa. No Castelo, os andares são salões dourados, sem esses efeitos.</li>
+<li><b>Ninguém constrói.</b> Quando o Castelo desperta, ele emerge sozinho com <b>duas torres</b> (2 andares) e <b>escadas</b> (1 andar) ao lado, e a casa na frente do portão fica livre. As escadas deixam subir até 2 andares de uma vez. Quem está numa torre não pode ser empurrado (nem pelo Tritão), fica fora do alcance do Nereu, do Polvo e da Sentinela, e a onda gigante não o leva.</li>
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>
 <li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar.</li>
 <li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. Ninguém é eliminado: o Polvo e o Leviatã jogam quem já boia mais longe e viram botes (quem estava nele fica boiando). Atlântida é frágil: a partir da rodada 3, uma casa desmorona a cada rodada e o mar vai abrindo canais para dentro da ilha.</li>

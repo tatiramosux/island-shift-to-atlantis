@@ -148,7 +148,7 @@ describe('final por fuga', () => {
     b0.status = 'boat';
     b0.hex = H(-5, 5);
     put(s, 'p1b0', H(-2, 1));
-    s.crystals = [2, 5];
+    s.crystals = [4, 5]; // quem não fugiu conta só metade dos pontos: 2,5 < 4
     const r = applyAction(s, { type: 'row', player: 0, builderId: 'p0b0', to: H(-6, 6) });
     expect(r.ok).toBe(true);
     s = (r as { ok: true; state: GameState }).state;

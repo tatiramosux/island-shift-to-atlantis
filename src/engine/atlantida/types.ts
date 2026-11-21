@@ -130,6 +130,8 @@ export interface GameState {
   ships: Hex[];
   /** quem pegou o cristal do topo do Castelo (só existe um); null = ainda está lá. */
   castleTaken: number | null;
+  /** O Castelo já se ergueu sozinho (3 andares, torres e escadas) quando despertou. */
+  castleRisen?: boolean;
   /** A princesa do Castelo: quem a resgatou e se já está a salvo no navio (aí vale o bônus). */
   princess: { by: number; safe: boolean } | null;
   /** fase final: lado (0 a 5) de onde vem a próxima onda gigante, avisado uma rodada antes; null = nenhuma à vista. */
@@ -168,7 +170,6 @@ export type Action =
   | { type: 'placeBuilder'; player: number; hex: Hex }
   | { type: 'move'; player: number; builderId: string; to: Hex; portalTo?: Hex }
   | { type: 'swim'; player: number; builderId: string; to: Hex }
-  | { type: 'build'; player: number; builderId: string; at: Hex }
   | { type: 'dig'; player: number; builderId: string; at: Hex }
   | { type: 'push'; player: number; builderId: string; targetId: string }
   /** da praia, o pirata entra num bote na água vizinha. */
