@@ -525,60 +525,73 @@ export class Stage3D {
   private shake = 0;
   private shakeOff = new THREE.Vector3();
 
-  /** Nereu sobe do mar e puxa um pirata, de onde estiver no tabuleiro, para a água. */
-  private playNereusPull(victimId: string) {
-    const v = this.ents.get(victimId);
-    if (!v) return;
-    const start = v.pos.clone();
-    const end = v.target.clone();
+  /** Nereu sobe do mar, ruge (balão + som + tremor), agarra o pirata com o punho e o arrasta para o fundo. Sem vítima (ninguém ao alcance), só aparece e ruge. */
+  private playNereusPull(victimId: string | null) {
+    const v = victimId ? this.ents.get(victimId) : undefined;
+    if (victimId && !v) return;
+    const start = v ? v.pos.clone() : new THREE.Vector3();
+    const end = v ? v.target.clone() : (() => { const w = worldOf({ q: -6, r: 3 }); return new THREE.Vector3(w.x, 0, w.z); })();
     const N = buildNereus(this.models);
-    N.root.scale.setScalar(0.62);
+    const SC = 0.62;
+    N.root.scale.setScalar(SC);
     N.root.position.set(end.x, 0, end.z);
-    N.root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az));
+    const yaw = Math.atan2(Math.cos(this.az), Math.sin(this.az));
+    N.root.rotation.y = yaw;
     const ease = (x: number) => x * x * (3 - 2 * x);
     const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-    const dur = 2.7;
-    const fly = { from: 0.55, len: 1.0 };
+    const T = { rise: 0.9, roar: 1.0, grab: 1.75, sink: 2.35 }; // marcos da cena (s)
+    const dur = 3.3;
     this.addFx(N.root, dur, 0, (p) => {
       const tt = p * dur;
-      const rise = ease(clamp01(tt / 0.8));
-      const sink = ease(clamp01((tt - 2.0) / 0.7));
-      const roar = ease(clamp01((tt - 0.8) / 0.2)) * (1 - ease(clamp01((tt - 1.7) / 0.3)));
+      const rise = ease(clamp01(tt / T.rise));
+      const sink = ease(clamp01((tt - T.sink) / 0.9));
+      const roar = ease(clamp01((tt - T.roar) / 0.2)) * (1 - ease(clamp01((tt - (T.roar + 0.75)) / 0.3)));
+      const grab = ease(clamp01((tt - T.grab) / 0.3));
       N.body.position.y = -6 + 6 * rise - 6 * sink;
-      N.head.rotation.x = -0.35 * roar;
+      N.body.position.x = Math.sin(tt * 55) * 0.03 * roar; // treme no urro
+      N.head.rotation.x = -0.4 * roar;
       N.mouth.scale.y = N.mouth.userData.baseY * (1 + 4 * roar);
       N.mouth.position.y = N.mouth.userData.posY - 0.2 * roar;
-      N.armR.rotation.x = -0.6 * roar;
+      N.armL.rotation.z = 0.15 + 0.5 * roar;
+      N.armR.rotation.x = -0.4 * roar - 1.1 * grab; // o braço direito se estica para agarrar
       N.trident.position.y = 0.55 + 0.7 * roar;
-      N.fin.rotation.z = Math.sin(tt * 5) * 0.25;
+      N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3;
     });
-    const hand = new THREE.Vector3(end.x, 1.3, end.z);
-    v.script = {
-      t0: this.clock.elapsedTime,
-      dur: fly.from + fly.len,
-      step: (p, pos) => {
-        const tt = p * (fly.from + fly.len);
-        const u = ease(clamp01((tt - fly.from) / fly.len));
-        pos.copy(start);
-        pos.y += ease(clamp01(tt / fly.from)) * 0.7; // sente a mão do deus e é levantado
-        if (tt >= fly.from) {
-          pos.lerpVectors(start.clone().setY(start.y + 0.7), hand, u);
-          pos.y += Math.sin(Math.PI * u) * 1.8;
-        }
-        v.spinZ = tt < fly.from ? Math.sin(tt * 16) * 0.3 : u * Math.PI * 2.5;
-      },
-    };
-    this.later(0.45, () => this.sfx?.('scream'));
-    this.later(0.55, () => this.sfx?.('whoosh'));
-    this.later(0.8, () => {
+    // o punho de Nereu, no mundo (do lado do braço direito dele, de frente para a câmera)
+    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).multiplyScalar(2.2 * SC);
+    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(1.1 * SC);
+    const fistX = end.x + side.x + fwd.x;
+    const fistZ = end.z + side.z + fwd.z;
+    for (let i = 0; i < 4; i++) this.burst(end.x + (Math.random() - 0.5) * 1.6, 0.2, end.z + (Math.random() - 0.5) * 1.6, '#dff6ff', 8, i * 0.15, 2.4); // água se abrindo
+    if (v) {
+      const hold = T.sink + 0.4; // até o pirata chegar à água, arrastado junto
+      v.script = {
+        t0: this.clock.elapsedTime,
+        dur: hold,
+        step: (p, pos) => {
+          const tt = p * hold;
+          const lift = ease(clamp01((tt - T.roar) / 0.7)); // paralisado de medo, sobe um pouco
+          const fly = ease(clamp01((tt - T.grab) / 0.4)); // voa até o punho
+          const fistY = 2.0 + N.body.position.y * SC; // o punho desce junto com Nereu
+          pos.set(start.x, start.y + 0.9 * lift, start.z);
+          if (tt >= T.grab) pos.lerpVectors(new THREE.Vector3(start.x, start.y + 0.9, start.z), new THREE.Vector3(fistX, fistY, fistZ), fly);
+          if (tt >= T.grab + 0.4) pos.set(fistX, fistY, fistZ);
+          v.spinZ = tt < T.roar ? 0 : tt < T.grab ? Math.sin(tt * 18) * 0.25 : (tt - T.grab) * 5;
+        },
+      };
+      this.later(T.roar + 0.1, () => this.sfx?.('scream'));
+      this.later(T.grab, () => this.sfx?.('whoosh'));
+    }
+    this.later(T.roar, () => {
       this.sfx?.('nereus');
-      this.nereusBubble(end.x, 3.0, end.z, 1.4);
-      this.shake = 0.7;
+      this.nereusBubble(end.x, 3.5, end.z, 1.3);
+      this.shake = 0.9;
+      for (let i = 0; i < 5; i++) this.burst(end.x + (Math.random() - 0.5) * 2.4, 0.3, end.z + (Math.random() - 0.5) * 2.4, '#bfe6f5', 8, i * 0.08, 3);
     });
-    this.later(fly.from + fly.len, () => {
+    this.later(T.sink + 0.4, () => {
       this.sfx?.('bigSplash');
-      this.burst(end.x, 0.3, end.z, '#bfe6f5', 18, 0, 2.6);
-      this.burst(end.x, 0.3, end.z, '#ffffff', 8, 0.05, 1.8);
+      this.burst(fistX, 0.3, fistZ, '#bfe6f5', 22, 0, 2.8);
+      this.burst(fistX, 0.3, fistZ, '#ffffff', 10, 0.05, 2);
     });
   }
 
@@ -1301,6 +1314,7 @@ export class Stage3D {
       if (e.type === 'sentinelWake') this.playBlast(e.at as Hex, e.pushFrom as Hex, s);
       if (e.type === 'octopusGrab') this.playThrow('octopus', 'octopus', [e.builderId as string]);
       if (e.type === 'nereusPull') this.playNereusPull(e.builderId as string);
+      if (e.type === 'nereusSleeps') this.playNereusPull(null);
       if (e.type === 'leviathanGrab') this.playThrow('leviathan', 'leviathan', [e.builderId as string]);
       if (e.type === 'crumble') {
         const w = worldOf(e.hex as Hex);
