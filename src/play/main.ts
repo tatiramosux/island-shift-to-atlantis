@@ -831,6 +831,7 @@ const renderBar = () => {
   const ctl = $('controls');
   ctl.replaceChildren();
   msg.innerHTML = '';
+  $('bar').classList.toggle('idle', game.phase !== 'ended' && !isHumanTurn()); // vez do bot: aviso discreto
   if (game.phase === 'ended') return;
   const a = actor(game);
   if (!isHumanTurn()) {
@@ -839,8 +840,8 @@ const renderBar = () => {
     if (last) {
       const d = document.createElement('div');
       d.textContent = last;
-      d.style.cssText = 'text-align:center;font-size:13px;color:#a8a8a8';
-      ctl.appendChild(d);
+      d.style.cssText = 'font-size:12px;color:#8fb4dd;margin-top:2px';
+      msg.appendChild(d);
     }
     return;
   }

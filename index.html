@@ -113,34 +113,39 @@
       .pip.boat { border-radius: 2px 2px 6px 6px; }
       .pip.aboard { outline: 2px solid #ffd84a; outline-offset: 1px; }
 
-      .hud-bc { left: 50%; transform: translateX(-50%); bottom: 10px; width: min(1120px, calc(100% - 20px)); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: stretch; pointer-events: none; }
-      .hud-bc { align-items: end; } /* cada cartão com a altura de que precisa, colados embaixo */
-      .hud-bc .actionbar { order: 1; min-width: 0; }
-      .hud-bc .combo { order: 2; }
+      .hud-bc { left: 50%; transform: translateX(-50%); bottom: 10px; width: min(560px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; align-items: stretch; pointer-events: none; }
       .hud-bc > * { pointer-events: auto; }
-      /* um cartão só para Convocações e Dado, separados por uma barra; cada um em duas fileiras */
-      .combo { display: flex; align-items: stretch; gap: 10px; }
-      .combo section { display: flex; flex-direction: column; align-items: center; }
-      .combo .vbar { width: 1px; background: #4a4a4a; margin: 2px 0; }
-      .slots, .dicefaces { display: grid; grid-template-columns: repeat(2, 54px); gap: 6px; }
-      .slot, .face { position: relative; width: 54px; height: 60px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
+      /* um cartão só para Convocações e Dado, numa linha só (4 + 4 retângulos), separados por uma barra */
+      .combo { display: flex; align-items: stretch; gap: 8px; }
+      .combo section { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; }
+      .combo .vbar { width: 1px; background: #4a4a4a; margin: 2px 0; flex: none; }
+      .combo h2 { margin: 0 0 4px; font-size: 11px; }
+      .slots, .dicefaces { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+      .slot, .face { position: relative; width: 100%; height: 46px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
       .slot { flex-direction: column; justify-content: flex-start; }
-      .slot img { width: 44px; height: 44px; margin-top: 2px; }
-      .slot .cost { position: absolute; bottom: 2px; left: 0; right: 0; font-size: 11px; font-weight: 700; color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 2px; }
+      .slot img { width: 30px; height: 30px; margin-top: 2px; }
+      .slot .cost { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 10px; font-weight: 700; color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 2px; line-height: 1; }
       .slot:disabled { opacity: 0.4; }
       .slot.on { outline: 2px solid var(--accent); background: var(--btn-on); }
       .face { opacity: 0.55; display: grid; place-items: center; }
-      .face img { display: block; width: 44px; height: 44px; }
+      .face img { display: block; width: 34px; height: 34px; }
       .face small { position: absolute; right: 3px; bottom: 1px; font-size: 10px; font-weight: 800; color: var(--accent); }
       .face.on { opacity: 1; background: var(--btn-on); outline: 2px solid var(--accent); }
-      .combo .cap { text-align: center; font-size: 11px; color: var(--muted); margin-top: 6px; max-width: 120px; }
-      .actionbar { background: var(--glass); border: 1px solid #444; border-radius: 12px; padding: 8px 10px; max-height: 36vh; overflow: auto; font-size: 14px; }
-      .actionbar { display: flex; flex-direction: column; justify-content: center; }
-      .actionbar .prompt { margin: 0 0 6px; font-size: 13px; line-height: 1.35; text-align: center; }
-      .actionbar .prompt b { font-weight: 800; }
-      .actionbar .row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 6px; }
-      .actionbar .row:first-child { margin-top: 0; }
-      .actionbar .row button { min-height: 38px; padding: 6px 10px; font-size: 13px; }
+      .combo .cap { display: none; }
+      /* cartão de aviso azul: o texto à esquerda e, quando há uma ação a cumprir, o botão ao lado, depois de uma barrinha */
+      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: 8px 10px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
+      .actionbar.idle { background: rgba(20, 24, 30, 0.7); border-color: #4a5566; box-shadow: none; color: #aab6c6; }
+      .actionbar.idle .prompt b { color: #d8e2f0; }
+      .actionbar .prompt { flex: 1 1 auto; min-width: 0; align-self: center; margin: 0; font-size: 13px; line-height: 1.35; text-align: left; }
+      .actionbar .prompt b { font-weight: 800; color: #fff; }
+      .actionbar #controls { display: flex; flex: none; }
+      .actionbar #controls:not(:empty) { padding-left: 10px; border-left: 1px solid #3b9cff88; }
+      .actionbar .row { display: flex; flex-direction: column; gap: 6px; justify-content: center; margin: 0; }
+      .actionbar .row button { min-height: 38px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+      /* o botão que pede uma ação pisca devagar para chamar a atenção */
+      .actionbar .row button.primary { animation: callPulse 1.3s ease-in-out infinite; }
+      @keyframes callPulse { 0%, 100% { box-shadow: 0 0 0 0 #ffe14d00; } 50% { box-shadow: 0 0 0 4px #ffe14d99, 0 0 14px #ffe14d88; } }
+      @media (prefers-reduced-motion: reduce) { .actionbar .row button.primary { animation: none; } }
       .logpanel { top: 10px; left: 70px; width: 290px; max-height: 40vh; overflow: auto; font-size: 12px; line-height: 1.4; }
       .logpanel div { padding: 3px 0; border-bottom: 1px solid #333; color: #cfcfcf; }
       #chooser { position: absolute; z-index: 6; background: var(--glass); border: 1px solid var(--accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 5px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
@@ -177,7 +182,7 @@
       .key { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: -1px; border: 1px solid #fff9; }
       .key.y { background: #ffe21a; } .key.b { background: #35b8ff; } .key.r { background: #ff8a2a; } .key.g { background: #3fd47a; } .key.t { background: #ffc21a; box-shadow: 0 0 6px #ffc21a; }
       #chooser[hidden], [hidden] { display: none !important; }
-      #toast { position: absolute; z-index: 4; left: 50%; bottom: 170px; transform: translateX(-50%); max-width: min(520px, 90%); padding: 8px 14px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 14%, #1a1a1a); border: 1px solid var(--warn); color: #ffe9b8; font-size: 13px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-align: center; }
+      #toast { position: absolute; z-index: 4; left: 50%; bottom: 180px; transform: translateX(-50%); max-width: min(520px, 90%); padding: 8px 14px; border-radius: 10px; background: color-mix(in srgb, var(--warn) 14%, #1a1a1a); border: 1px solid var(--warn); color: #ffe9b8; font-size: 13px; font-weight: 600; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-align: center; }
       #toast.show { opacity: 1; }
       /* rolagem do dado: um dado grande gira no meio da tela, troca de face e para na criatura sorteada */
       #roll { position: absolute; z-index: 5; left: 50%; top: 42%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 8px; pointer-events: none; }
@@ -283,18 +288,21 @@
         .hud-tr h2 { font-size: 11px; margin-bottom: 4px; }
         .score { grid-template-columns: auto auto auto; gap: 4px 6px; font-size: 12px; }
         .score .who { display: none; }
-        /* continua tudo numa linha só: instruções à esquerda, convocações e dado ao lado */
-        .hud-bc { grid-template-columns: minmax(0, 1fr) auto; bottom: 6px; width: calc(100% - 12px); gap: 6px; }
-        .hud-bc .actionbar { max-height: 34vh; min-width: 0; padding: 6px 8px; }
+        /* avisos em cima, convocações + dado numa fileira só embaixo */
+        .hud-bc { bottom: 6px; width: calc(100% - 12px); gap: 5px; }
+        .hud-bc .actionbar { max-height: 30vh; padding: 6px 8px; gap: 8px; }
         .actionbar .prompt { font-size: 12px; }
-        .hud-card { padding: 6px 8px; }
-        .hud-card h2 { font-size: 11px; margin-bottom: 4px; }
-        .slots, .dicefaces { grid-template-columns: repeat(2, 46px); gap: 4px; }
-        .slot, .face { width: 46px; height: 52px; }
-        .slot img, .face img { width: 38px; height: 38px; }
-        .combo .cap { display: none; }
+        .hud-card { padding: 5px 7px; }
+        .combo { gap: 6px; }
+        .combo h2 { font-size: 10px; margin-bottom: 3px; }
+        .slots, .dicefaces { gap: 3px; }
+        .slot, .face { height: 40px; border-radius: 8px; }
+        .slot img { width: 26px; height: 26px; }
+        .face img { width: 28px; height: 28px; }
+        .slot .cost { font-size: 9px; }
+        .actionbar .row button { min-height: 36px; padding: 4px 9px; font-size: 12px; }
         .logpanel { left: 60px; top: 60px; width: min(280px, calc(100% - 70px)); }
-        #toast { bottom: 190px; }
+        #toast { bottom: 200px; }
       }
     </style>
   </head>
@@ -315,12 +323,12 @@
         <div class="hud hud-tr hud-card"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
         <div class="hud logpanel hud-card" id="logpanel" hidden></div>
         <div class="hud hud-bc">
+          <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
           <div class="hud-card combo">
             <section><h2><span data-pt="Convocações">Summons</span><button type="button" class="dice-help" id="helpSummons" aria-label="How summons work" data-pt-aria="Como funcionam as convocações" aria-haspopup="dialog"></button></h2><div class="slots" id="summons"></div></section>
             <i class="vbar"></i>
-            <section><h2><span data-pt="Dado">Die</span><button type="button" class="dice-help" id="helpDice" aria-label="How the die works" data-pt-aria="Como funciona o dado" aria-haspopup="dialog"></button></h2><div class="dicefaces" id="dice"></div><div class="cap" id="diecap" data-pt="Sorteia a criatura">Picks the creature</div></section>
+            <section><h2><span data-pt="Dado">Die</span><button type="button" class="dice-help" id="helpDice" aria-label="How the die works" data-pt-aria="Como funciona o dado" aria-haspopup="dialog"></button></h2><div class="dicefaces" id="dice"></div><div class="cap" id="diecap"></div></section>
           </div>
-          <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
         </div>
       </div>
       <div id="toast"></div>
