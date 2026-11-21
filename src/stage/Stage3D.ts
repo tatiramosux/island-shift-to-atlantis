@@ -448,7 +448,7 @@ export class Stage3D {
   private makeBubble(text: string, color: string): THREE.Sprite {
     const c = document.createElement('canvas');
     c.width = 320;
-    c.height = 128;
+    c.height = 220; // sobra espaço embaixo para o rabinho comprido: o balão fica longe do personagem
     const g = c.getContext('2d')!;
     g.fillStyle = '#ffffff';
     g.strokeStyle = '#1b2a4a';
@@ -458,18 +458,21 @@ export class Stage3D {
     g.fill();
     g.stroke();
     g.beginPath();
-    g.moveTo(70, 90);
-    g.lineTo(46, 124);
-    g.lineTo(110, 90);
+    g.moveTo(66, 90);
+    g.lineTo(46, 216);
+    g.lineTo(106, 90);
     g.closePath();
     g.fill();
     g.fillStyle = color;
-    g.font = 'bold 56px sans-serif';
+    let px = 56;
+    g.font = `bold ${px}px sans-serif`;
+    while (g.measureText(text).width > 270 && px > 20) g.font = `bold ${--px}px sans-serif`; // textos longos encolhem para caber
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(text, 160, 52);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
-    sp.scale.set(2.6, 1.04, 1);
+    sp.center.set(46 / 320, 4 / 220); // a pontinha do rabinho fica no ponto da posição: ele sempre aponta para quem fala
+    sp.scale.set(2.6, (2.6 * 220) / 320, 1);
     sp.visible = false;
     return sp;
   }
@@ -478,22 +481,19 @@ export class Stage3D {
   private syncPrincess(s: GameState) {
     const t = s.cells['0,0'];
     const live = !s.vanished && s.phase !== 'ended';
-    const waiting = !!t && t.floors >= 3 && s.castleTaken === null && live;
+    const waiting = !!t && t.state === 'island' && s.castleTaken === null && live; // desde o começo: presa no Castelo, para a meta ficar visível
     if (!waiting) {
       if (this.princessObj) this.princessObj.visible = false;
     } else {
       if (!this.princessObj) {
         const g = new THREE.Group();
         const P = buildPrincess(this.models);
-        P.root.scale.setScalar(2.2);
+        P.root.scale.setScalar(1.05); // do tamanho dos piratas (≈1.4 de altura)
         g.add(P.root);
         this.princessParts = P;
         this.princessBubble = this.makeBubble('HELP!', '#d8232a');
-        this.princessBubble.position.set(0.5, 2.1, 0);
+        this.princessBubble.position.set(0, 1.55, 0); // a pontinha toca acima da cabeça; o balão fica bem acima
         g.add(this.princessBubble);
-        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.2, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xff7ac8, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
-        beam.position.y = 1.7;
-        g.add(beam);
         this.scene.add(g);
         this.princessObj = g;
       }
@@ -511,7 +511,7 @@ export class Stage3D {
     }
     if (!this.princessCarry) {
       this.princessCarry = buildPrincess(this.models).root;
-      this.princessCarry.scale.setScalar(1.5);
+      this.princessCarry.scale.setScalar(1.05);
     }
     if (this.princessCarry.parent !== host.group) {
       this.princessCarry.removeFromParent();
@@ -572,6 +572,7 @@ export class Stage3D {
     this.later(0.55, () => this.sfx?.('whoosh'));
     this.later(0.8, () => {
       this.sfx?.('nereus');
+      this.nereusBubble(end.x, 3.0, end.z, 1.4);
       this.shake = 0.7;
     });
     this.later(fly.from + fly.len, () => {
@@ -613,6 +614,7 @@ export class Stage3D {
     for (let i = 0; i < 4; i++) this.burst((Math.random() - 0.5) * 2.4, 0.2, (Math.random() - 0.5) * 2.4, '#dff6ff', 8, delay + 0.2 + i * 0.2, 2.6);
     this.later(delay + 1.55, () => {
       this.sfx?.('nereus');
+      this.nereusBubble(0, 3.2, 0, 1.8);
       this.shake = 1.5;
       for (let i = 0; i < 6; i++) this.burst((Math.random() - 0.5) * 3, 0.3, (Math.random() - 0.5) * 3, '#bfe6f5', 8, i * 0.08, 3.2);
     });
@@ -988,6 +990,17 @@ export class Stage3D {
 
   /** Chamado nos instantes-chave da cena (o jogo liga isto aos sons). */
   sfx: ((name: string) => void) | null = null;
+  /** O que Nereu grita no balão (traduzido por quem usa o palco). */
+  nereusLine = 'MY PRINCESS!!';
+  /** Balão de fala de Nereu, sobre a cabeça dele, enquanto ele ruge. */
+  private nereusBubble(x: number, y: number, z: number, secs: number) {
+    const b = this.makeBubble(this.nereusLine, '#1b4fa8');
+    b.scale.set(3.6, (3.6 * 220) / 320, 1);
+    b.position.set(x, y, z);
+    this.addFx(b, secs, 0, () => {
+      b.visible = true;
+    });
+  }
 
   private later(sec: number, fn: () => void) {
     let done = false;

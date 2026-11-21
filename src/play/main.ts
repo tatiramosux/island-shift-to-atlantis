@@ -305,6 +305,11 @@ const takeState = (events: GameEvent[]) => {
     if (mine && e.type === 'princessSafe') toast(t('Princess safe! +4 points.', 'Princesa a salvo! +4 pontos.'));
     if (e.type === 'escapeStarted') toast(e.by === viewer() ? t('You reached the ship! The island will vanish: the others get one more turn to escape.', 'Você chegou ao navio! A ilha vai sumir: os outros têm mais um turno para fugir.') : t('Someone reached the ship! The island will vanish: you have one more turn to escape.', 'Alguém chegou ao navio! A ilha vai sumir: você tem mais um turno para fugir.'));
     if (e.type === 'islandVanishes') toast(t('The island vanished into the sea!', 'A ilha sumiu no mar!'));
+    if (e.type === 'summon' && e.kind === 'siren') {
+      const thief = teamName(e.to as number);
+      if (e.from === viewer()) setTimeout(() => explainSiren(thief, true), 1400);
+      else if (e.to === viewer()) toast(t(`Siren: you stole 1 crystal from ${teamName(e.from as number)}.`, `Sereia: você roubou 1 cristal de ${teamName(e.from as number)}.`));
+    }
     const line = evText(e);
     if (line) say(line);
   });
@@ -897,18 +902,8 @@ const renderLog = () => {
 /* ---------- palco 3D ---------- */
 
 const stage = new Stage3D($('view'), (h, x, y) => onCell(h, x, y));
-stage.sfx = (name) => {
-  play(name as SoundName);
-  if (name === 'nereus') shout(t('My PRINCESS!!', 'MINHA PRINCESA!!'));
-};
-/** Fala em letras grandes no meio da tela (o urro de Nereu pela princesa). */
-const shout = (text: string) => {
-  const d = document.createElement('div');
-  d.className = 'shout';
-  d.textContent = text;
-  document.body.appendChild(d);
-  setTimeout(() => d.remove(), 2600);
-};
+stage.nereusLine = t('MY PRINCESS!!', 'MINHA PRINCESA!!');
+stage.sfx = (name) => play(name as SoundName);
 // sem jogada há um tempo: todo mundo cochila (Z subindo) até alguém tocar na tela de novo
 let lastAct = Date.now();
 const wake = () => {
@@ -1287,6 +1282,24 @@ const showRules = () => {
 };
 
 /** Gestos do tabuleiro: dicas de girar, mover, zoom e centralizar. */
+/** Quem perdeu um cristal para a Sereia entende o que houve (e como evitar). */
+const explainSiren = (thief: string, victim: boolean) => {
+  if (!victim) return;
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.innerHTML =
+    t('<h3>The Siren stole your crystal!</h3>', '<h3>A Sereia roubou seu cristal!</h3>') +
+    `<p>${t(
+      `${thief} paid crystals to summon the Siren. Her song makes a pirate next to yours hand over <b>1 crystal</b>: you lose 1 point and ${thief} gains 1.`,
+      `${thief} pagou cristais para convocar a Sereia. O canto dela faz um pirata vizinho do seu entregar <b>1 cristal</b>: você perde 1 ponto e ${thief} ganha 1.`,
+    )}</p><p>${t(
+      'To avoid it: keep your pirates away from opponents, or spend your crystals on your own Summons before they are stolen.',
+      'Para evitar: mantenha seus piratas longe dos adversários, ou gaste seus cristais em Convocações antes que sejam roubados.',
+    )}</p>`;
+  c.appendChild(row(btn(t('Got it', 'Entendi'), closeModal, { primary: true })));
+  modal(c);
+};
+
 const showGestures = () => {
   const c = document.createElement('div');
   c.className = 'card';
