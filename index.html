@@ -274,6 +274,37 @@
       .tools-list { display: flex; flex-direction: column; gap: 2px; padding-top: 4px; margin-top: 2px; border-top: 1px solid #555; }
       .tools-list[hidden] { display: none; }
       .tools-list > button + button::before { content: ''; position: absolute; left: 8px; right: 8px; top: -2px; height: 1px; background: #4d4d4d; pointer-events: none; }
+      /* ---------- barra inferior integrada: menu, turno, fases, placar, convocações e dado, grudados embaixo ---------- */
+      .dock { left: 0; right: 0; bottom: 0; background: rgba(20, 20, 20, 0.84); border-top: 1px solid #555; padding-bottom: env(safe-area-inset-bottom); }
+      .dock .drow { display: flex; align-items: stretch; }
+      .dock .drow + .drow { border-top: 1px solid #4a4a4a; }
+      .dcell { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 8px; border-right: 1px solid #4a4a4a; min-width: 0; }
+      .dcell:last-child { border-right: 0; }
+      .menucell { padding: 4px; }
+      #menuBtn { width: 42px; height: 42px; padding: 0; background: transparent; border-color: transparent; }
+      #menuBtn.on { background: var(--card2); }
+      .turncell { flex: 1 1 auto; align-items: flex-start; }
+      .scorecell { flex: 0 0 auto; align-items: stretch; }
+      .scorecell h2 { display: none; }
+      .dock .turnchip { border: 0 !important; background: none; padding: 0; gap: 6px; font-size: 12px; white-space: normal; }
+      .dock .turnchip .badge { font-size: 11px; padding: 0 7px; white-space: nowrap; }
+      .dock .phases { gap: 3px; align-items: center; }
+      .dock .ph { display: inline-block; font-size: 10px; padding: 3px 7px; }
+      .dock .score { grid-template-columns: auto auto auto; gap: 3px 6px; font-size: 12px; }
+      .dock .score .who { display: none; }
+      .dock .score .pts { font-size: 13px; min-width: 30px; }
+      .dock .combo { border-top: 1px solid #4a4a4a; gap: 0; }
+      .dock .combo section { align-items: center; padding: 4px 8px; }
+      .dock .slots, .dock .dicefaces { width: 100%; max-width: 280px; }
+      .dock .combo .vbar { margin: 0; }
+      /* menu: lista que abre acima do botão */
+      .menu-pop { z-index: 6; left: 6px; bottom: calc(var(--dock-h, 100px) + 6px); top: auto; display: grid; grid-template-columns: repeat(4, 44px); gap: 2px; padding: 6px; }
+      .menu-pop .tools-list { display: contents; }
+      .menu-pop button + button::before { display: none; }
+      .menu-pop .cam { grid-column: 1 / -1; flex-direction: row; justify-content: center; border-top: 1px solid #555; }
+      .hud-bc { bottom: calc(var(--dock-h, 100px) + 6px) !important; }
+      #scorepop { top: auto !important; bottom: calc(var(--dock-h, 100px) + 6px); }
+      .logpanel { top: 10px; }
       @media (max-width: 760px) {
         .hud-tl button { width: 40px; height: 40px; }
         .cam .zoomonly { display: none; }
@@ -302,7 +333,6 @@
         .slot .cost { font-size: 9px; }
         .actionbar .row button { min-height: 36px; padding: 4px 9px; font-size: 12px; }
         .logpanel { left: 60px; top: 60px; width: min(280px, calc(100% - 70px)); }
-        #toast { bottom: 200px; }
       }
     </style>
   </head>
@@ -312,19 +342,24 @@
       <div id="alarm"></div>
 
       <div id="hud" hidden>
-        <div class="hud hud-tl" id="tools"></div>
+        <div class="hud hud-tl menu-pop" id="tools" hidden></div>
         <div class="cam" id="camera" role="toolbar" aria-label="Camera" data-pt-aria="Câmera" hidden></div>
-        <div class="hud hud-tc">
+        <div class="hud logpanel hud-card" id="logpanel" hidden></div>
+        <div class="hud hud-bc">
+          <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
+        </div>
+        <div class="hud dock" id="dock">
+          <div class="drow top">
+            <div class="dcell menucell"><button type="button" id="menuBtn" aria-haspopup="true" aria-controls="tools" aria-label="Menu"></button></div>
+            <div class="dcell turncell">
           <div class="turnchip" id="turnchip"><span class="dot" id="turnDot"></span><b id="turnText"></b><span class="badge" id="turnBadge"></span></div>
           <div class="phases" id="phases">
             <span class="ph" data-ph="action" data-pt="1 Ação">1 Action</span><span class="ph" data-ph="flood" data-pt="2 Maré">2 Tide</span><span class="ph" data-ph="creatures" data-pt="3 Criaturas">3 Creatures</span><button type="button" class="dice-help" id="helpPhase" aria-label="Rules for this phase" data-pt-aria="Regras desta fase" aria-haspopup="dialog" title="Rules for this phase" data-pt-title="Regras desta fase"></button>
           </div>
-        </div>
-        <div class="hud hud-tr hud-card"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
-        <div class="hud logpanel hud-card" id="logpanel" hidden></div>
-        <div class="hud hud-bc">
-          <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
-          <div class="hud-card combo">
+            </div>
+            <div class="dcell scorecell"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
+          </div>
+          <div class="drow combo">
             <section><h2><span data-pt="Convocações">Summons</span><button type="button" class="dice-help" id="helpSummons" aria-label="How summons work" data-pt-aria="Como funcionam as convocações" aria-haspopup="dialog"></button></h2><div class="slots" id="summons"></div></section>
             <i class="vbar"></i>
             <section><h2><span data-pt="Dado">Die</span><button type="button" class="dice-help" id="helpDice" aria-label="How the die works" data-pt-aria="Como funciona o dado" aria-haspopup="dialog"></button></h2><div class="dicefaces" id="dice"></div><div class="cap" id="diecap"></div></section>

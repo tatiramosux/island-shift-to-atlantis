@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, ChevronDown, ChevronUp, Footprints, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, X, Footprints, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -859,7 +859,7 @@ const renderBar = () => {
       : mode.startsWith('summon:')
       ? t(`<b>${SUMMONS[mode.slice(7) as SummonKind].name}:</b> tap a yellow tile.`, `<b>${SUMMONS[mode.slice(7) as SummonKind].name}:</b> toque numa casa amarela.`)
       : t(`<b>${game.actionsLeft} ${game.actionsLeft === 1 ? 'action' : 'actions'} left.</b> Tap your pirate, then a colored tile${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Wave ahead:</b> leave the foamy tiles (or climb to the 2nd floor).' : ''}`, `<b>Restam ${game.actionsLeft} ${game.actionsLeft === 1 ? 'ação' : 'ações'}.</b> Toque no seu pirata e depois numa casa colorida${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Onda à vista:</b> saia das casas com espuma (ou suba ao 2º andar).' : ''}`);
-    ctl.append(row(btn(t('End actions', 'Terminar ações'), () => apply({ type: 'endActions', player: a }), { icon: ArrowRight, primary: true })));
+    ctl.append(row(btn(t('End actions', 'Terminar ações'), () => apply({ type: 'endActions', player: a }), { icon: ArrowRight, primary: game.actionsLeft === 0 || !legal.some((x) => x.type !== 'endActions' && x.type !== 'summon') })));  // só pisca quando não resta o que fazer
   } else if (game.phase === 'flood') {
     if (game.pendingFlood) {
       msg.innerHTML = t(`<b>Tide:</b> a trident can stop the tile under your pirate from sinking. You have ${game.tridents[a]}.`, `<b>Maré:</b> um tridente pode impedir que a casa do seu pirata afunde. Você tem ${game.tridents[a]}.`);
@@ -1038,24 +1038,33 @@ toolsList.append(
   camBtn,
   camera,
 );
-const toolsTab = btn('', () => setToolsOpen(toolsList.hidden === true), { icon: ChevronDown });
-toolsTab.classList.add('tools-tab');
-toolsTab.setAttribute('aria-controls', 'hud-tools');
-const setToolsOpen = (open: boolean) => {
-  toolsList.hidden = !open;
-  toolsTab.replaceChildren(icon(open ? ChevronUp : ChevronDown, 16));
-  toolsTab.title = open ? t('Hide the controls', 'Recolher os controles') : t('Show the controls', 'Mostrar os controles');
-  toolsTab.setAttribute('aria-label', toolsTab.title);
-  toolsTab.setAttribute('aria-expanded', String(open));
+// o botão de menu da barra inferior abre e fecha esta lista (acima da barra); tocar fora fecha
+const menuBtn = $('menuBtn') as HTMLButtonElement;
+const setMenuOpen = (open: boolean) => {
+  tools.hidden = !open;
+  menuBtn.classList.toggle('on', open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+  menuBtn.replaceChildren(icon(open ? X : Menu, 20));
+  menuBtn.title = open ? t('Close the menu', 'Fechar o menu') : t('Menu', 'Menu');
+  menuBtn.setAttribute('aria-label', menuBtn.title);
 };
+menuBtn.onclick = () => setMenuOpen(!!tools.hidden);
+document.addEventListener('pointerdown', (ev) => {
+  const el = ev.target as Node;
+  if (!tools.hidden && !tools.contains(el) && !menuBtn.contains(el)) setMenuOpen(false);
+});
 tools.append(
-  btn('', () => showPause(), { icon: Menu, title: 'Menu' }),
+  btn('', () => (setMenuOpen(false), showPause()), { icon: Menu, title: t('Game menu', 'Menu do jogo') }),
   soundBtn,
   ...(standalone ? [] : [fsBtn]), // aberto pela Tela de Início já está em tela cheia
-  toolsTab,
   toolsList,
 );
-setToolsOpen(false); // sempre começa recolhido
+setMenuOpen(false);
+// a barra inferior avisa a altura dela: o aviso azul, o brilho do placar e o menu ficam logo acima
+const dock = $('dock');
+const syncDock = () => document.getElementById('app')!.style.setProperty('--dock-h', dock.offsetHeight + 'px');
+new ResizeObserver(syncDock).observe(dock);
+syncDock();
 const zoomBtn = (b: HTMLButtonElement) => (b.classList.add('zoomonly'), b);
 camera.append(
   zoomBtn(btn('', () => stage.zoomBy(1.25), { icon: Plus, title: t('Zoom in', 'Aproximar') })),
