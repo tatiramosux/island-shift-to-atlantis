@@ -13,7 +13,7 @@ O tabuleiro tem 61 casas hexagonais. Cada casa tem **dois lados**: a superfície
 - 61 casas: 1 casa central (o Castelo) e 60 casas de superfície, cada uma com uma peça de Atlântida escondida embaixo.
 - 2 piratas por jogador, de uma cor.
 - Blocos de construção: cada casa pode ter até 3 andares e uma cúpula (o Castelo não aceita cúpula).
-- 3 criaturas: Polvo-colosso, Leviatã e Guardião de pedra.
+- 2 criaturas no tabuleiro: Polvo-colosso e Leviatã. Nereu sobe do mar quando o dado cai na face dele (a Sentinela de pedra saiu do jogo).
 - Dado das criaturas (6 faces).
 - Fichas de cristal de cada jogador.
 - Boias salva-vidas (anéis redondos, como um donut) para os piratas que caem na água.
@@ -47,7 +47,7 @@ Cada jogador faz suas 3 fases na sua vez.
 Você tem **3 ações**, em qualquer ordem e quantas vezes quiser:
 
 - **Mover** um pirata seu para uma casa vizinha livre. Pode subir no máximo **1 andar** por vez e descer quantos quiser. Não dá para entrar em casa com pirata, com cúpula ou na água.
-- **Descobrir** uma casa de superfície vizinha (do anel 2 em diante, longe do Castelo): a peça de baixo fica à vista, sem a casa afundar. Se for tesouro (Cristal, Tridente ou Maré calma), o pirata pega na hora e a casa vira uma Ruína aberta.
+- **Descobrir:** não é mais uma ação. **Pisar** numa casa de superfície fechada (do anel 2 em diante, longe do Castelo) revela a peça de baixo, sem a casa afundar. Se for tesouro (Cristal, Tridente ou Maré calma), o pirata pega na hora e a casa vira uma Ruína aberta.
 - **Construir** 1 bloco só **no Castelo e nas casas coladas nele** (as outras casas não recebem blocos). A casa na frente do portão do Castelo fica sempre livre: ali não se constrói. O 4º bloco é uma **cúpula**, que bloqueia a casa (menos no Castelo).
 - **Empurrar** um pirata vizinho: ele vai 1 casa para trás, em linha reta, se a casa de trás estiver livre e em terra. O empurrão simples nunca joga alguém na água.
 
@@ -70,7 +70,7 @@ O jogador da vez rola o **dado das criaturas** e **move a criatura sorteada**, e
 |---|---|
 | Polvo (2 faces) | Move o **Polvo-colosso** até 3 casas, **só pelo mar** (a água em volta da ilha e os buracos onde Atlântida desmoronou; nunca sobe na ilha). Ao parar, **estica um tentáculo até 2 casas**, enrola um pirata (obrigatório se houver alguém ao alcance) e o joga no mar: ele fica boiando. Quem já boia é jogado mais longe, o bote vira. Piratas no 2º andar ou mais alto, ou num Escudo, não são alcançados. |
 | Leviatã (2 faces) | Move o **Leviatã** até 2 casas, só pelo mar. Ao parar, pode **laçar com a cauda** um pirata a até 2 casas e jogá-lo no mar, ou derrubar o bloco de cima de uma casa vizinha (quem estava nela cai um andar). Também empurra 1 casa os náufragos vizinhos. |
-| Sentinela (1 face) | A **Sentinela de pedra** (um troll com chifres) fica parada como estátua. Ela **acorda sozinha** quando um pirata termina o movimento a até 2 casas dela e, sem sair do lugar, dispara um **jato de água** que empurra o pirata **2 casas para longe do centro** (se passar da borda, ele cai no mar). Esta face do dado também a faz atirar no pirata mais perto (até 2 casas). Escudo e 2º andar ou mais protegem. |
+| Nereu (1 face) | **Nereu**, rei dos mares e de Atlântida (meio homem, meio sereia), sobe da água e **arrasta um pirata para o mar, de qualquer lugar do tabuleiro**. Sorteia um pirata em terra (até os do próprio jogador da vez). Quem está num Escudo ou no 2º andar ou mais alto fica fora do alcance. O pirata não morre: só fica boiando. Se não há ninguém ao alcance, ele volta a mergulhar. |
 | Maré viva (1 face) | Nenhuma criatura se mexe. Todo pirata em casa de Atlântida ganha 1 cristal. |
 
 ## Atlântida desmorona

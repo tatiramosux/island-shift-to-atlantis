@@ -3,7 +3,7 @@
 A 3D isometric pirate board game for 2–4 players, made for **Game Off 2026** (theme: **SHIFT**).
 
 An island sinks while the ancient city of Atlantis rises from underneath. Day turns to night as the tide shifts rows of
-the island into the city. Dig up treasure, outsmart the other pirates and escape on your ship before the island
+the island into the city. Discover treasure, outsmart the other pirates and escape on your ship before the island
 disappears into the sea.
 
 - **Play:** solo against bots or pass-and-play on one device. Runs in the browser, no install.
@@ -14,7 +14,7 @@ disappears into the sea.
 
 Each tile has two sides: the island surface and a hidden Atlantis piece underneath. On your turn:
 
-1. **Action** — 3 actions: walk, dig, build, push, swim, row. One summon per turn (costs crystals).
+1. **Action** — 3 actions: walk (stepping on a closed tile reveals the treasure under it), build, push, swim, row. One summon per turn (costs crystals).
 2. **Tide** — the table randomly picks tiles that crumble and reveal Atlantis.
 3. **Creatures** — roll the die and move the creature it picks.
 

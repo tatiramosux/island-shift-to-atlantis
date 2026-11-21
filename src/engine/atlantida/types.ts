@@ -99,14 +99,14 @@ export const DEFAULT_SETTINGS: Settings = {
   octopusReach: 1,
   ending: 'castle',
   vanishRound: 0,
-  guardian: true,
+  guardian: false, // a Sentinela de pedra saiu do jogo: a face dela é do Nereu
   tideShift: false,
 };
 
 /** Duração da partida: curta e média usam o final por fuga (veja docs/modo-fuga.md); longa é o jogo original. */
 export const LENGTH_PRESETS: Record<MatchLength, Partial<Settings>> = {
   short: { ending: 'escape', floodsPerRound: 10, vanishRound: 9, guardian: false, tideShift: true },
-  medium: { ending: 'escape', floodsPerRound: 6, vanishRound: 15, guardian: true, tideShift: true },
+  medium: { ending: 'escape', floodsPerRound: 6, vanishRound: 15, guardian: false, tideShift: true },
   long: {},
 };
 

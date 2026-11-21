@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hex } from '../hex';
 import {
+  basePoints,
   LENGTH_PRESETS,
   applyAction,
   cellAt,
@@ -57,18 +58,21 @@ describe('partida curta, média e longa', () => {
     expect(start('long').settings.floodsPerRound).toBe(4);
   });
 
-  it('curta: a Sentinela nunca entra em jogo e o dado nunca a sorteia', () => {
+  it('a Sentinela de pedra saiu do jogo: nunca entra e a face dela é do Nereu, que puxa um pirata para a água', () => {
     let s = start('short');
     const rng = new Rng(3);
     const faces = new Set<string>();
+    let pulls = 0;
     for (let i = 0; i < 1500 && s.phase !== 'ended'; i++) {
       const r = applyAction(s, chooseAction(s, rng));
       if (!r.ok) throw new Error(r.error);
       r.events.filter((e) => e.type === 'die').forEach((e) => faces.add(e.face as string));
+      pulls += r.events.filter((e) => e.type === 'nereusPull').length;
       s = r.state;
     }
     expect(s.creatures.find((c) => c.type === 'guardian')!.hex).toBeNull();
-    expect(faces.has('guardian')).toBe(false);
+    expect(faces.has('guardian')).toBe(true);
+    expect(pulls).toBeGreaterThan(0);
     expect(faces.size).toBeGreaterThan(0);
   });
 
@@ -108,7 +112,34 @@ describe('final por fuga', () => {
     expect(r.ok).toBe(true);
     const n = (r as { ok: true; state: GameState }).state;
     expect(n.princess).toEqual({ by: 0, safe: true });
-    expect(n.crystals[0]).toBe(4);
+    expect(n.crystals[0]).toBe(0); // o bônus não vira cristal para gastar: entra nos pontos
+    expect(basePoints(n, 0)).toBe(4);
+  });
+
+  it('pontos = cristais + tridentes × 2 + Princesa; vence quem tem mais pontos, não quem salvou a Princesa', () => {
+    let s = blank('short');
+    s.builders.find((b) => b.id === 'p0b0')!.status = 'aboard';
+    s.builders.find((b) => b.id === 'p1b0')!.status = 'aboard';
+    s.princess = { by: 0, safe: true };
+    s.crystals = [1, 3];
+    s.tridents = [0, 1];
+    expect(basePoints(s, 0)).toBe(5); // 1 + 0 + 4
+    expect(basePoints(s, 1)).toBe(5); // 3 + 2
+    s.tridents = [0, 0];
+    expect(basePoints(s, 1)).toBe(3);
+    s.crystals = [1, 6];
+    s = playUntil(s, () => false);
+    expect(s.winners).toEqual([1]); // 6 pontos contra 5: a Princesa sozinha não vence
+  });
+
+  it('empate de pontos: vence quem salvou a Princesa', () => {
+    let s = blank('short');
+    s.builders.find((b) => b.id === 'p0b0')!.status = 'aboard';
+    s.builders.find((b) => b.id === 'p1b0')!.status = 'aboard';
+    s.princess = { by: 0, safe: true };
+    s.crystals = [1, 5];
+    s = playUntil(s, () => false);
+    expect(s.winners).toEqual([0]); // 1 + 4 = 5, empata com 5, e a Princesa desempata
   });
 
   it('o primeiro navio dá uma última chamada: o outro time joga mais um turno e a ilha some', () => {

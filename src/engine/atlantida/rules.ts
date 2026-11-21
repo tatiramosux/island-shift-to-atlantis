@@ -93,6 +93,8 @@ const landFree = (s: GameState, h: Hex): boolean => {
 /** Valor do cristal do topo do Castelo. */
 /** A princesa do Castelo: quem a resgata e embarca no navio com ela ganha este bônus (não vence na hora). */
 export const PRINCESS_BONUS = 4;
+/** Cada tridente que sobra vale 2 pontos (o cristal vale 1). Cristais e tridentes são recursos que se gastam; só os pontos decidem quem vence. */
+export const TRIDENT_VALUE = 2;
 /** Casa colada na entrada do Castelo (o portão em arco do desenho fica deste lado): ali não se constrói escada. */
 export const CASTLE_GATE: Hex = hex(0, 1);
 const canBuild = (s: GameState, c: Cell): boolean => {
@@ -102,7 +104,6 @@ const canBuild = (s: GameState, c: Cell): boolean => {
   return !(c.temple && c.floors >= MAX_FLOORS); // o Templo não aceita cúpula
 };
 /** Descobrir: casa de superfície longe do Castelo (anel 2 em diante), ainda fechada e livre. */
-const canDig = (s: GameState, c: Cell): boolean => c.state === 'island' && !c.temple && c.ring >= 2 && !c.dug && !c.dome && !builderAt(s, c.hex) && !creatureAt(s, c.hex);
 const waterFree = (s: GameState, h: Hex): boolean => isSea(s, h) && !isShip(s, h) && !builderAt(s, h) && !creatureAt(s, h);
 
 /** Casa de água livre mais próxima (desempate pela ordem do anel, que é fixa). */
@@ -301,9 +302,31 @@ const tossFloater = (s: GameState, b: Builder, ev: GameEvent[]) => {
   }
 };
 
+/** Pisar numa casa de superfície fechada (anel 2 em diante) revela a peça de baixo; se for tesouro, o pirata leva na hora. */
+const unearth = (s: GameState, b: Builder, c: Cell, ev: GameEvent[]) => {
+  const tile = c.tile as AtlantisTile;
+  c.dug = true;
+  if (tile === 'crystal' || tile === 'trident' || tile === 'calm') c.taken = true; // o tesouro sai da casa
+  ev.push({ type: 'dig', builderId: b.id, owner: b.owner, hex: c.hex, tile });
+  if (tile === 'crystal') {
+    s.crystals[b.owner] += 1;
+    c.tile = 'ruin'; // o cristal foi levado; sobra o buraco
+    ev.push({ type: 'crystal', owner: b.owner, hex: c.hex });
+  } else if (tile === 'trident') {
+    s.tridents[b.owner] += 1;
+    c.tile = 'ruin';
+    ev.push({ type: 'tridentTaken', owner: b.owner, hex: c.hex });
+  } else if (tile === 'calm') {
+    s.skipFlood += 1;
+    c.tile = 'ruin';
+    ev.push({ type: 'calmSea', owner: b.owner, hex: c.hex });
+  }
+};
+
 /** Efeito da peça de Atlântida ao terminar o movimento numa casa (e vitória no Templo). */
 const enter = (s: GameState, b: Builder, ev: GameEvent[]) => {
   const c = cellAt(s, b.hex!)!;
+  if (c.state === 'island' && !c.temple && c.ring >= 2 && !c.dug && c.tile && c.tile !== 'hidden') unearth(s, b, c, ev); // pisar descobre
   if (c.temple && c.floors === MAX_FLOORS && s.castleTaken === null) {
     s.castleTaken = b.owner;
     s.princess = { by: b.owner, safe: false }; // no topo do Castelo estava a princesa: agora ela acompanha o time
@@ -467,7 +490,6 @@ export const legalActions = (s: GameState): Action[] => {
             }
           }
           if (canBuild(s, c)) out.push({ type: 'build', player: p, builderId: b.id, at: n });
-          if (canDig(s, c)) out.push({ type: 'dig', player: p, builderId: b.id, at: n });
           const t = builderAt(s, n);
           if (t && t.status === 'board' && t.owner !== p && !onFortified(s, t) && pushDest(s, b.hex!, t)) out.push({ type: 'push', player: p, builderId: b.id, targetId: t.id });
         }
@@ -801,11 +823,22 @@ export const islandProgress = (s: GameState): number => {
 export const leavingTime = (s: GameState): boolean =>
   s.settings.ending === 'escape' ? s.escape != null || islandProgress(s) >= 0.75 : s.castleTaken !== null;
 
-/** Quem fica boiando só leva metade do tesouro (arredondada para baixo): fugir vale, mas não mais que juntar muito. */
+/** Pontos do time agora: cristais que sobraram + tridentes que sobraram × 2 + o bônus da Princesa, se ela já está a salvo no navio do time. */
+export const basePoints = (s: GameState, p: number): number =>
+  s.crystals[p] + s.tridents[p] * TRIDENT_VALUE + (s.princess && s.princess.by === p && s.princess.safe ? PRINCESS_BONUS : 0);
+/** Quem fica boiando só leva metade dos pontos (arredondada para baixo): fugir vale, mas não mais que juntar muito. */
 export const finalScore = (s: GameState, p: number): number => {
   const aboard = s.builders.some((b) => b.owner === p && b.status === 'aboard');
-  return aboard ? s.crystals[p] : Math.floor(s.crystals[p] / 2);
+  return aboard ? basePoints(s, p) : Math.floor(basePoints(s, p) / 2);
 };
+/** Pontos para mostrar no placar durante a partida (na fuga, quem ainda não está no navio mostra a metade). */
+export const pointsNow = (s: GameState, p: number): number => (s.settings.ending === 'escape' ? finalScore(s, p) : basePoints(s, p));
+/** Desempate: quem salvou a Princesa, depois quem fugiu primeiro, depois quem já está no navio. */
+const tiePick = (s: GameState, tied: number[], aboardNow: (p: number) => boolean): number =>
+  (s.princess?.safe && tied.includes(s.princess.by) ? s.princess.by : undefined) ??
+  (s.escape != null && tied.includes(s.escape.by) ? s.escape.by : undefined) ??
+  tied.find(aboardNow) ??
+  tied[0];
 
 /**
  * Final por fuga: a ilha some no mar. Quem ainda estava em terra ou de bote fica boiando. Vence quem tiver mais pontos:
@@ -827,10 +860,9 @@ const vanishIsland = (s: GameState, ev: GameEvent[]) => {
     ev.push({ type: 'gameOver', winners: s.winners, reason: s.winReason });
     return;
   }
-  const points = (p: number) => (anyAboard ? finalScore(s, p) : s.crystals[p]);
-  const best = Math.max(...order.map(points));
-  const tied = order.filter((p) => points(p) === best);
-  const winner = (s.escape != null && tied.includes(s.escape.by) ? s.escape.by : (tied.find(aboardNow) ?? tied[0]))!;
+  const best = Math.max(...order.map((p) => finalScore(s, p)));
+  const tied = order.filter((p) => finalScore(s, p) === best);
+  const winner = tiePick(s, tied, aboardNow);
   s.winners = [winner];
   s.winReason = aboardNow(winner) ? 'ship' : 'crystals';
   s.phase = 'ended';
@@ -859,9 +891,10 @@ const finalize = (s: GameState, ev: GameEvent[], justPlayed: number) => {
   const islandGone = !escapeMode && !Object.values(s.cells).some((c) => c.state === 'island' && !c.temple); // acabou o chão para afundar
   const nobodyLeft = !escapeMode && !s.builders.some(isAlive) && s.builders.some((b) => b.status === 'aboard'); // todo mundo já embarcou ou saiu do jogo
   if (fled.length || rich !== undefined || islandGone || nobodyLeft) {
-    // vence quem tiver mais cristais; empate: quem fugiu no navio, depois quem jogou por último
-    const best = Math.max(...s.crystals);
-    const first = fled.find((p) => s.crystals[p] === best) ?? order.find((p) => s.crystals[p] === best)!;
+    // vence quem tiver mais pontos; empate: quem salvou a Princesa, depois quem fugiu no navio, depois quem jogou por último
+    const best = Math.max(...order.map((p) => basePoints(s, p)));
+    const tiedP = order.filter((p) => basePoints(s, p) === best);
+    const first = (s.princess?.safe && tiedP.includes(s.princess.by) ? s.princess.by : undefined) ?? fled.find((p) => tiedP.includes(p)) ?? tiedP[0];
     s.winners = [first];
     s.winReason = fled.includes(first) ? 'ship' : 'crystals';
   } else {
@@ -880,8 +913,7 @@ const climbAboard = (s: GameState, b: Builder, ev: GameEvent[]) => {
   b.hex = null;
   // a princesa está a salvo quando alguém do time que a resgatou chega ao navio: bônus grande
   if (s.princess && !s.princess.safe && s.princess.by === b.owner) {
-    s.princess.safe = true;
-    s.crystals[b.owner] += PRINCESS_BONUS;
+    s.princess.safe = true; // o bônus entra nos pontos (não vira cristal para gastar)
     ev.push({ type: 'princessSafe', owner: b.owner, value: PRINCESS_BONUS });
   }
 };
@@ -1060,9 +1092,17 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
     }
     case 'rollDie': {
       let face = DIE_FACES[Math.floor(rand(s) * DIE_FACES.length)];
-      if (face === 'guardian' && !s.settings.guardian) face = 'octopus'; // sem Sentinela, a face dela vira Polvo
       ev.push({ type: 'die', face });
-      if (face === 'surge') {
+      if (face === 'guardian' && !s.settings.guardian) {
+        // Nereu, rei dos mares, sobe do mar e puxa para a água um pirata de qualquer lugar do tabuleiro (menos quem está num Escudo ou em torre de 2 andares ou mais)
+        const prey = s.builders.filter((b) => b.status === 'board' && b.hex && !shielded(s, b) && levelOf(s, b) < 2);
+        if (prey.length) {
+          const b = prey[Math.floor(rand(s) * prey.length)];
+          ev.push({ type: 'nereusPull', builderId: b.id, owner: b.owner, from: b.hex });
+          dropIntoWater(s, b, ev);
+        } else ev.push({ type: 'nereusSleeps' });
+        endTurn(s, ev);
+      } else if (face === 'surge') {
         // Maré viva: todo construtor em casa de Atlântida ganha 1 cristal
         for (const b of s.builders) {
           if (b.status === 'board' && cellAt(s, b.hex!)?.state === 'atlantis') {

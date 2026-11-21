@@ -86,7 +86,22 @@
       .ph { display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #2a2a2a; color: #b8b8b8; white-space: nowrap; text-align: center; }
       .ph.on { background: #4a4a4a; color: #fff; outline: 1px solid #e0e0e0; font-weight: 700; }
       .hud-tr { top: 10px; right: 10px; width: 200px; }
-      .score { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 5px 8px; font-size: 13px; }
+      .score { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 5px 8px; font-size: 13px; }
+      .score > * { cursor: pointer; }
+      .score .res { color: #8fdcff; }
+      .score .pts { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 34px; padding: 0 6px; font-weight: 900; font-size: 15px; color: #7be26a; background: #0a2a1a; border: 1.5px solid #2f7a2a; border-radius: 8px; font-variant-numeric: tabular-nums; }
+      .score .pts.half { color: #ff9a8a; background: #33150f; border-color: #8a3a2a; }
+      .score .pts small { font-size: 9px; font-weight: 700; }
+      .score .dot { position: relative; }
+      .score .dot.q::after { content: ""; position: absolute; left: -1px; top: -7px; width: 12px; height: 7px; background: #ffd23f; clip-path: polygon(0 100%, 0 20%, 25% 55%, 50% 0, 75% 55%, 100% 20%, 100% 100%); }
+      #scorepop { position: fixed; right: 6px; top: 86px; z-index: 40; width: 232px; background: #0e2c50; color: #eaf4ff; border: 2px solid; border-radius: 12px; padding: 8px 10px; font-size: 12px; box-shadow: 0 8px 24px #0009; }
+      #scorepop h3 { margin: 0 0 6px; font-size: 14px; }
+      #scorepop table { width: 100%; border-collapse: collapse; }
+      #scorepop td { padding: 2px 0; border-bottom: 1px dashed #2c5a8c; }
+      #scorepop td:last-child { text-align: right; font-weight: 800; }
+      #scorepop tr.half td { color: #ff9a8a; }
+      #scorepop tr.tot td { border: 0; color: #7be26a; font-size: 14px; padding-top: 4px; }
+      #scorepop p { margin: 6px 0 0; color: #9fbad6; font-size: 11px; line-height: 1.4; }
       .score .res { display: flex; gap: 8px; align-items: center; font-variant-numeric: tabular-nums; }
       .score .res span { display: inline-flex; align-items: center; gap: 3px; }
       .score .who { display: flex; flex-direction: column; line-height: 1.15; }
@@ -237,7 +252,8 @@
       .winner .sub { font-size: 20px; font-weight: 700; margin: 2px 0 8px; }
       .winner.nobody h3 { color: #ff6a5a; }
       .scores { list-style: none; padding: 0; margin: 10px auto 14px; width: min(320px, 100%); display: grid; gap: 6px; }
-      .scores li { display: flex; justify-content: space-between; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--team) 26%, transparent); border: 2px solid var(--team); }
+      .scores li small { display: block; font-size: 11px; color: #cfe3f7; font-weight: 400; }
+      .scores li { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--team) 26%, transparent); border: 2px solid var(--team); }
       .scores li.top { background: color-mix(in srgb, var(--team) 55%, transparent); }
 
       @media (max-height: 820px) { .tagline { display: none; } .logo .l1 { font-size: clamp(38px, 9vw, 76px); } .logo .l2 { font-size: clamp(15px, 3.4vw, 26px); } }
@@ -265,7 +281,7 @@
         /* placar compacto: só a cor, os cristais e os tridentes (os nomes aparecem no chip de vez) */
         .hud-tr { right: 6px; top: 8px; width: auto; padding: 5px 7px; }
         .hud-tr h2 { font-size: 11px; margin-bottom: 4px; }
-        .score { grid-template-columns: auto auto; gap: 4px 6px; font-size: 12px; }
+        .score { grid-template-columns: auto auto auto; gap: 4px 6px; font-size: 12px; }
         .score .who { display: none; }
         /* continua tudo numa linha só: instruções à esquerda, convocações e dado ao lado */
         .hud-bc { grid-template-columns: minmax(0, 1fr) auto; bottom: 6px; width: calc(100% - 12px); gap: 6px; }

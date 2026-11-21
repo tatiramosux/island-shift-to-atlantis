@@ -48,7 +48,7 @@ brilhando. Quando a ilha some, o mar fica escuro com o brilho dos cristais.
 
 ## O que não muda
 
-Terremoto sorteado, convocações, bote, boia, Descobrir, Polvo, Leviatã e as peças escondidas funcionam como no original.
+Terremoto sorteado, convocações, bote, boia, pisar para descobrir, Polvo, Leviatã e as peças escondidas funcionam como no original.
 O terremoto continua sendo da mesa (sorteio), mas agora tem **prazo**.
 
 ## Pontos a testar

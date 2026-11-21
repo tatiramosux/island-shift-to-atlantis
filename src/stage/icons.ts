@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { Models } from './models';
 import { buildSummon } from './summons';
+import { buildNereus } from './legends';
 
 export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'triton' | 'dolphin' | 'siren' | 'colossus';
 
@@ -50,7 +51,7 @@ export const icons = (): Record<IconName, string> => {
   cache = {
     octopus: shoot(models.creature('octopus')),
     leviathan: shoot(models.creature('leviathan')),
-    guardian: shoot(models.creature('guardian')),
+    guardian: shoot(buildNereus(models).root), // a face da Sentinela agora é o Nereu
     surge: shoot(crystal),
     triton: shoot(buildSummon(models, 'triton')),
     dolphin: shoot(buildSummon(models, 'dolphin')),

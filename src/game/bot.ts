@@ -3,15 +3,16 @@
  * (cristais, subir perto do Templo, não boiar, derrubar os outros), com um pouco de sorte para não ficar previsível.
  */
 import { hexDistance } from '../engine/hex';
-import { ORIGIN, Rng, actor, applyTrusted, cellAt, islandProgress, leavingTime, legalActions, waveCells, type Action, type GameState } from '../engine/atlantida';
+import { ORIGIN, PRINCESS_BONUS, Rng, TRIDENT_VALUE, actor, basePoints, applyTrusted, cellAt, islandProgress, leavingTime, legalActions, waveCells, type Action, type GameState } from '../engine/atlantida';
 
 const value = (s: GameState, p: number): number => {
-  let v = s.crystals[p] * 12 + s.tridents[p] * 4 + (s.fountain[p] ? 1 : 0);
+  // cada ponto vale 12; o tridente vale 2 pontos e ainda protege uma casa; a Princesa a salvo no navio vale o bônus todo
+  let v = s.crystals[p] * 12 + s.tridents[p] * (TRIDENT_VALUE * 12 + 2) + (s.princess?.by === p && s.princess.safe ? PRINCESS_BONUS * 12 : 0) + (s.fountain[p] ? 1 : 0);
   // hora de levar o time para o navio (no jogo original, depois do cristal do Castelo; na fuga, com Atlântida já emersa)
   const leaving = leavingTime(s);
   // só corre para o navio quem não está muito atrás: quem fica boiando perde metade do tesouro, mas fugir cedo e pobre perde de qualquer jeito
-  const rivals = s.crystals.filter((_, i) => i !== p);
-  const behind = Math.max(...rivals) - s.crystals[p];
+  const rivals = s.crystals.map((_, i) => i).filter((i) => i !== p).map((i) => basePoints(s, i));
+  const behind = Math.max(...rivals) - basePoints(s, p);
   const urgent = islandProgress(s) >= 0.9 || (s.escape != null && s.escape.by !== p); // alguém já fugiu ou a ilha está no fim
   const carrying = s.princess != null && s.princess.by === p && !s.princess.safe; // a princesa só vale quando chega ao navio
   const run = leaving && (behind <= 1 || urgent || carrying) ? 1 : 0;
@@ -53,8 +54,16 @@ export const chooseAction = (s: GameState, rng: Rng): Action => {
   let bestScore = -Infinity;
   for (const a of actions) {
     // o BOT não enxerga a peça escondida: ao descobrir, conta só o ganho médio esperado (cerca de 1 em cada 4 casas tem cristal)
-    const after = a.type === 'dig' ? s : applyTrusted(s, a).state;
-    const score = evaluate(after, me) + (a.type === 'dig' ? 3.4 : 0) + rng.next() * 0.6 - (a.type === 'endActions' ? 0.01 : 0);
+    // pisar numa casa fechada revela a peça (o BOT não a enxerga): conta só o ganho médio esperado, cerca de 1 cristal em cada 4 casas
+    const dest = a.type === 'move' ? cellAt(s, a.to) : undefined;
+    const unseen = !!dest && dest.state === 'island' && !dest.temple && dest.ring >= 2 && !dest.dug;
+    let seen = s;
+    if (unseen) {
+      seen = structuredClone(s);
+      cellAt(seen, a.type === 'move' ? a.to : dest!.hex)!.tile = 'hidden'; // não vale espiar o que há embaixo
+    }
+    const after = applyTrusted(seen, a).state;
+    const score = evaluate(after, me) + (unseen ? 3.4 : 0) + rng.next() * 0.6 - (a.type === 'endActions' ? 0.01 : 0);
     if (score > bestScore) {
       bestScore = score;
       best = a;

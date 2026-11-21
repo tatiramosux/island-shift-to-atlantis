@@ -238,39 +238,37 @@ describe('construir', () => {
   });
 });
 
-describe('descobrir', () => {
-  it('só se constrói no Castelo e nas casas coladas nele; longe dele só dá para descobrir', () => {
+describe('pisar descobre (não existe mais a ação de cavar)', () => {
+  it('só se constrói no Castelo e nas casas coladas nele; longe dele não há ação de cavar', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
     bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(3, 0) });
     bad(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(2, -1) });
     ok(s, { type: 'build', player: 0, builderId: 'p0b0', at: H(1, 0) });
-    ok(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(3, 0) });
-    bad(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(1, 0) }); // colada no Castelo: constrói, não descobre
-    bad(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(4, 0) }); // longe do pirata
+    expect(legalActions(s).some((a) => a.type === 'dig')).toBe(false);
   });
 
-  it('achou cristal: coleta na hora e a casa fica descoberta (vira buraco)', () => {
+  it('pisar numa casa com cristal revela e coleta na hora; a casa fica descoberta (vira buraco)', () => {
     let s = blank();
     put(s, 'p0b0', H(2, 0));
     setTile(s, H(3, 0), 'crystal');
-    s = ok(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(3, 0) }).state;
+    s = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to: H(3, 0) }).state;
     expect(s.crystals[0]).toBe(1);
     expect(cell(s, H(3, 0)).dug).toBe(true);
     expect(cell(s, H(3, 0)).taken).toBe(true); // o cristal some do tabuleiro
     expect(cell(s, H(3, 0)).state).toBe('island');
-    expect(s.actionsLeft).toBe(2);
-    bad(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(3, 0) }); // já descoberta
+    expect(s.actionsLeft).toBe(2); // pisar custa 1 ação, só isso
   });
 
-  it('achou tridente: pega; achou ruína: nada; a peça fica à vista para todos', () => {
+  it('pisar: tridente é pego; ruína não dá nada; a peça fica à vista para todos', () => {
     let s = blank();
     put(s, 'p0b0', H(2, 0));
     setTile(s, H(3, 0), 'trident');
     setTile(s, H(2, 1), 'ruin');
-    s = ok(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(3, 0) }).state;
+    s = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to: H(3, 0) }).state;
     expect(s.tridents[0]).toBe(1);
-    s = ok(s, { type: 'dig', player: 0, builderId: 'p0b0', at: H(2, 1) }).state;
+    put(s, 'p0b0', H(2, 0));
+    s = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to: H(2, 1) }).state;
     expect(s.crystals[0]).toBe(0);
     const red = redactFor(s, 1);
     expect(red.cells[hexKey(H(2, 1))].tile).toBe('ruin');
@@ -345,12 +343,13 @@ describe('efeitos das peças ao entrar', () => {
       expect(s.crystals[0] + s.tridents[0] + s.skipFlood).toBe(0);
     }
   });
-  it('peça de casa que ainda não afundou não age', () => {
+  it('peça de casa que ainda não afundou só age quando alguém pisa nela (revela e leva o tesouro)', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
-    setTile(s, H(3, 0), 'crystal');
+    setTile(s, H(3, 0), 'shield');
     const r = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to: H(3, 0) }).state;
-    expect(r.crystals[0]).toBe(0);
+    expect(cell(r, H(3, 0)).dug).toBe(true);
+    expect(cell(r, H(3, 0)).state).toBe('island');
   });
 
   it('Portal: em vez de parar, leva a outro Portal livre', () => {
@@ -441,8 +440,9 @@ describe('fase de Maré', () => {
     expect(B(s, 'p1b0').hex).toEqual(H(4, 0));
   });
 
-  it('o Guardião entra na primeira casa de Atlântida que emergir', () => {
+  it('o Guardião (só se a regra da Sentinela for ligada) entra na primeira casa de Atlântida que emergir', () => {
     let s = blank();
+    s.settings.guardian = true;
     put(s, 'p0b0', H(1, 0));
     s = floodAt(s, H(4, 0));
     expect(s.creatures.find((c) => c.type === 'guardian')!.hex).toEqual(H(4, 0));
