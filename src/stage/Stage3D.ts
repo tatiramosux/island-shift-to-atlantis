@@ -5,6 +5,7 @@
 import { lookKey } from '../game/players';
 import * as THREE from 'three';
 import { hexDisk, hexDistance, hexKey, hexToWorld, type Hex } from '../engine/hex';
+import { buildNereus, buildPrincess } from './legends';
 import { ISLAND_RADIUS, ORIGIN, WORLD_RADIUS, isWater, islandProgress, sentinelAlert, templeAwake, type Cell, type GameState } from '../engine/atlantida';
 import { FLOOR_H, HEX_R, buildCastle, buildCastleTier, buildLevel, buildMarbleBase } from './structures';
 import { Models } from './models';
@@ -415,43 +416,143 @@ export class Stage3D {
 
   update(sc: StageScene) {
     this.skyTarget = sc.state.vanished ? 1 : islandProgress(sc.state);
-    if (sc.state.vanished && !this.vanishAt) this.vanishAt = performance.now();
+    if (sc.state.vanished && !this.vanishAt) {
+      this.vanishAt = performance.now();
+      this.playNereus();
+    }
     if (!sc.state.vanished && this.vanishAt) {
       this.vanishAt = 0; // nova partida: a ilha volta ao lugar
       this.cellsGroup.position.set(0, 0, 0);
       this.resetSink();
     }
     this.syncCells(sc.state);
-    this.syncPrincess(sc.state);
     this.syncEntities(sc.state);
+    this.syncPrincess(sc.state);
     this.syncHighlights(sc);
   }
 
   /* ---------- a princesa espera no topo do Castelo até alguém chegar lá ---------- */
 
   private princessObj: THREE.Group | null = null;
+  private princessParts: ReturnType<typeof buildPrincess> | null = null;
+  private princessBubble: THREE.Sprite | null = null;
+  private lastHelp = -99;
+  /** Balão de fala (letras brancas num balão colorido) que aparece sobre um personagem. */
+  private makeBubble(text: string, color: string): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 320;
+    c.height = 128;
+    const g = c.getContext('2d')!;
+    g.fillStyle = '#ffffff';
+    g.strokeStyle = '#1b2a4a';
+    g.lineWidth = 8;
+    g.beginPath();
+    g.roundRect(8, 8, 304, 84, 22);
+    g.fill();
+    g.stroke();
+    g.beginPath();
+    g.moveTo(70, 90);
+    g.lineTo(46, 124);
+    g.lineTo(110, 90);
+    g.closePath();
+    g.fill();
+    g.fillStyle = color;
+    g.font = 'bold 56px sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.fillText(text, 160, 52);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+    sp.scale.set(2.6, 1.04, 1);
+    sp.visible = false;
+    return sp;
+  }
+  private princessCarry: THREE.Group | null = null;
+  /** A princesa espera no topo do Castelo (com um facho de luz rosa para ser vista de longe) e, depois de resgatada, acompanha o pirata que a salvou. */
   private syncPrincess(s: GameState) {
     const t = s.cells['0,0'];
-    const waiting = !!t && t.floors >= 3 && s.castleTaken === null && !s.vanished && s.phase !== 'ended';
+    const live = !s.vanished && s.phase !== 'ended';
+    const waiting = !!t && t.floors >= 3 && s.castleTaken === null && live;
     if (!waiting) {
       if (this.princessObj) this.princessObj.visible = false;
+    } else {
+      if (!this.princessObj) {
+        const g = new THREE.Group();
+        const P = buildPrincess(this.models);
+        P.root.scale.setScalar(2.2);
+        g.add(P.root);
+        this.princessParts = P;
+        this.princessBubble = this.makeBubble('HELP!', '#d8232a');
+        this.princessBubble.position.set(0.5, 2.1, 0);
+        g.add(this.princessBubble);
+        const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 3.2, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0xff7ac8, transparent: true, opacity: 0.28, depthWrite: false, side: THREE.DoubleSide }));
+        beam.position.y = 1.7;
+        g.add(beam);
+        this.scene.add(g);
+        this.princessObj = g;
+      }
+      const w = worldOf(t.hex);
+      this.princessObj.visible = true;
+      this.princessObj.position.set(w.x, topOf(t) + 0.05, w.z);
+    }
+    // depois do resgate: ela vai ao lado do pirata do time que a salvou, até chegar ao navio
+    const pr = s.princess;
+    const carrier = pr && !pr.safe && live ? s.builders.filter((b) => b.owner === pr.by && (b.status === 'board' || b.status === 'boat' || b.status === 'floating')).sort((x, y) => (x.status === 'board' ? 0 : 1) - (y.status === 'board' ? 0 : 1))[0] : undefined;
+    const host = carrier ? this.ents.get(carrier.id) : undefined;
+    if (!host) {
+      this.princessCarry?.removeFromParent();
       return;
     }
-    if (!this.princessObj) {
-      const m = this.models;
-      const g = new THREE.Group();
-      const dress = m.solid('#ff6fb5');
-      g.add(m.box(0.2, 0.1, 0.2, dress, 0, 0.05, 0), m.box(0.15, 0.1, 0.15, dress, 0, 0.15, 0), m.box(0.1, 0.09, 0.1, m.solid('#ffd7b8'), 0, 0.3, 0));
-      g.add(m.box(0.13, 0.05, 0.13, m.solid('#f3c846'), 0, 0.37, -0.01), m.box(0.12, 0.12, 0.03, m.solid('#f3c846'), 0, 0.3, -0.07));
-      g.add(m.box(0.1, 0.04, 0.1, m.solid('#e7b830', 0.5), 0, 0.42, 0)); // coroa
-      g.add(m.box(0.04, 0.12, 0.04, m.solid('#ffd7b8'), -0.1, 0.2, 0), m.box(0.04, 0.12, 0.04, m.solid('#ffd7b8'), 0.1, 0.24, 0));
-      g.scale.setScalar(1.7);
-      this.scene.add(g);
-      this.princessObj = g;
+    if (!this.princessCarry) {
+      this.princessCarry = buildPrincess(this.models).root;
+      this.princessCarry.scale.setScalar(1.5);
     }
-    const w = worldOf(t.hex);
-    this.princessObj.visible = true;
-    this.princessObj.position.set(w.x, topOf(t) + 0.55, w.z);
+    if (this.princessCarry.parent !== host.group) {
+      this.princessCarry.removeFromParent();
+      host.group.add(this.princessCarry);
+    }
+    this.princessCarry.position.set(0.5, 0, 0.1);
+  }
+
+  /* ---------- Nereu: no fim, quando Atlântida afunda, o deus do mar surge, ruge e some ---------- */
+
+  private shake = 0;
+  private shakeOff = new THREE.Vector3();
+
+  private playNereus() {
+    const N = buildNereus(this.models);
+    const delay = 2.0;
+    const dur = 4.4;
+    const ease = (x: number) => x * x * (3 - 2 * x);
+    const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+    N.root.position.set(0, 0, 0);
+    N.root.scale.setScalar(1.3); // enorme: o rei dos mares
+    // de frente para a câmera
+    N.root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az));
+    this.addFx(N.root, dur, delay, (p) => {
+      const tt = p * dur;
+      const rise = ease(clamp01(tt / 1.4));
+      const sink = ease(clamp01((tt - 3.6) / 0.8));
+      const roar = ease(clamp01((tt - 1.5) / 0.25)) * (1 - ease(clamp01((tt - 3.1) / 0.4)));
+      N.body.position.y = -6 + 6 * rise - 6 * sink;
+      const jitter = Math.sin(tt * 55) * 0.03 * roar;
+      N.body.position.x = jitter;
+      N.body.scale.setScalar(1 + 0.05 * roar);
+      N.head.rotation.x = -0.4 * roar; // cabeça para trás no urro
+      N.mouth.scale.y = N.mouth.userData.baseY * (1 + 4 * roar); // boca aberta no urro
+      N.mouth.position.y = N.mouth.userData.posY - 0.2 * roar;
+      N.armL.rotation.z = 0.15 + 0.5 * roar;
+      N.armR.rotation.x = -0.5 * roar;
+      N.trident.position.y = 0.65 + 0.7 * roar;
+      N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3; // a nadadeira balança, e mais forte no urro
+      N.trident.rotation.z = -0.05 * roar;
+    });
+    // água em volta quando surge e quando ruge; tremor de câmera durante o urro; o som sai junto
+    for (let i = 0; i < 4; i++) this.burst((Math.random() - 0.5) * 2.4, 0.2, (Math.random() - 0.5) * 2.4, '#dff6ff', 8, delay + 0.2 + i * 0.2, 2.6);
+    this.later(delay + 1.55, () => {
+      this.sfx?.('nereus');
+      this.shake = 1.5;
+      for (let i = 0; i < 6; i++) this.burst((Math.random() - 0.5) * 3, 0.3, (Math.random() - 0.5) * 3, '#bfe6f5', 8, i * 0.08, 3.2);
+    });
   }
 
   /* ---------- a ilha afunda ---------- */
@@ -514,7 +615,7 @@ export class Stage3D {
     this.portalsOn = portalsOn;
     for (const c of Object.values(s.cells)) {
       const k = hexKey(c.hex);
-      const sig = `${c.state}|${c.floors}|${c.dome}|${c.tile}|${c.temple && awake}|${!!c.dug}|${!!c.taken}|${c.tile === 'portal' && portalsOn}|${!!c.relic}|${c.flora ?? ''}`;
+      const sig = `${c.state}${c.sunk ? 'S' : ''}|${c.floors}|${c.dome}|${c.tile}|${c.temple && awake}|${!!c.dug}|${!!c.taken}|${c.tile === 'portal' && portalsOn}|${!!c.relic}|${c.flora ?? ''}`;
       let rec = this.cellObjs.get(k);
       if (!rec || rec.sig !== sig) {
         if (rec) this.cellsGroup.remove(rec.group);
@@ -537,6 +638,7 @@ export class Stage3D {
     const g = new THREE.Group();
     const w = worldOf(c.hex);
     g.position.set(w.x, 0, w.z);
+    if (c.sunk) return g; // desabou: sobra só o mar
     const base = baseHeight(c);
     // a superfície segue os anéis (borda mais clara, centro mais alto), mas cada partida mistura areia, grama e pedra
     const lk = c.look ?? 0.5;
@@ -730,7 +832,7 @@ export class Stage3D {
           g.add(m);
           return g;
         },
-        isWater(cr.hex) || !s.cells[hexKey(cr.hex)], // na água (também onde não há casa, como na ilha menor da tela inicial): balança como os barcos
+        isWater(cr.hex) || !s.cells[hexKey(cr.hex)] || !!s.cells[hexKey(cr.hex)]?.sunk, // na água (também onde não há casa, como na ilha menor da tela inicial): balança como os barcos
         true,
       );
     }
@@ -1087,7 +1189,7 @@ export class Stage3D {
 
   private ground(h: Hex, s: GameState) {
     const c = s.cells[hexKey(h)];
-    return c ? topOf(c) : 0.02;
+    return c && !c.sunk ? topOf(c) : 0.02;
   }
 
   /** Esguicho de cubinhos (água, brilho) que sobem e caem. */
@@ -1122,6 +1224,13 @@ export class Stage3D {
       }
       if (e.type === 'sentinelWake') this.playBlast(e.at as Hex, e.pushFrom as Hex, s);
       if (e.type === 'octopusGrab') this.playThrow('octopus', 'octopus', [e.builderId as string]);
+      if (e.type === 'leviathanGrab') this.playThrow('leviathan', 'leviathan', [e.builderId as string]);
+      if (e.type === 'crumble') {
+        const w = worldOf(e.hex as Hex);
+        this.burst(w.x, 0.4, w.z, '#dff6ff', 12, 0, 2.4);
+        this.burst(w.x, 0.3, w.z, '#9bd6f0', 8, 0.05, 1.6);
+        this.sfx?.('crumble');
+      }
       if (e.type === 'build' || e.type === 'dig') {
         const b = this.ents.get(e.builderId as string);
         if (b) b.swingAt = this.clock.elapsedTime;
@@ -1240,6 +1349,13 @@ export class Stage3D {
     this.raf = requestAnimationFrame(this.tick);
     const dt = Math.min(this.clock.getDelta(), 0.1);
     const t = this.clock.elapsedTime;
+    this.cam.position.sub(this.shakeOff);
+    if (this.shake > 0) {
+      this.shake = Math.max(0, this.shake - dt);
+      const k = Math.min(1, this.shake / 0.5) * 0.35;
+      this.shakeOff.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k, (Math.random() - 0.5) * k);
+    } else this.shakeOff.set(0, 0, 0);
+    this.cam.position.add(this.shakeOff);
     const now = performance.now();
     for (const o of this.spinners) {
       if (o.userData.spin) o.rotation.y += dt * o.userData.spin;
@@ -1253,7 +1369,22 @@ export class Stage3D {
       rec.group.scale.y = rec.from + (1 - rec.from) * ease;
     }
     this.seaTime.value = t;
-    if (this.princessObj?.visible) this.princessObj.rotation.y = Math.sin(t * 1.4) * 0.5; // a princesa acena do topo
+    if (this.princessObj?.visible && this.princessParts) {
+      this.princessObj.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az)) + Math.sin(t * 1.4) * 0.25; // olha para a câmera e balança
+      const P = this.princessParts;
+      P.armL.rotation.z = 0.55 + Math.sin(t * 9) * 0.3; // braços para o alto, acenando por socorro
+      P.armR.rotation.z = -0.55 - Math.sin(t * 9 + 1) * 0.3;
+      P.root.position.y = Math.abs(Math.sin(t * 7)) * 0.04;
+      // a cada 7 s ela grita "HELP!" (balão + som)
+      const cyc = (t - this.lastHelp) % 7;
+      const shouting = t - this.lastHelp < 0 || t - this.lastHelp >= 7 ? false : cyc < 2;
+      if (t - this.lastHelp >= 7) {
+        this.lastHelp = t;
+        this.sfx?.('help');
+      }
+      if (this.princessBubble) this.princessBubble.visible = shouting || t - this.lastHelp < 2;
+      P.mouth.scale.y = P.mouth.userData.baseY * (t - this.lastHelp < 2 ? 1 + 0.7 * Math.abs(Math.sin(t * 14)) : 1);
+    }
     // dia vira noite aos poucos, conforme Atlântida emerge (e a luz também segue devagar quando uma nova partida começa)
     if (Math.abs(this.skyTarget - this.skyNow) > 0.0005) {
       this.skyNow += (this.skyTarget - this.skyNow) * (1 - Math.exp(-dt * 1.4));

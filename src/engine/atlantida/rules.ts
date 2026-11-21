@@ -44,8 +44,8 @@ export const TILE_COUNTS: Record<AtlantisTile, number> = {
 
 const MAX_FLOORS = 3;
 const CREATURE_STEPS: Record<CreatureType, number> = { octopus: 3, leviathan: 2, guardian: 1 };
-/** Até quantas casas os tentáculos do Polvo alcançam a partir de onde ele para. */
-export const OCTOPUS_TENTACLES = 3;
+/** Até quantas casas os tentáculos do Polvo e a cauda do Leviatã alcançam a partir de onde eles param (sempre na água). */
+export const OCTOPUS_TENTACLES = 2;
 
 /* ---------- consultas ---------- */
 
@@ -54,6 +54,8 @@ export const isWater = (h: Hex): boolean => {
   const d = hexDistance(ORIGIN, h);
   return d > ISLAND_RADIUS && d <= WORLD_RADIUS;
 };
+/** Mar de verdade: a água em volta da ilha ou um buraco aberto no meio dela (casa que desabou). */
+export const isSea = (s: GameState, h: Hex): boolean => isWater(h) || !!s.cells[hexKey(h)]?.sunk;
 /** pirata que ocupa uma casa do tabuleiro (em terra, boiando ou no bote). Quem já subiu no navio não ocupa casa. */
 export const isAlive = (b: Builder): boolean => b.status === 'board' || b.status === 'floating' || b.status === 'boat';
 export const isShip = (s: GameState, h: Hex): boolean => s.ships.some((x) => hexEquals(x, h));
@@ -84,7 +86,7 @@ const shielded = (s: GameState, b: Builder): boolean => b.status === 'board' && 
 /** Casa de terra onde um construtor pode entrar: sem cúpula, sem ninguém, e o Templo só depois de despertar. */
 const landFree = (s: GameState, h: Hex): boolean => {
   const c = cellAt(s, h);
-  if (!c || c.dome) return false;
+  if (!c || c.dome || c.sunk) return false;
   if (c.temple && !templeAwake(s)) return false;
   return !builderAt(s, h) && !creatureAt(s, h);
 };
@@ -101,7 +103,7 @@ const canBuild = (s: GameState, c: Cell): boolean => {
 };
 /** Descobrir: casa de superfície longe do Castelo (anel 2 em diante), ainda fechada e livre. */
 const canDig = (s: GameState, c: Cell): boolean => c.state === 'island' && !c.temple && c.ring >= 2 && !c.dug && !c.dome && !builderAt(s, c.hex) && !creatureAt(s, c.hex);
-const waterFree = (s: GameState, h: Hex): boolean => isWater(h) && !isShip(s, h) && !builderAt(s, h) && !creatureAt(s, h);
+const waterFree = (s: GameState, h: Hex): boolean => isSea(s, h) && !isShip(s, h) && !builderAt(s, h) && !creatureAt(s, h);
 
 /** Casa de água livre mais próxima (desempate pela ordem do anel, que é fixa). */
 const nearestWater = (s: GameState, from: Hex): Hex | null => {
@@ -280,18 +282,23 @@ export const createGame = ({ players, seed, settings }: NewGameOptions): GameSta
 const dropIntoWater = (s: GameState, b: Builder, ev: GameEvent[]) => {
   const from = b.hex!;
   const w = nearestWater(s, from);
-  if (!w) return eliminate(s, b, ev);
+  b.status = 'floating'; // ninguém morre: quem cai na água só boia
+  if (!w) return;
   b.hex = w;
-  b.status = 'floating';
   ev.push({ type: 'floating', builderId: b.id, owner: b.owner, from, to: w });
 };
 
-const eliminate = (s: GameState, b: Builder, ev: GameEvent[]) => {
-  const from = b.hex;
-  b.status = 'dead';
-  b.hex = null;
-  s.crystals[b.owner] += 1; // cristal de consolo
-  ev.push({ type: 'eliminated', builderId: b.id, owner: b.owner, from });
+/** Quem já boia e é agarrado é jogado de volta ao mar, um pouco mais longe (continua boiando). */
+const tossFloater = (s: GameState, b: Builder, ev: GameEvent[]) => {
+  const from = b.hex!;
+  for (let d = 2; d <= 4; d++) {
+    for (const h of hexRing(from, d)) {
+      if (!waterFree(s, h)) continue;
+      b.hex = h;
+      ev.push({ type: 'floating', builderId: b.id, owner: b.owner, from, to: h });
+      return;
+    }
+  }
 };
 
 /** Efeito da peça de Atlântida ao terminar o movimento numa casa (e vitória no Templo). */
@@ -351,7 +358,7 @@ const tritonSlide = (s: GameState, from: Hex, target: Builder, distance: number)
   let cur = target.hex!;
   for (let i = 0; i < distance; i++) {
     const next = hexAdd(cur, dir);
-    if (isWater(next)) return waterFree(s, next) ? { to: next, falls: true } : { to: cur, falls: false };
+    if (isSea(s, next)) return waterFree(s, next) ? { to: next, falls: true } : { to: cur, falls: false };
     if (!landFree(s, next)) break;
     cur = next;
   }
@@ -367,38 +374,44 @@ const creatureMoves = (s: GameState, p: number): Action[] => {
   const type = cr.type;
   const passable = (h: Hex): boolean => {
     if (builderAt(s, h) || creatureAt(s, h)) return false;
-    if (isWater(h)) return type !== 'guardian';
+    if (isSea(s, h)) return type !== 'guardian'; // Polvo e Leviatã nadam: só andam pelo mar e pelos buracos que abrem na ilha
+    if (type !== 'guardian') return false; // nunca sobem na ilha nem em Atlântida
     const c = cellAt(s, h);
-    if (!c || c.state !== 'atlantis' || c.dome) return false;
-    return type === 'guardian' ? true : c.floors <= 1;
+    return !!c && c.state === 'atlantis' && !c.dome && !c.sunk;
   };
   const out: Action[] = [];
   for (const k of hexReachable(cr.hex, CREATURE_STEPS[type], passable).keys()) {
     const [q, r] = k.split(',').map(Number);
     const to = hex(q, r);
     const base = { type: 'moveCreature', player: p, creatureId: type, to } as const;
-    if (type === 'octopus') {
-      // Regra: o Polvo estica os tentáculos até 3 casas. Se parar com alguém ao alcance, puxa (é obrigatório): quem está
-      // em terra vai para o mar; quem já boiava sai do jogo; o bote vira.
-      const prey = s.builders.filter(
-        (b) => isAlive(b) && b.hex && hexDistance(to, b.hex) <= OCTOPUS_TENTACLES && (b.status !== 'board' || (!shielded(s, b) && levelOf(s, b) <= s.settings.octopusReach)),
-      );
-      if (!prey.length) out.push(base);
+    if (type === 'octopus' || type === 'leviathan') {
+      // Regra: laçam quem está a até 2 casas de onde param. Em terra, só quem está em andar baixo e sem Escudo; quem boia é jogado mais longe;
+      // o bote vira. O Polvo é obrigado a puxar quando alguém está ao alcance; o Leviatã escolhe (ou derruba uma construção vizinha).
+      const prey = s.builders.filter((b) => {
+        if (!isAlive(b) || !b.hex || hexDistance(to, b.hex) > OCTOPUS_TENTACLES) return false;
+        if (b.status !== 'board') return type === 'octopus';
+        return !shielded(s, b) && levelOf(s, b) <= s.settings.octopusReach;
+      });
+      if (type === 'octopus') {
+        if (!prey.length) out.push(base);
+        for (const b of prey) out.push({ ...base, target: b.id });
+        continue;
+      }
+      out.push(base);
       for (const b of prey) out.push({ ...base, target: b.id });
+      for (const nb of hexNeighbors(to)) {
+        const c = cellAt(s, nb);
+        if (!c || c.sunk || !(c.dome || c.floors > 0)) continue;
+        const on = builderAt(s, nb);
+        if (on && shielded(s, on)) continue;
+        out.push({ ...base, target: hexKey(nb) });
+      }
       continue;
     }
     out.push(base);
     for (const nb of hexNeighbors(to)) {
-      if (type === 'leviathan') {
-        const c = cellAt(s, nb);
-        if (!c || !(c.dome || c.floors > 0)) continue;
-        const on = builderAt(s, nb);
-        if (on && shielded(s, on)) continue;
-        out.push({ ...base, target: hexKey(nb) });
-      } else {
-        const b = builderAt(s, nb);
-        if (b && b.status === 'board' && !shielded(s, b) && pushDest(s, to, b)) out.push({ ...base, target: b.id });
-      }
+      const b = builderAt(s, nb);
+      if (b && b.status === 'board' && !shielded(s, b) && pushDest(s, to, b)) out.push({ ...base, target: b.id });
     }
   }
   return out;
@@ -578,7 +591,7 @@ const sentinelWake = (s: GameState, target: Builder, ev: GameEvent[]) => {
   for (let i = 0; i < SENTINEL_BLAST; i++) {
     const next = outward(cur);
     if (!next) break;
-    if (isWater(next)) {
+    if (isSea(s, next)) {
       if (waterFree(s, next)) {
         cur = next;
         falls = true;
@@ -689,12 +702,38 @@ const waveHit = (s: GameState, k: number, ev: GameEvent[]) => {
   for (const b of hit) dropIntoWater(s, b, ev);
 };
 
+/** Tesouros ainda não pegos: a casa que os guarda não desmorona. */
+const CRUMBLE_KEEP = new Set<string>(['crystal', 'trident', 'calm', 'fountain']);
+/**
+ * Atlântida é frágil: a cada virada de rodada (da 3ª em diante; 2 casas na fase final) uma casa já emersa, sem construção
+ * nem ninguém em cima e colada na água, desmorona e vira um buraco de mar. Assim o mar avança para dentro da ilha em
+ * canais por onde o Polvo e o Leviatã chegam perto dos piratas.
+ */
+const crumble = (s: GameState, ev: GameEvent[]) => {
+  if (s.round < 3) return;
+  const n = s.castleTaken !== null ? 2 : 1;
+  for (let i = 0; i < n; i++) {
+    const open = Object.values(s.cells).filter(
+      (c) =>
+        c.state === 'atlantis' && !c.temple && !c.sunk && !c.dome && c.floors === 0 && c.ring >= 2 &&
+        !builderAt(s, c.hex) && !creatureAt(s, c.hex) && !(c.tile && CRUMBLE_KEEP.has(c.tile) && !c.taken) &&
+        hexNeighbors(c.hex).some((nb) => isSea(s, nb)),
+    );
+    if (!open.length) return;
+    const c = open[Math.floor(rand(s) * open.length)];
+    c.sunk = true;
+    c.tile = 'ruin';
+    ev.push({ type: 'crumble', hex: c.hex });
+  }
+};
+
 const endTurn = (s: GameState, ev: GameEvent[]) => {
   for (let i = 1; i <= s.playerCount; i++) {
     const next = (s.current + i) % s.playerCount;
     if (playerAlive(s, next)) {
       if (next <= s.current) {
         s.round += 1;
+        crumble(s, ev);
         // fase final (ou virada da maré, a partir da rodada 2): a cada virada de rodada bate a onda avisada e já se avisa a próxima
         if (s.castleTaken !== null || (s.settings.tideShift && s.round >= 2)) {
           if (s.wave !== null && s.wave !== undefined) waveHit(s, s.wave, ev);
@@ -780,6 +819,14 @@ const vanishIsland = (s: GameState, ev: GameEvent[]) => {
   const order = Array.from({ length: s.playerCount }, (_, i) => i);
   const aboardNow = (p: number) => s.builders.some((b) => b.owner === p && b.status === 'aboard');
   const anyAboard = order.some(aboardNow);
+  if (!anyAboard) {
+    // ninguém fugiu: Nereu fica com o tesouro e ninguém vence
+    s.winners = [];
+    s.winReason = 'draw';
+    s.phase = 'ended';
+    ev.push({ type: 'gameOver', winners: s.winners, reason: s.winReason });
+    return;
+  }
   const points = (p: number) => (anyAboard ? finalScore(s, p) : s.crystals[p]);
   const best = Math.max(...order.map(points));
   const tied = order.filter((p) => points(p) === best);
@@ -874,7 +921,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         return;
       }
       b.hex = a.to;
-      if (!isWater(a.to)) {
+      if (!isSea(s, a.to)) {
         b.status = 'board';
         ev.push({ type: 'landed', builderId: b.id, to: a.to });
         enter(s, b, ev);
@@ -911,7 +958,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         crew.forEach((m) => climbAboard(s, m, ev));
         return;
       }
-      if (!isWater(a.to)) {
+      if (!isSea(s, a.to)) {
         b.hex = a.to;
         b.status = 'board'; // encostou na praia: quem remou desce; o companheiro fica no bote
         ev.push({ type: 'landed', builderId: b.id, to: a.to });
@@ -1044,18 +1091,18 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       cr.hex = a.to;
       ev.push({ type: 'creatureMove', creature: cr.type, from, to: a.to });
       if (a.target) {
-        if (cr.type === 'leviathan') {
+        if (cr.type === 'leviathan' && a.target.includes(',')) {
           const c = s.cells[a.target];
           if (c.dome) c.dome = false;
           else c.floors -= 1; // quem estava nela cai um andar
           ev.push({ type: 'leviathanSmash', hex: c.hex, floors: c.floors });
         } else {
           const b = s.builders.find((x) => x.id === a.target)!;
-          if (cr.type === 'octopus') {
-            ev.push({ type: 'octopusGrab', builderId: b.id });
-            if (b.status === 'floating') eliminate(s, b, ev);
+          if (cr.type === 'octopus' || cr.type === 'leviathan') {
+            ev.push({ type: cr.type === 'octopus' ? 'octopusGrab' : 'leviathanGrab', builderId: b.id });
+            if (b.status === 'floating') tossFloater(s, b, ev);
             else if (b.status === 'boat') {
-              // o Polvo vira o bote: todos ficam boiando (o segundo náufrago vai para a água livre mais perto)
+              // vira o bote: todos ficam boiando (o segundo náufrago vai para a água livre mais perto)
               const crew = boatMates(s, b.hex!);
               crew.forEach((m, i) => {
                 m.status = 'floating';
@@ -1063,7 +1110,6 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
                 if (i > 0) {
                   const w = nearestWater(s, m.hex!);
                   if (w) m.hex = w;
-                  else eliminate(s, m, ev);
                 }
               });
             } else dropIntoWater(s, b, ev);

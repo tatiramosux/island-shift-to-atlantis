@@ -68,10 +68,14 @@ O jogador da vez rola o **dado das criaturas** e **move a criatura sorteada**, e
 
 | Face | Resultado |
 |---|---|
-| Polvo (2 faces) | Move o **Polvo-colosso** até 3 casas pela água e por casas de Atlântida de nível 0 ou 1. Ao parar, **estica os tentáculos até 3 casas** e puxa um pirata (obrigatório se houver alguém ao alcance): se ele estiver em terra no nível 0, é jogado na água e fica boiando. Se já estiver boiando, é **eliminado**. Piratas no 2º andar ou mais alto, ou num Escudo, não são alcançados. |
-| Leviatã (2 faces) | Move o **Leviatã** até 2 casas pelo mesmo caminho. Ao parar, derruba o bloco de cima de uma casa vizinha (quem estava nela cai um andar) e empurra 1 casa os náufragos vizinhos. |
+| Polvo (2 faces) | Move o **Polvo-colosso** até 3 casas, **só pelo mar** (a água em volta da ilha e os buracos onde Atlântida desmoronou; nunca sobe na ilha). Ao parar, **estica um tentáculo até 2 casas**, enrola um pirata (obrigatório se houver alguém ao alcance) e o joga no mar: ele fica boiando. Quem já boia é jogado mais longe, o bote vira. Piratas no 2º andar ou mais alto, ou num Escudo, não são alcançados. |
+| Leviatã (2 faces) | Move o **Leviatã** até 2 casas, só pelo mar. Ao parar, pode **laçar com a cauda** um pirata a até 2 casas e jogá-lo no mar, ou derrubar o bloco de cima de uma casa vizinha (quem estava nela cai um andar). Também empurra 1 casa os náufragos vizinhos. |
 | Sentinela (1 face) | A **Sentinela de pedra** (um troll com chifres) fica parada como estátua. Ela **acorda sozinha** quando um pirata termina o movimento a até 2 casas dela e, sem sair do lugar, dispara um **jato de água** que empurra o pirata **2 casas para longe do centro** (se passar da borda, ele cai no mar). Esta face do dado também a faz atirar no pirata mais perto (até 2 casas). Escudo e 2º andar ou mais protegem. |
 | Maré viva (1 face) | Nenhuma criatura se mexe. Todo pirata em casa de Atlântida ganha 1 cristal. |
+
+## Atlântida desmorona
+
+Da **3ª rodada** em diante, a cada virada de rodada (2 casas na fase final), uma casa de Atlântida sem construção e sem ninguém em cima, colada na água, **desmorona e vira buraco de mar**. O mar avança para dentro da ilha em canais, e o Polvo e o Leviatã passam por eles para chegar perto dos piratas. Casas com tesouro ainda não pego não desmoronam.
 
 ## Boiando
 
@@ -79,7 +83,7 @@ Quem cai na água **não morre**. O pirata é colocado numa **boia salva-vidas**
 
 - Um náufrago não constrói e não conta para vencer.
 - Ele pode **nadar 1 casa por ação**, empurrando a boia, para chegar a uma casa de terra de nível 0 ou 1.
-- Ele fica vulnerável ao **Polvo**: se o Polvo o agarra, é eliminado.
+- Ele fica vulnerável ao **Polvo** e ao **Leviatã**: se o agarram, é jogado mais longe no mar. Ninguém é eliminado.
 - O **Golfinho-guia** (convocação) o leva de volta à ilha.
 
 ## Convocações (poderes)
@@ -93,7 +97,7 @@ As convocações funcionam como poderes de uso único: um personagem entra em ce
 | **Sereia** | 1 cristal | **Canto:** rouba 1 cristal de um pirata vizinho. |
 | **Colosso de coral** | 2 cristais | **Cúpula relâmpago:** coloca uma cúpula em qualquer casa que não seja o Castelo. |
 
-Quem tiver um pirata eliminado ganha 1 cristal de consolo.
+Não há eliminação: quem cai no mar só boia.
 
 ## O Castelo
 
@@ -119,13 +123,14 @@ A partida acaba quando:
 
 1. **Fuga:** a Princesa já foi resgatada e um time está com **todos** os piratas vivos no navio (ninguém fica para trás). Vence quem tiver mais cristais; no empate, quem fugiu.
 2. **Fim da ilha:** toda a superfície afundou.
-3. **Último de pé:** os outros jogadores ficaram sem piratas.
+
+Nas partidas curtas e médias, o final é a **fuga**: quando a ilha afunda, **Nereu**, rei dos mares e de Atlântida (meio homem, meio sereia), surge do mar e urra pela sua Princesa. Vence quem tiver mais pontos entre os times que fugiram (quem ficou boiando conta a metade). Se **ninguém** fugiu, Nereu fica com o tesouro e ninguém vence.
 
 ## Por que isso funciona
 
 - Afundar o meio abre caminho para as criaturas, e afundar a borda revela peças longe do Castelo: cada escolha é uma aposta.
 - O centro é seguro, mas lá a disputa é pelo Castelo.
-- A perda tem graus: terra, depois boiando, depois fora do jogo. Ninguém é eliminado de uma vez.
+- A perda tem graus: terra, depois boiando, e quem boia ainda pode nadar, ser resgatado ou fugir. Ninguém é eliminado.
 - O cristal vale dois usos: vencer ou atacar. Guardar ou gastar vira uma decisão.
 - Subir protege das criaturas e leva ao Castelo: defesa e objetivo apontam para o mesmo lugar.
 - O dado traz sorte e surpresa, mas quem joga escolhe para onde a criatura vai.
@@ -143,6 +148,6 @@ A partida acaba quando:
 - **Velocidade do mar:** 1 casa por rodada pode ser rápido demais com 2 jogadores.
 - **Cristais:** 5 de 10 pode ser fácil demais com 2 jogadores; talvez 4.
 - **Peso do Castelo:** ver se a partida não vira sempre uma corrida pelo centro.
-- **Polvo:** pode eliminar piratas cedo demais; o cristal de consolo e os 2 andares de proteção são as válvulas.
+- **Polvo e Leviatã:** só nadam no mar e nos buracos que Atlântida abre; os 2 andares de proteção e o Escudo são as válvulas.
 - **Snowball contra o líder:** com tanto ataque, o jogo pode virar "todos contra o líder".
 - **Quantidade de peças e convocações:** ver se há efeitos demais para decorar.

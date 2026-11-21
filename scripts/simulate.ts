@@ -37,6 +37,7 @@ for (let g = 0; g < games; g++) {
     unfinished++;
     continue;
   }
+  if (!s.winners?.length) continue; // ninguém fugiu: Nereu ficou com o tesouro
   if (fullAt) fullAtList.push(fullAt);
   roundsList.push(s.round);
   turnsList.push(s.turn);

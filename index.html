@@ -43,6 +43,8 @@
       #app { position: fixed; inset: 0; }
       #view { position: absolute; inset: 0; }
       /* alarme da reta final: as bordas da tela pulsam em vermelho no ritmo da música de clímax (1 compasso = 1,54 s) */
+      .shout { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 55; pointer-events: none; font: 900 clamp(30px, 7vw, 64px) system-ui, sans-serif; color: #fff; letter-spacing: 2px; text-align: center; text-shadow: 0 0 18px #2fe0cf, 0 4px 0 #0b5c66, 0 0 40px #1fae9d; animation: shoutIn 2.6s ease-out forwards; }
+      @keyframes shoutIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.4); } 12% { opacity: 1; transform: translateX(-50%) scale(1.15) rotate(-2deg); } 25%, 80% { opacity: 1; transform: translateX(-50%) scale(1) rotate(1deg); } 100% { opacity: 0; transform: translateX(-50%) scale(1.1); } }
       #alarm { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.8s; z-index: 5;
         background: radial-gradient(ellipse at center, rgba(255, 40, 40, 0) 52%, rgba(255, 30, 30, 0.38) 82%, rgba(190, 0, 20, 0.7) 100%); }
       body.alarm #alarm { opacity: 1; animation: alarmPulse 1.54s ease-in-out infinite; }
@@ -226,6 +228,17 @@
       .winteam { display: flex; justify-content: center; gap: 6px; margin: -6px auto 8px; padding: 6px 14px; width: fit-content; border-radius: 999px; background: color-mix(in srgb, var(--team) 38%, transparent); border: 2px solid var(--team); }
       .winteam img { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45)); }
       .winner h3 { font-size: 30px; color: var(--accent); }
+      .endhead { display: flex; justify-content: center; margin: -6px auto 6px; animation: headBlink 0.9s steps(1, end) infinite; filter: drop-shadow(0 0 14px var(--team, #ff7a3d)); }
+      .endhead img { width: 140px; height: 140px; object-fit: contain; image-rendering: pixelated; }
+      .endhead.nereus { animation: nereusRage 0.18s linear infinite; --team: #ff2a2a; }
+      @keyframes headBlink { 0%, 100% { opacity: 1; transform: scale(1.04); } 50% { opacity: 0.25; transform: scale(0.97); } }
+      @keyframes nereusRage { 0% { transform: translate(0, 0) rotate(-1deg); } 50% { transform: translate(2px, -2px) rotate(1deg); } 100% { transform: translate(-2px, 1px) rotate(-1deg); } }
+      .winner.lost .endhead { animation-duration: 1.6s; filter: grayscale(0.4) drop-shadow(0 0 8px var(--team)); }
+      .winner .sub { font-size: 20px; font-weight: 700; margin: 2px 0 8px; }
+      .winner.nobody h3 { color: #ff6a5a; }
+      .scores { list-style: none; padding: 0; margin: 10px auto 14px; width: min(320px, 100%); display: grid; gap: 6px; }
+      .scores li { display: flex; justify-content: space-between; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--team) 26%, transparent); border: 2px solid var(--team); }
+      .scores li.top { background: color-mix(in srgb, var(--team) 55%, transparent); }
 
       @media (max-height: 820px) { .tagline { display: none; } .logo .l1 { font-size: clamp(38px, 9vw, 76px); } .logo .l2 { font-size: clamp(15px, 3.4vw, 26px); } }
       @media (max-height: 680px) { .logo .l1 { font-size: clamp(32px, 7vw, 54px); } .logo .l2 { font-size: clamp(13px, 2.6vw, 19px); } .home { gap: 8px; padding-top: 10px; } }

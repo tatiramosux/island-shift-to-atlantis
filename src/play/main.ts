@@ -13,6 +13,7 @@ import {
   createGame,
   isAlive,
   isWater as isWaterHex,
+  finalScore,
   leavingTime,
   waveCells,
   legalActions,
@@ -146,6 +147,8 @@ const evText = (e: GameEvent): string | null => {
     case 'eliminated': return t(`${P('owner')} lost a pirate (gets 1 consolation crystal).`, `${P('owner')} perdeu um pirata (ganha 1 cristal de consolo).`);
     case 'die': return t(`The die rolled: ${CREATURE_PT[e.face as string]}.`, `O dado sorteou: ${CREATURE_PT[e.face as string]}.`);
     case 'octopusGrab': return t('The Octopus grabbed a pirate!', 'O Polvo agarrou um pirata!');
+    case 'leviathanGrab': return t('The Leviathan lassoed a pirate with its tail!', 'O Leviatã laçou um pirata com a cauda!');
+    case 'crumble': return t('A tile of Atlantis crumbled: now it is open sea.', 'Uma casa de Atlântida desmoronou: virou mar aberto.');
     case 'leviathanSmash': return t('The Leviathan smashed the top block of a tile.', 'O Leviatã derrubou o bloco de cima de uma casa.');
     case 'guardianPush': return t('The Sentinel pushed a pirate.', 'A Sentinela empurrou um pirata.');
     case 'sentinelWake': return e.falls ? t(`Sentinel water jet: ${bname(e.targetId as string)} ended up in the sea!`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi parar no mar!`) : e.pushTo ? t(`Sentinel water jet: ${bname(e.targetId as string)} was pushed away from the Castle.`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi empurrado para longe do Castelo.`) : t(`The Sentinel fired at ${bname(e.targetId as string)}, but something held the push back.`, `A Sentinela atirou em ${bname(e.targetId as string)}, mas algo segurou o empurrão.`);
@@ -231,6 +234,9 @@ const rollDie = (face: string) => {
   step();
 };
 
+/** O final: a ilha afunda (3,4 s), Nereu surge, ruge e some; só então vem o veredito e o painel final. */
+const FINALE_MS = 7000;
+
 /** Ordem de importância dos sons: em cada jogada toca só o primeiro desta lista que aconteceu. */
 const SOUND_OF: [string, SoundName][] = [
   ['princessSafe', 'castle'],
@@ -243,6 +249,7 @@ const SOUND_OF: [string, SoundName][] = [
   ['tridentTaken', 'trident'],
   ['calmSea', 'calm'],
   ['leviathanSmash', 'smash'],
+  ['crumble', 'crumble'],
   ['boatCapsized', 'splash'],
   ['floating', 'splash'],
   ['flood', 'flood'],
@@ -266,7 +273,7 @@ const soundFor = (events: GameEvent[]) => {
   const verdict = () => play((over?.winners as number[] | null)?.some((w) => mine(w)) ? 'win' : 'lose');
   if (over && events.some((e) => e.type === 'islandVanishes')) {
     play('sink'); // a ilha afunda (3,4 s) e só então o som de vitória ou derrota, junto com o aviso de fim
-    setTimeout(verdict, 3800);
+    setTimeout(verdict, FINALE_MS);
     return;
   }
   if (over) return verdict();
@@ -378,8 +385,8 @@ const label = (a: Action): string => {
     case 'push': return t(`Push ${bname(a.targetId)}`, `Empurrar ${bname(a.targetId)}`);
     case 'moveCreature':
       if (!a.target) return t('Just move to this tile', 'Só ir para esta casa');
-      if (a.creatureId === 'leviathan') return t('Smash the top block', 'Derrubar o bloco de cima');
-      return (a.creatureId === 'octopus' ? t('Grab ', 'Agarrar ') : t('Push ', 'Empurrar ')) + bname(a.target);
+      if (a.creatureId === 'leviathan' && a.target.includes(',')) return t('Smash the top block', 'Derrubar o bloco de cima');
+      return (a.creatureId !== 'guardian' ? t('Grab ', 'Agarrar ') : t('Push ', 'Empurrar ')) + bname(a.target);
     default: return a.type;
   }
 };
@@ -600,8 +607,8 @@ const treasureAt = (h: Hex): AtlantisTile | null => {
 };
 
 const FACE_INFO: Record<string, { faces: number; text: string }> = {
-  octopus: { faces: 2, text: t('Moves the <b>Colossus Octopus</b> up to 3 tiles through water and Atlantis tiles of level 0 or 1. When it stops, it stretches its tentacles <b>up to 3 tiles</b> and grabs a pirate (mandatory if anyone is in reach): a pirate on land falls into the sea and floats; one already floating is out of the game; the boat flips. Anyone on the 2nd floor or on a Shield is out of reach.', 'Move o <b>Polvo-colosso</b> até 3 casas pela água e por Atlântida de nível 0 ou 1. Ao parar, estica os tentáculos <b>até 3 casas</b> e puxa um pirata (é obrigatório se houver alguém ao alcance): quem está em terra cai no mar e fica boiando; quem já boiava sai do jogo; o bote vira. Quem está no 2º andar ou num Escudo não é alcançado.') },
-  leviathan: { faces: 2, text: t('Moves the <b>Leviathan</b> up to 2 tiles. When it stops, it smashes the top block of a neighboring tile (anyone on it drops one floor) and pushes neighboring castaways 1 tile.', 'Move o <b>Leviatã</b> até 2 casas. Ao parar, derruba o bloco de cima de uma casa vizinha (quem estava nela cai um andar) e empurra 1 casa os náufragos vizinhos.') },
+  octopus: { faces: 2, text: t('Moves the <b>Colossus Octopus</b> up to 3 tiles, <b>only through the sea</b> (the water around the island and the holes where Atlantis crumbled). When it stops, it stretches a tentacle <b>up to 2 tiles</b>, wraps a pirate and throws them into the sea (mandatory if anyone is in reach): a pirate on land ends up floating; one already floating is thrown farther away; the boat flips. Anyone on the 2nd floor or on a Shield is out of reach.', 'Move o <b>Polvo-colosso</b> até 3 casas, <b>só pelo mar</b> (a água em volta da ilha e os buracos onde Atlântida desmoronou). Ao parar, estica um tentáculo <b>até 2 casas</b>, enrola um pirata e o joga no mar (é obrigatório se houver alguém ao alcance): quem está em terra fica boiando; quem já boiava é jogado mais longe; o bote vira. Quem está no 2º andar ou num Escudo não é alcançado.') },
+  leviathan: { faces: 2, text: t('Moves the <b>Leviathan</b> up to 2 tiles, only through the sea. When it stops, it can lasso a pirate up to 2 tiles away with its tail and throw them into the sea, or smash the top block of a neighboring tile (anyone on it drops one floor). It also pushes neighboring castaways 1 tile.', 'Move o <b>Leviatã</b> até 2 casas, só pelo mar. Ao parar, pode laçar com a cauda um pirata a até 2 casas e jogá-lo no mar, ou derrubar o bloco de cima de uma casa vizinha (quem estava nela cai um andar). Também empurra 1 casa os náufragos vizinhos.') },
   guardian: { faces: 1, text: t('The <b>Sentinel</b> (stone troll) stands still like a statue. It wakes up by itself when a pirate stops within 2 tiles (its eyes light up) and, without moving, fires a <b>water jet</b> that pushes the pirate 2 tiles away from the center. If the push goes past the edge, they fall into the sea. This die face also makes it shoot the nearest pirate (up to 2 tiles). Shields and the 2nd floor or higher protect.', 'A <b>Sentinela</b> (troll de pedra) fica parada como estátua. Ela acorda sozinha quando um pirata para a até 2 casas dela (os olhos acendem) e, sem sair do lugar, dispara um <b>jato de água</b> que empurra o pirata 2 casas para longe do centro. Se o empurrão passar da borda, ele cai no mar. Esta face do dado também a faz atirar no pirata mais perto (até 2 casas). Escudo e 2º andar ou mais protegem.') },
   surge: { faces: 1, text: t('<b>No creature moves.</b> Every pirate on an Atlantis tile gains 1 crystal.', '<b>Nenhuma criatura se mexe.</b> Todo pirata em casa de Atlântida ganha 1 cristal.') },
 };
@@ -618,13 +625,13 @@ bindHelp('helpDice', t('Die', 'Dado'), () => [
 ]);
 bindHelp('helpPhase', t('Rules for this phase', 'Regras desta fase'), () => {
   const objective = escapeRules()
-    ? t(`<b>Goal:</b> dig up treasure and collect crystals while the island turns into Atlantis (day turns to night). When the first team reaches a ship, the island will vanish: the others get one more turn to escape. Whoever has the most crystals among the teams that escaped wins.`, `<b>Objetivo:</b> descubra tesouros e junte cristais enquanto a ilha vira Atlântida (o dia vira noite). Quando o primeiro time chega ao navio, a ilha vai sumir: os outros têm mais um turno para fugir. Vence quem tiver mais cristais entre os times que fugiram.`)
+    ? t(`<b>Goal:</b> dig up treasure and collect crystals while the island turns into Atlantis (day turns to night). When the first team reaches a ship, the island will vanish: the others get one more turn to escape. Whoever has the most crystals among the teams that escaped wins (castaways keep half). Rescue the Princess from the Castle and board with her: +4. If nobody escapes, Nereus keeps the treasure and nobody wins.`, `<b>Objetivo:</b> descubra tesouros e junte cristais enquanto a ilha vira Atlântida (o dia vira noite). Quando o primeiro time chega ao navio, a ilha vai sumir: os outros têm mais um turno para fugir. Vence quem tiver mais cristais entre os times que fugiram (quem ficou boiando leva metade). Resgate a Princesa do Castelo e embarque com ela: +4. Se ninguém fugir, Nereu fica com o tesouro e ninguém vence.`)
     : t(`<b>Goal:</b> dig up treasure and collect crystals. The Princess waits on top of the Castle: rescue her and board the ship with her for a +4 bonus. After she is rescued, the first team to row all its pirates to its own ship ends the match: whoever has the most crystals wins.`, `<b>Objetivo:</b> descubra tesouros e junte cristais. A Princesa espera no topo do Castelo: resgate-a e embarque no navio com ela para ganhar +4 de bônus. Depois que ela for resgatada, o primeiro time que levar todos os piratas de bote até o próprio navio encerra a partida: vence quem tiver mais cristais.`);
   const byPhase: Record<string, string[]> = {
     setup: [t('<b>Setup:</b> tap a free tile on the edge to place your pirate.', '<b>Preparação:</b> toque numa casa livre da borda para colocar seu pirata.')],
     action: [t('<b>1 Action:</b> you have 3 actions. Tap your pirate, then a colored tile to walk, dig for treasure (tiles away from the Castle), build (only next to the Castle, except in front of the gate) or push. Summon: 1 per turn, no action spent.', '<b>1 Ação:</b> você tem 3 ações. Toque no seu pirata e depois numa casa colorida para andar, descobrir tesouros (casas longe do Castelo), construir (só ao lado do Castelo, menos na frente do portão) ou empurrar. Convocação: 1 por turno, sem gastar ação.')],
     flood: [t(`<b>2 Tide (quake):</b> the table randomly picks the tiles that crumble and reveal Atlantis (nobody chooses), ${game.settings.floodsPerRound} per round. Anyone on them falls in the water and floats. To take the treasure of a revealed tile, walk a pirate onto it.`, `<b>2 Maré (terremoto):</b> a mesa sorteia as casas que se desfazem e revelam Atlântida (ninguém escolhe), ${game.settings.floodsPerRound} por rodada. Quem estava nelas cai na água e fica boiando. Para pegar o tesouro de uma casa revelada, leve um pirata até ela.`)],
-    creatures: [t('<b>3 Creatures:</b> the die picks a creature. Move it along the yellow tiles; it grabs, smashes or pushes whoever is next to it.', '<b>3 Criaturas:</b> o dado sorteia uma criatura. Mova-a pelas casas amarelas; ela agarra, derruba ou empurra quem estiver ao lado.')],
+    creatures: [t('<b>3 Creatures:</b> the die picks a creature. Move it along the yellow tiles (the Octopus and Leviathan swim only in the sea and the holes where Atlantis crumbled); it lassos anyone up to 2 tiles away and throws them into the water.', '<b>3 Criaturas:</b> o dado sorteia uma criatura. Mova-a pelas casas amarelas (o Polvo e o Leviatã nadam só pelo mar e pelos buracos onde Atlântida desmoronou); ela laça quem estiver a até 2 casas e joga na água.')],
     ended: [t('The match is over.', 'A partida terminou.')],
   };
   return [...(byPhase[game.phase] ?? []), objective];
@@ -632,7 +639,7 @@ bindHelp('helpPhase', t('Rules for this phase', 'Regras desta fase'), () => {
 bindHelp('helpScore', t('Scoreboard', 'Placar'), () => [
   t('<b>Crystals:</b> whoever has the most wins. They also pay for summons.', '<b>Cristais:</b> no fim vence quem tiver mais. Também pagam as convocações.'),
   t('<b>Tridents:</b> each one cancels one tile sinking in the Tide phase.', '<b>Tridentes:</b> cada um cancela a descida de uma casa na fase de Maré.'),
-  t('<b>Little squares:</b> the pirates. Filled = on land; circle = floating; faded = out of the game.', '<b>Quadradinhos:</b> os piratas. Cheio = em terra; círculo = boiando; apagado = fora do jogo.'),
+  t('<b>Little squares:</b> the pirates. Filled = on land; circle = floating; boat = rowing; ship = escaped.', '<b>Quadradinhos:</b> os piratas. Cheio = em terra; círculo = boiando; bote = remando; navio = fugiu.'),
 ]);
 
 const usableBuilder = (id: string) => legal.some((a) => 'builderId' in a && a.builderId === id && ['move', 'build', 'dig', 'push', 'swim', 'launch', 'row'].includes(a.type));
@@ -827,7 +834,7 @@ const refresh = () => {
   if (!$('logpanel').hidden) renderLog();
   if (game.phase === 'ended') {
     // ilha sumindo: espera a animação (cerca de 3,5 s) antes de mostrar o vencedor
-    if (game.vanished && !endTimer) endTimer = window.setTimeout(() => ((endTimer = 0), inGame && game.phase === 'ended' && showEnd()), 3800);
+    if (game.vanished && !endTimer) endTimer = window.setTimeout(() => ((endTimer = 0), inGame && game.phase === 'ended' && showEnd()), FINALE_MS);
     else if (!game.vanished) showEnd();
   }
 };
@@ -841,7 +848,18 @@ const renderLog = () => {
 /* ---------- palco 3D ---------- */
 
 const stage = new Stage3D($('view'), (h, x, y) => onCell(h, x, y));
-stage.sfx = (name) => play(name as SoundName);
+stage.sfx = (name) => {
+  play(name as SoundName);
+  if (name === 'nereus') shout(t('My PRINCESS!!', 'MINHA PRINCESA!!'));
+};
+/** Fala em letras grandes no meio da tela (o urro de Nereu pela princesa). */
+const shout = (text: string) => {
+  const d = document.createElement('div');
+  d.className = 'shout';
+  d.textContent = text;
+  document.body.appendChild(d);
+  setTimeout(() => d.remove(), 2600);
+};
 // sem jogada há um tempo: todo mundo cochila (Z subindo) até alguém tocar na tela de novo
 let lastAct = Date.now();
 const wake = () => {
@@ -998,9 +1016,101 @@ const modal = (content: HTMLElement) => {
   m.replaceChildren(content);
   m.hidden = false;
 };
+let stopConfetti: (() => void) | null = null;
 const closeModal = () => {
   $('modal').hidden = true;
+  stopConfetti?.();
 };
+
+/** Confete colorido caindo pela tela toda (só para quem ganhou). */
+const confetti = () => {
+  stopConfetti?.();
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:60';
+  document.body.appendChild(cv);
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = innerWidth * dpr;
+  cv.height = innerHeight * dpr;
+  const g = cv.getContext('2d')!;
+  const colors = ['#ffd23f', '#ff5fae', '#3fc6c0', '#7be26a', '#ff7a3d', '#8ab4ff', '#ffffff'];
+  const bits = Array.from({ length: 160 }, () => ({
+    x: Math.random() * cv.width,
+    y: -Math.random() * cv.height,
+    w: (6 + Math.random() * 8) * dpr,
+    h: (4 + Math.random() * 6) * dpr,
+    vy: (2 + Math.random() * 3.5) * dpr,
+    vx: (Math.random() - 0.5) * 2 * dpr,
+    a: Math.random() * 6,
+    va: (Math.random() - 0.5) * 0.35,
+    c: colors[Math.floor(Math.random() * colors.length)],
+  }));
+  let raf = 0;
+  const born = performance.now();
+  const loop = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    for (const b of bits) {
+      b.y += b.vy;
+      b.x += b.vx + Math.sin(b.a) * 0.6 * dpr;
+      b.a += b.va;
+      if (b.y > cv.height + 20 && performance.now() - born < 9000) b.y = -20 * dpr; // continua chovendo por uns segundos
+      g.save();
+      g.translate(b.x, b.y);
+      g.rotate(b.a);
+      g.fillStyle = b.c;
+      g.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      g.restore();
+    }
+    raf = requestAnimationFrame(loop);
+    if (performance.now() - born > 13000) stopConfetti?.();
+  };
+  loop();
+  stopConfetti = () => {
+    cancelAnimationFrame(raf);
+    cv.remove();
+    stopConfetti = null;
+  };
+};
+
+/** Cabeça de Nereu, deus do mar, furioso (quando ninguém vence): blocos como o resto do jogo. */
+const NEREUS_ANGRY = `<svg viewBox="0 0 120 130" width="150" height="162" aria-hidden="true">
+  <rect x="26" y="8" width="68" height="12" fill="#f3c846"/><rect x="30" y="0" width="10" height="10" fill="#f3c846"/><rect x="50" y="-2" width="10" height="12" fill="#f3c846"/><rect x="70" y="0" width="10" height="10" fill="#f3c846"/><rect x="88" y="2" width="6" height="8" fill="#f3c846"/>
+  <rect x="20" y="20" width="80" height="22" fill="#f1f7fa"/><rect x="14" y="30" width="16" height="60" fill="#f1f7fa"/><rect x="90" y="30" width="16" height="60" fill="#f1f7fa"/>
+  <rect x="30" y="36" width="60" height="50" fill="#5db7c9"/>
+  <polygon points="34,44 56,54 56,60 34,52" fill="#f1f7fa"/><polygon points="86,44 64,54 64,60 86,52" fill="#f1f7fa"/>
+  <rect x="38" y="56" width="16" height="10" fill="#fff"/><rect x="66" y="56" width="16" height="10" fill="#fff"/>
+  <rect x="44" y="58" width="8" height="8" fill="#ff2a2a"/><rect x="68" y="58" width="8" height="8" fill="#ff2a2a"/>
+  <rect x="55" y="62" width="10" height="14" fill="#3f98ad"/>
+  <rect x="36" y="76" width="48" height="8" fill="#f1f7fa"/>
+  <rect x="44" y="86" width="32" height="18" fill="#3a0a14"/><rect x="48" y="86" width="6" height="6" fill="#fff"/><rect x="66" y="86" width="6" height="6" fill="#fff"/>
+  <rect x="26" y="84" width="68" height="14" fill="#f1f7fa"/><rect x="34" y="98" width="52" height="14" fill="#f1f7fa"/><rect x="44" y="112" width="32" height="12" fill="#f1f7fa"/>
+</svg>`;
+
+/** Painel final: cabeça do capitão que venceu piscando (ou Nereu furioso se ninguém venceu), pontos de cada time e, para o vencedor, confete. */
+const showEnd = () => {
+  if (!$('modal').hidden && $('modal').querySelector('.winner')) return;
+  const w = game.winners ?? [];
+  const iWon = w.length > 0 && w.some((p) => mine(p));
+  const c = document.createElement('div');
+  c.className = 'card winner ' + (w.length ? (iWon ? 'won' : 'lost') : 'nobody');
+  const why = (game.vanished
+    ? { ship: t('Escaped on the ship with the most crystals. The island vanished into the sea and those left behind are adrift.', 'Fugiu no navio com mais cristais. A ilha sumiu no mar e quem ficou está boiando.'), crystals: t('Even adrift (half the crystals count), the treasure was enough to win.', 'Mesmo à deriva (metade dos cristais conta), o tesouro foi suficiente para vencer.'), temple: '', last: '', draw: t('Nobody escaped: Nereus keeps the treasure.', 'Ninguém escapou: Nereu ficou com o tesouro.') }
+    : { ship: t('Got the whole team on the ship and escaped with the treasure.', 'Embarcou o time todo no navio e fugiu com o tesouro.'), temple: t('Reached the top of the Castle of Atlantis.', 'Chegou ao topo do Castelo de Atlântida.'), crystals: t('Gathered the most crystals by the end of the match.', 'Juntou mais cristais até o fim da partida.'), last: t('Was the last one standing.', 'Foi o último de pé.'), draw: t('Nobody was left.', 'Ninguém sobrou.') }
+  )[(game.winReason ?? 'draw') as 'ship'];
+  const head = w.length
+    ? `<div class="endhead" style="--team:${teamColor(w[0])}"><img src="${teamIcons(w[0])[0]}" alt="" width="140" height="140"></div>`
+    : `<div class="endhead nereus">${NEREUS_ANGRY}</div>`;
+  const title = w.length ? (iWon ? t('Victory!', 'Vitória!') : t('Defeat', 'Derrota')) : t('Nereus is furious!', 'Nereu está furioso!');
+  const sub = w.length ? t(`${pname(w[0])} wins!`, `${pname(w[0])} venceu!`) : t('Nobody won this time.', 'Ninguém venceu desta vez.');
+  const scores = Array.from({ length: game.playerCount }, (_, p) => ({ p, v: game.vanished ? finalScore(game, p) : game.crystals[p] }))
+    .sort((a, b) => b.v - a.v)
+    .map(({ p, v }) => `<li style="--team:${teamColor(p)}" class="${w.includes(p) ? 'top' : ''}"><span>${pname(p)}</span><b>${v} ${t('pts', 'pts')}</b></li>`)
+    .join('');
+  c.innerHTML = `${head}<h3>${title}</h3><p class="sub">${sub}</p><p>${why}</p><ul class="scores">${scores}</ul>`;
+  c.appendChild(row(btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { primary: true }), btn(t('See the board', 'Ver o tabuleiro'), closeModal)));
+  modal(c);
+  if (iWon) confetti();
+};
+
 // tocar fora do cartão (no fundo escuro) ou apertar Esc fecha a janela; a de fim de partida fica até escolher um botão
 $('modal').addEventListener('click', (e) => {
   if (e.target === $('modal') && !$('modal').querySelector('.winner')) closeModal();
@@ -1016,7 +1126,7 @@ const rulesHtml = () => t(`
 <ul>
 <li><b>Castle:</b> at the top (3rd floor) of the Castle of Atlantis, in the center, waits the Princess. There is only one. Rescue her and get on your ship with her to earn a +4 bonus (it does not win by itself: whoever has the most crystals still wins). The Castle wakes up, gates open, after ${cfg().templeWake} tiles have sunk (about ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "round" : "rounds"}).</li>
 ${escapeRules()
-  ? `<li><b>Escape:</b> each team has a ship anchored at sea. From any beach, a pirate gets into a boat (1 action) and rows up to 2 tiles per action to the ship. The boat holds the team's 2 pirates. When <b>the first pirate</b> of any team boards a ship, the island is about to vanish: each of the other teams plays one more turn, then the island sinks into the sea. Anyone left on land is adrift and keeps only half of their crystals. If nobody escapes by round ${cfg().vanishRound}, the island vanishes anyway.</li>`
+  ? `<li><b>Escape:</b> each team has a ship anchored at sea. From any beach, a pirate gets into a boat (1 action) and rows up to 2 tiles per action to the ship. The boat holds the team's 2 pirates. When <b>the first pirate</b> of any team boards a ship, the island is about to vanish: each of the other teams plays one more turn, then the island sinks into the sea. Anyone left on land is adrift and keeps only half of their crystals. If nobody escapes by round ${cfg().vanishRound}, the island vanishes anyway and Nereus, king of the seas and of Atlantis, keeps the treasure: nobody wins.</li>`
   : `<li><b>Escape:</b> each team has a ship anchored at sea. From any beach, a pirate gets into a boat (1 action) and rows up to 2 tiles per action to the ship. The boat holds the team's 2 pirates: the second one gets into the same boat and one stroke carries both. After the Princess is rescued, the first team with <b>all</b> its pirates on the ship ends the match. Nobody is left behind.</li>`}
 <li><b>Dig:</b> away from the Castle, a pirate digs a neighboring tile and sees what is underneath. If it is treasure (crystal, trident or Calm Tide), they take it at once.</li>
 ${escapeRules()
@@ -1024,7 +1134,7 @@ ${escapeRules()
 <li><b>Tide shift:</b> from round 2, every round a wave warned by foam sweeps the two outer rows on one side of the island: those tiles turn into Atlantis at once and anyone on the ground or 1st floor falls into the sea. Towers (2nd floor or higher), domes and Shields hold.</li>`
   : `<li><b>Crystals:</b> whoever has the most at the end wins (tie: whoever escaped on the ship). The match also ends if the whole island sinks.</li>
 <li><b>Final phase:</b> after someone rescues the Princess, the quake sinks twice as many tiles and the <b>giant wave</b> begins. Each round it comes from one side of the island, warned a round before with foam on the tiles: anyone on the ground or 1st floor of those tiles falls into the sea. Those higher up or on a Shield hold on.</li>`}
-<li><b>Last one standing:</b> applies when the other players lose all their pirates.</li>
+<li><b>The finale:</b> when the island sinks, Nereus rises from the sea roaring for his Princess. If your team escaped with the most points, you win with confetti; if nobody escaped, Nereus is furious and nobody wins.</li>
 </ul>
 <h4>The game</h4>
 <p>Each tile hides an Atlantis piece that only shows when it sinks.</p>
@@ -1037,7 +1147,8 @@ ${escapeRules()
 <br>• <b>Lighthouse</b> (3rd): with a pirate on top, their tile and its neighbors do not sink in the Tide.
 <br>The 4th is a <b>coral dome</b>, which blocks the tile. On the Castle, the floors are golden halls with none of these effects.</li>
 <li><b>Push:</b> a neighboring pirate moves 1 tile back, if the tile behind is free and on land.</li>
-<li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. The Octopus eliminates anyone already floating and flips boats (whoever was in it ends up floating).</li>
+<li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in.</li>
+<li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. Nobody is ever eliminated: the Octopus and Leviathan throw floaters farther away and flip boats (whoever was in it ends up floating). Atlantis is fragile: from round 3 a tile crumbles every round and the sea slowly opens channels into the island.</li>
 <li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Guide Dolphin rescues, Siren steals 1 crystal, Coral Colossus places a dome.</li>
 <li><b>Treasures:</b> digging or stepping onto a sunken tile (revealed by the quake) shows the piece. Crystal, Trident and Calm Tide are taken at once and the tile becomes a Ruin. The Princess on top of the Castle is worth +4 once she is aboard your ship.</li>
 <li><b>Pieces:</b> tap any tile with a piece in view to see what it is and how to use it.</li>
@@ -1058,7 +1169,7 @@ ${escapeRules()
 <ul>
 <li><b>Castelo:</b> no topo (3º andar) do Castelo de Atlântida, no centro, espera a Princesa. Só existe uma. Resgate-a e suba no seu navio com ela para ganhar +4 de bônus (ela não vence sozinha: quem tiver mais cristais continua ganhando). O Castelo desperta, com os portões abertos, depois de ${cfg().templeWake} casas afundadas (cerca de ${Math.max(1, Math.ceil(cfg().templeWake / cfg().floodsPerRound))} ${Math.ceil(cfg().templeWake / cfg().floodsPerRound) <= 1 ? "rodada" : "rodadas"}).</li>
 ${escapeRules()
-  ? `<li><b>Fuga:</b> cada time tem um navio ancorado no mar. De qualquer praia, o pirata entra num bote (1 ação) e rema até 2 casas por ação até o navio. No bote cabem os 2 piratas do time. Quando <b>o primeiro pirata</b> de qualquer time sobe num navio, a ilha vai sumir: cada um dos outros times joga mais um turno, e a ilha afunda no mar. Quem ficou em terra fica boiando e só leva metade dos cristais. Se ninguém fugir até a rodada ${cfg().vanishRound}, a ilha some do mesmo jeito.</li>`
+  ? `<li><b>Fuga:</b> cada time tem um navio ancorado no mar. De qualquer praia, o pirata entra num bote (1 ação) e rema até 2 casas por ação até o navio. No bote cabem os 2 piratas do time. Quando <b>o primeiro pirata</b> de qualquer time sobe num navio, a ilha vai sumir: cada um dos outros times joga mais um turno, e a ilha afunda no mar. Quem ficou em terra fica boiando e só leva metade dos cristais. Se ninguém fugir até a rodada ${cfg().vanishRound}, a ilha some do mesmo jeito e Nereu, rei dos mares e de Atlântida, fica com o tesouro: ninguém vence.</li>`
   : `<li><b>Fuga:</b> cada time tem um navio ancorado no mar. De qualquer praia, o pirata entra num bote (1 ação) e rema até 2 casas por ação até o navio. No bote cabem os 2 piratas do time: o segundo entra no mesmo bote e uma remada leva os dois. Depois que a Princesa for resgatada, o primeiro time com <b>todos</b> os piratas no navio encerra a partida. Ninguém fica para trás.</li>`}
 <li><b>Descobrir:</b> longe do Castelo, o pirata cava uma casa vizinha e vê o que há embaixo. Se for tesouro (cristal, tridente ou Maré calma), ele pega na hora.</li>
 ${escapeRules()
@@ -1066,7 +1177,7 @@ ${escapeRules()
 <li><b>Virada da maré:</b> a partir da rodada 2, a cada rodada uma onda avisada com espuma varre as duas fileiras de um lado da ilha: essas casas viram Atlântida na hora e quem está no chão ou no 1º andar cai no mar. Torres (2º andar ou mais), cúpulas e Escudos resistem.</li>`
   : `<li><b>Cristais:</b> no fim vence quem tiver mais (empate: quem fugiu no navio). A partida também acaba se a ilha inteira afundar.</li>
 <li><b>Fase final:</b> depois que alguém resgata a Princesa, o terremoto afunda o dobro de casas e começa a <b>onda gigante</b>. A cada rodada ela vem de um lado da ilha, avisada uma rodada antes com espuma nas casas: quem estiver no chão ou no 1º andar dessas casas cai no mar. Quem está mais alto ou num Escudo aguenta.</li>`}
-<li><b>Último de pé:</b> sobre quando os outros jogadores perderem todos os piratas.</li>
+<li><b>O grande final:</b> quando a ilha afunda, Nereu surge do mar urrando pela sua Princesa. Se seu time fugiu com mais pontos, você vence com confete; se ninguém fugiu, Nereu fica furioso e ninguém vence.</li>
 </ul>
 <h4>O jogo</h4>
 <p>Cada casa esconde uma peça de Atlântida que só aparece quando ela afunda.</p>
@@ -1079,7 +1190,8 @@ ${escapeRules()
 <br>• <b>Farol</b> (3º): com um pirata em cima, a casa dele e as vizinhas não afundam na Maré.
 <br>O 4º é uma <b>cúpula de coral</b>, que bloqueia a casa. No Castelo, os andares são salões dourados, sem esses efeitos.</li>
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>
-<li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. O Polvo elimina quem já está boiando e vira botes (quem estava nele fica boiando).</li>
+<li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar.</li>
+<li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. Ninguém é eliminado: o Polvo e o Leviatã jogam quem já boia mais longe e viram botes (quem estava nele fica boiando). Atlântida é frágil: a partir da rodada 3, uma casa desmorona a cada rodada e o mar vai abrindo canais para dentro da ilha.</li>
 <li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Golfinho-guia resgata, Sereia rouba 1 cristal, Colosso de coral põe uma cúpula.</li>
 <li><b>Tesouros:</b> descobrir ou entrar numa casa afundada (revelada pelo terremoto) mostra a peça. Cristal, Tridente e Maré calma são pegos na hora e a casa vira Ruína. A Princesa do topo do Castelo vale +4 quando estiver a bordo do seu navio.</li>
 <li><b>Peças:</b> toque em qualquer casa com uma peça à vista para ver o que é e como usar.</li>
@@ -1141,21 +1253,6 @@ const showPause = () => {
     btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { icon: Menu }),
   );
   c.appendChild(col);
-  modal(c);
-};
-
-const showEnd = () => {
-  if (!$('modal').hidden && $('modal').querySelector('.winner')) return;
-  const w = game.winners ?? [];
-  const c = document.createElement('div');
-  c.className = 'card winner';
-  const why = (game.vanished
-    ? { ship: t('Escaped on the ship with the most crystals. The island vanished into the sea and those left behind are adrift.', 'Fugiu no navio com mais cristais. A ilha sumiu no mar e quem ficou está boiando.'), crystals: t('Even adrift (half the crystals count), the treasure was enough to win.', 'Mesmo boiando (só metade dos cristais conta), o tesouro foi suficiente para vencer.') }
-    : { ship: t('Got the whole team on the ship and escaped with the treasure.', 'Embarcou o time todo no navio e fugiu com o tesouro.'), temple: t('Reached the top of the Castle of Atlantis.', 'Chegou ao topo do Castelo de Atlântida.'), crystals: t('Gathered the most crystals by the end of the match.', 'Juntou mais cristais até o fim da partida.'), last: t('Was the last one standing.', 'Foi o último de pé.'), draw: t('Nobody was left.', 'Ninguém sobrou.') }
-  )[(game.winReason ?? 'draw') as 'ship'];
-  const team = w.length ? `<div class="winteam" style="--team:${teamColor(w[0])}">${teamIcons(w[0]).map((u) => `<img src="${u}" alt="" width="96" height="96">`).join('')}</div>` : '';
-  c.innerHTML = team + `<h3>${w.length ? t(`${pname(w[0])} wins!`, `${pname(w[0])} venceu!`) : t('Draw', 'Empate')}</h3><p>${why}</p>`;
-  c.appendChild(row(btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { primary: true }), btn(t('See the board', 'Ver o tabuleiro'), closeModal)));
   modal(c);
 };
 

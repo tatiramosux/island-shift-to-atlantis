@@ -8,6 +8,7 @@ import {
   createGame,
   floodCandidates,
   isWater,
+  isSea,
   legalActions,
   redactFor,
   type Action,
@@ -594,10 +595,10 @@ describe('fase de Criaturas', () => {
     expect(creature(high, 'guardian').hex).toEqual(H(0, -2));
   });
 
-  it('Polvo estica os tentáculos até 3 casas e puxa o pirata para o mar (obrigatório)', () => {
+  it('Polvo estica o tentáculo até 2 casas e puxa o pirata para o mar (obrigatório)', () => {
     let s = withDie(blank(), 'octopus');
     creature(s, 'octopus').hex = H(5, 0);
-    put(s, 'p1b0', H(2, 0)); // a 3 casas da água onde o Polvo está
+    put(s, 'p1b0', H(3, 0)); // a 2 casas da água onde o Polvo está
     const moves = legalActions(s).filter((a) => a.type === 'moveCreature' && hexKey(a.to) === hexKey(H(5, 0)));
     expect(moves.length).toBeGreaterThan(0);
     expect(moves.every((a) => a.type === 'moveCreature' && a.target === 'p1b0')).toBe(true); // não dá para parar sem puxar
@@ -605,10 +606,10 @@ describe('fase de Criaturas', () => {
     expect(B(s, 'p1b0').status).toBe('floating');
   });
 
-  it('a 4 casas o Polvo não alcança', () => {
+  it('a 3 casas o Polvo não alcança', () => {
     const s = withDie(blank(), 'octopus');
     creature(s, 'octopus').hex = H(5, 0);
-    put(s, 'p1b0', H(1, 0));
+    put(s, 'p1b0', H(2, 0));
     const here = legalActions(s).filter((a) => a.type === 'moveCreature' && hexKey(a.to) === hexKey(H(5, 0)));
     expect(here).toHaveLength(1);
     expect(here[0].type === 'moveCreature' && here[0].target).toBeUndefined();
@@ -625,26 +626,57 @@ describe('fase de Criaturas', () => {
     expect(legalActions(s).some((a) => a.type === 'moveCreature' && a.target)).toBe(false);
   });
 
-  it('Polvo elimina quem já está boiando e dá 1 cristal de consolo ao dono', () => {
+  it('Polvo joga quem já está boiando mais longe e ninguém é eliminado', () => {
     let s = withDie(blank(), 'octopus');
     creature(s, 'octopus').hex = H(5, -2);
     float(s, 'p1b0', H(4, -1));
     const grab = legalActions(s).find((a) => a.type === 'moveCreature' && a.target === 'p1b0')!;
     s = ok(s, grab).state;
-    expect(B(s, 'p1b0').status).toBe('dead');
-    expect(s.crystals[1]).toBe(1);
+    expect(B(s, 'p1b0').status).toBe('floating');
+    expect(hexDistance(B(s, 'p1b0').hex!, H(4, -1))).toBeGreaterThanOrEqual(2);
+    expect(s.crystals[1]).toBe(0);
   });
 
-  it('Polvo só anda por casas de Atlântida de nível 0 ou 1 e não entra na ilha', () => {
+  it('Polvo e Leviatã só andam pelo mar: nunca sobem na ilha nem em Atlântida; os buracos que desabaram são mar', () => {
     const s = withDie(blank(), 'octopus');
     creature(s, 'octopus').hex = H(4, -1);
     sink(s, H(3, -1));
     sink(s, H(3, 0));
-    cell(s, H(3, 0)).floors = 2;
+    cell(s, H(3, 0)).sunk = true;
+    cell(s, H(3, 0)).tile = 'ruin';
     const dests = new Set(legalActions(s).map((a) => (a.type === 'moveCreature' ? hexKey(a.to) : '')));
-    expect(dests.has(hexKey(H(3, -1)))).toBe(true);
-    expect(dests.has(hexKey(H(3, 0)))).toBe(false);
+    expect(dests.has(hexKey(H(3, -1)))).toBe(false); // Atlântida em pé: não sobe
+    expect(dests.has(hexKey(H(3, 0)))).toBe(true); // buraco de mar: entra
     expect(dests.has(hexKey(H(2, 0)))).toBe(false);
+  });
+
+  it('Leviatã lança a cauda: alcança quem está a até 2 casas e o joga no mar', () => {
+    let s = withDie(blank(), 'leviathan');
+    creature(s, 'leviathan').hex = H(5, 0);
+    put(s, 'p1b0', H(3, 0));
+    const grab = legalActions(s).find((a) => a.type === 'moveCreature' && a.target === 'p1b0' && hexKey(a.to) === hexKey(H(5, 0)))!;
+    expect(grab).toBeDefined();
+    s = ok(s, grab).state;
+    expect(B(s, 'p1b0').status).toBe('floating');
+  });
+
+  it('a partir da rodada 3 uma casa de Atlântida desmorona por rodada e vira mar', () => {
+    const s = blank();
+    sink(s, H(4, 0));
+    sink(s, H(3, 0));
+    cell(s, H(4, 0)).tile = 'ruin';
+    cell(s, H(3, 0)).tile = 'ruin';
+    s.round = 2;
+    s.current = 1;
+    s.phase = 'action';
+    s.actionsLeft = 1;
+    let r = s;
+    const rng = new Rng(3);
+    for (let i = 0; i < 400 && r.round < 3 && r.phase !== 'ended'; i++) r = ok(r, chooseAction(r, rng)).state;
+    expect(r.round).toBe(3);
+    const holes = Object.values(r.cells).filter((c) => c.sunk);
+    expect(holes.length).toBe(1);
+    expect(isSea(r, holes[0].hex)).toBe(true);
   });
 
   it('Leviatã derruba o bloco de cima, quem estava nela cai um andar, e empurra náufragos', () => {
@@ -1031,19 +1063,6 @@ describe('como se vence', () => {
     expect(r.winners).toEqual([1]);
   });
 
-  it('último de pé: sem construtores, os outros perdem', () => {
-    let s = withDie(blank(), 'octopus');
-    creature(s, 'octopus').hex = H(5, -2);
-    float(s, 'p1b0', H(4, -1));
-    s.builders.find((b) => b.id === 'p1b1')!.status = 'dead';
-    put(s, 'p0b0', H(1, 0));
-    const grab = legalActions(s).find((a) => a.type === 'moveCreature' && a.target === 'p1b0')!;
-    s = ok(s, grab).state;
-    expect(s.phase).toBe('ended');
-    expect(s.winners).toEqual([0]);
-    expect(s.winReason).toBe('last');
-  });
-
   it('depois do fim, ninguém joga', () => {
     const s = blank();
     s.phase = 'ended';
@@ -1100,7 +1119,7 @@ describe('partidas completas com o BOT', () => {
           s.creatures.forEach((c) => c.hex && expect(spots.includes(hexKey(c.hex))).toBe(false));
           s.builders.forEach((b) => {
             if (b.status === 'board') expect(cellAt(s, b.hex!)).toBeDefined();
-            if (b.status === 'floating') expect(isWater(b.hex!)).toBe(true);
+            if (b.status === 'floating') expect(isSea(s, b.hex!)).toBe(true);
           });
         }
         expect(s.phase).toBe('ended');

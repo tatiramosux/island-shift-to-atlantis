@@ -14,6 +14,8 @@ export interface Cell {
   /** 'island' = superfície; 'atlantis' = já afundou e a cidade emergiu. */
   state: 'island' | 'atlantis';
   temple: boolean;
+  /** desabou: virou um buraco de água no meio da ilha (só criaturas e náufragos passam por ele). */
+  sunk?: boolean;
   /** andares construídos (0 a 3). */
   floors: number;
   dome: boolean;

@@ -39,7 +39,7 @@ partidas Curta e Média).
 3. **A ilha some.** Todas as casas afundam no mar. Os piratas que não embarcaram ficam **boiando**, cada um na sua boia.
 4. **Quem vence:** entre os times com **pelo menos um pirata no navio**, vence quem tiver **mais cristais**. No empate,
    vence quem fugiu primeiro. Quem ficou para trás não entra na contagem.
-5. **Se ninguém fugir** até a rodada limite, a ilha some do mesmo jeito. Nesse caso vence quem tiver mais cristais.
+5. **Se ninguém fugir** até a rodada limite, a ilha some do mesmo jeito. Nesse caso Nereu fica com o tesouro e ninguém vence.
 
 ## Dia e noite
 

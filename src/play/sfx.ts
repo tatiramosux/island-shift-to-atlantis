@@ -63,8 +63,21 @@ const SOUNDS: Record<string, Note[]> = {
   smash: [{ f: 120, to: 40, d: 0.2, w: 'square', v: 0.55 }, { f: 300, d: 0.18, w: 'noise', v: 0.4 }],
   // convocação: brilho mágico subindo
   summon: [{ f: 300, to: 1600, d: 0.35, w: 'triangle', v: 0.45 }, ...seq(['C6', 'E6', 'G6'], 0.05, 'square', 0.2).map((n) => ({ ...n, at: (n.at ?? 0) + 0.25 }))],
-  win: [...seq(['C5', 'C5', 'C5', 'E5', 'G5', 'E5', 'G5'], 0.12, 'square', 0.4, 0.02), { f: NOTE('C6'), d: 0.5, w: 'square', v: 0.4, at: 0.98 }],
-  lose: seq(['E4', 'D#4', 'D4', 'C#4'], 0.2, 'square', 0.35, 0.04),
+  // vitória: fanfarra animada de pirata (subindo, ritmo saltitante, final longo)
+  win: [
+    ...seq(['G4', 'C5', 'E5', 'G5'], 0.1, 'square', 0.4, 0.02),
+    ...seq(['E5', 'G5', 'C6'], 0.14, 'square', 0.4, 0.02).map((n) => ({ ...n, at: (n.at ?? 0) + 0.52 })),
+    ...seq(['D6', 'C6', 'D6', 'E6'], 0.11, 'square', 0.4, 0.02).map((n) => ({ ...n, at: (n.at ?? 0) + 1.04 })),
+    { f: NOTE('G6'), d: 0.7, w: 'square', v: 0.4, at: 1.6 },
+    { f: NOTE('C5'), d: 0.7, w: 'triangle', v: 0.5, at: 1.6 },
+    { f: NOTE('E5'), d: 0.7, w: 'triangle', v: 0.4, at: 1.6 },
+  ],
+  // derrota: quatro notas tristes descendo e um "uóóó" final arrastado
+  lose: [
+    ...seq(['E4', 'D#4', 'D4', 'C#4'], 0.28, 'square', 0.35, 0.05),
+    { f: NOTE('C4'), to: NOTE('G3'), d: 0.9, w: 'triangle', v: 0.5, at: 1.35 },
+    { f: NOTE('C5'), to: NOTE('F4'), d: 0.9, w: 'square', v: 0.25, at: 1.35 },
+  ],
   turn: [{ f: NOTE('A5'), d: 0.07, w: 'triangle', v: 0.4 }, { f: NOTE('D6'), d: 0.1, w: 'triangle', v: 0.4, at: 0.08 }],
   error: [{ f: 160, d: 0.12, w: 'square', v: 0.35 }],
   // a ilha afunda (3,4 s): ronco grave, estalos de rachadura, mar subindo, borbulhas e o glub final
@@ -89,6 +102,23 @@ const SOUNDS: Record<string, Note[]> = {
     { f: 200, to: 60, d: 0.35, w: 'triangle', v: 0.6 },
     ...[0.2, 0.32, 0.45].map((at, i) => ({ f: 280 + i * 90, to: 700 + i * 120, d: 0.08, w: 'triangle' as Wave, v: 0.4, at })),
   ],
+  // a princesa pede socorro: "he-e-elp!", voz aguda que sobe duas vezes e sobe de novo, esganiçada
+  help: [
+    { f: 620, to: 980, d: 0.16, w: 'square', v: 0.28 },
+    { f: 760, to: 1240, d: 0.22, w: 'triangle', v: 0.32, at: 0.14 },
+    { f: 980, to: 1500, d: 0.34, w: 'square', v: 0.26, at: 0.34 },
+    { f: 1500, to: 1100, d: 0.25, w: 'triangle', v: 0.25, at: 0.62 },
+  ],
+  // Nereu ruge ao surgir do mar: "Ahrrrr!" grave, longo, com estrondo de água
+  nereus: [
+    { f: 150, to: 70, d: 1.7, w: 'square', v: 0.5 },
+    { f: 105, to: 55, d: 2.0, w: 'triangle', v: 0.6, at: 0.05 },
+    { f: 360, to: 130, d: 1.5, w: 'noise', v: 0.4 },
+    { f: 460, to: 210, d: 1.0, w: 'square', v: 0.22, at: 0.12 },
+    { f: 80, to: 40, d: 1.2, w: 'square', v: 0.4, at: 0.9 },
+  ],
+  // uma casa de Atlântida desmorona: estrondo grave e água
+  crumble: [{ f: 90, to: 40, d: 0.6, w: 'square', v: 0.45 }, { f: 700, to: 150, d: 0.5, w: 'noise', v: 0.4 }, { f: 220, to: 60, d: 0.4, w: 'triangle', v: 0.5, at: 0.15 }],
   // grito de quem é agarrado e jogado: agudo subindo e caindo, duas vezes
   scream: [
     { f: 700, to: 1500, d: 0.35, w: 'square', v: 0.3 },
@@ -167,7 +197,7 @@ const BUZZ: Partial<Record<SoundName, number | number[]>> = {
   move: 12, dig: 25, build: [20, 30, 20], push: 40, swim: 15, row: 20, launch: 30, castle: [60, 40, 60, 40, 140],
   quake: [80, 40, 80, 40, 80], flood: [40, 30, 40], splash: 35, wave: [120, 50, 120], waveWarning: [60, 80, 60],
   dieLand: 30, creature: 25, grab: 40, smash: [90, 40, 120], summon: [30, 30, 60], win: [80, 50, 80, 50, 200], turn: 15,
-  error: [30, 40, 30], sink: [150, 60, 150, 60, 250], tentacle: [30, 20, 50], squeeze: [70, 30, 70], whoosh: 25,
+  error: [30, 40, 30], crumble: [90, 40, 120], help: [30, 30, 30, 30, 60], nereus: [250, 80, 250, 80, 450], sink: [150, 60, 150, 60, 250], tentacle: [30, 20, 50], squeeze: [70, 30, 70], whoosh: 25,
   roar: [120, 40, 160], tailWhip: [40, 20, 60], bigSplash: [60, 30, 140], scream: [30, 20, 30, 20, 30], climax: [200, 80, 200, 80, 200],
 };
 const VIBE_KEY = 'atlantida.vibracao';

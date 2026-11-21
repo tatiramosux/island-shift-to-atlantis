@@ -155,7 +155,7 @@ describe('final por fuga', () => {
     expect(s.winners).toEqual([1]);
   });
 
-  it('ninguém foge: na rodada limite a ilha some e vence quem tiver mais cristais', () => {
+  it('ninguém foge: na rodada limite a ilha some, Nereu fica com o tesouro e ninguém vence', () => {
     let s = blank('short');
     put(s, 'p0b0', H(1, 1));
     put(s, 'p1b0', H(-1, -1));
@@ -165,8 +165,8 @@ describe('final por fuga', () => {
     s = playUntil(s, () => false);
     expect(s.phase).toBe('ended');
     expect(s.vanished).toBe(true);
-    expect(s.winners).toEqual([0]);
-    expect(s.winReason).toBe('crystals');
+    expect(s.winners).toEqual([]);
+    expect(s.winReason).toBe('draw');
   });
 
   it('no jogo longo, nada muda: o final por fuga não dispara e a ilha não some sozinha', () => {
