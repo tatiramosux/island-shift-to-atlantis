@@ -113,7 +113,7 @@
       .pip.boat { border-radius: 2px 2px 6px 6px; }
       .pip.aboard { outline: 2px solid #ffd84a; outline-offset: 1px; }
 
-      .hud-bc { left: 50%; transform: translateX(-50%); bottom: 10px; width: min(560px, calc(100% - 20px)); display: flex; flex-direction: column; gap: 6px; align-items: stretch; pointer-events: none; }
+      .hud-bc { left: 50%; transform: translateX(-50%); bottom: 10px; width: min(560px, calc(100% - 12px)); display: flex; flex-direction: column; gap: 6px; align-items: stretch; pointer-events: none; }
       .hud-bc > * { pointer-events: auto; }
       /* um cartão só para Convocações e Dado, numa linha só (4 + 4 retângulos), separados por uma barra */
       .combo { display: flex; align-items: stretch; gap: 8px; }
@@ -121,25 +121,28 @@
       .combo .vbar { width: 1px; background: #4a4a4a; margin: 2px 0; flex: none; }
       .combo h2 { margin: 0 0 4px; font-size: 11px; }
       .slots, .dicefaces { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-      .slot, .face { position: relative; width: 100%; height: 46px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
-      .slot { flex-direction: column; justify-content: flex-start; }
-      .slot img { width: 30px; height: 30px; margin-top: 2px; }
-      .slot .cost { position: absolute; bottom: 1px; left: 0; right: 0; font-size: 10px; font-weight: 700; color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 2px; line-height: 1; }
-      .slot:disabled { opacity: 0.4; }
+      .slot, .face { position: relative; width: 100%; height: 50px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
+      .slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+      .slot img { width: 30px; height: 30px; margin: 0; }
+      .slot .cost { position: static; font-size: 10px; font-weight: 700; color: var(--accent); display: flex; justify-content: center; align-items: center; gap: 2px; line-height: 1; }
+      .slot:disabled { opacity: 1; }
       .slot.on { outline: 2px solid var(--accent); background: var(--btn-on); }
-      .face { opacity: 0.55; display: grid; place-items: center; }
+      .face { display: grid; place-items: center; padding-bottom: 8px; }
       .face img { display: block; width: 34px; height: 34px; }
-      .face small { position: absolute; right: 3px; bottom: 1px; font-size: 10px; font-weight: 800; color: var(--accent); }
+      .face small { position: absolute; right: 4px; bottom: 3px; font-size: 10px; font-weight: 800; color: var(--accent); }
       .face.on { opacity: 1; background: var(--btn-on); outline: 2px solid var(--accent); }
       .combo .cap { display: none; }
       /* cartão de aviso azul: o texto à esquerda e, quando há uma ação a cumprir, o botão ao lado, depois de uma barrinha */
-      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: 8px 10px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
-      .actionbar.idle { background: rgba(20, 24, 30, 0.7); border-color: #4a5566; box-shadow: none; color: #aab6c6; }
-      .actionbar.idle .prompt b { color: #d8e2f0; }
+      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: var(--ap) 16px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
+      .actionbar.idle .prompt { text-align: center; white-space: nowrap; }
+      .actionbar.idle { box-shadow: none; } /* vez do bot: continua azul, só sem o brilho */
       .actionbar .prompt { flex: 1 1 auto; min-width: 0; align-self: center; margin: 0; font-size: 13px; line-height: 1.35; text-align: left; }
       .actionbar .prompt b { font-weight: 800; color: #fff; }
       .actionbar #controls { display: flex; flex: none; }
-      .actionbar #controls:not(:empty) { padding-left: 10px; border-left: 1px solid #3b9cff88; }
+      .actionbar { --ap: 8px; }
+      .actionbar #controls { position: relative; align-self: stretch; margin-block: calc(var(--ap) * -1); padding-block: var(--ap); }
+      .actionbar #controls:not(:empty) { padding-left: 10px; }
+      .actionbar #controls:not(:empty)::before { content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 1px; background: #3b9cff88; }
       .actionbar .row { display: flex; flex-direction: column; gap: 6px; justify-content: center; margin: 0; }
       .actionbar .row button { min-height: 38px; padding: 6px 12px; font-size: 13px; white-space: nowrap; }
       /* o botão que pede uma ação pisca devagar para chamar a atenção */
@@ -159,7 +162,10 @@
       #pop .pop-state { color: #b8b8b8; }
       #pop .pop-state.ok { color: #7fe08c; }
       #pop button.primary { width: 100%; margin-top: 10px; min-height: 44px; }
-      .slot.off { opacity: 0.45; }
+      /* ícones sempre na cor natural: só o contorno e o custo dizem se dá para usar agora */
+      .slot.off { opacity: 1; }
+      .slot.off .cost { color: #8f8f8f; }
+      .slot:not(.off) { border-color: #d4b53a; }
       /* balão de quadrinhos: as opções saem da casa tocada, com a pontinha apontando para ela */
       #chooser.icons { flex-direction: row; gap: 8px; padding: 8px 10px; background: #fffdf2; border: 3px solid #1a1a1a; border-radius: 18px; box-shadow: 0 4px 0 #1a1a1a, 0 10px 20px rgba(0, 0, 0, 0.35); transform: translate(-50%, calc(-100% - 16px)); animation: bubble 0.16s ease-out; }
       #chooser.icons::after { content: ''; position: absolute; left: 50%; bottom: -13px; width: 18px; height: 18px; background: #fffdf2; border-right: 3px solid #1a1a1a; border-bottom: 3px solid #1a1a1a; transform: translateX(-50%) rotate(45deg); }
@@ -276,35 +282,67 @@
       .tools-list > button + button::before { content: ''; position: absolute; left: 8px; right: 8px; top: -2px; height: 1px; background: #4d4d4d; pointer-events: none; }
       /* ---------- barra inferior integrada: menu, turno, fases, placar, convocações e dado, grudados embaixo ---------- */
       .dock { left: 0; right: 0; bottom: 0; background: rgba(20, 20, 20, 0.84); border-top: 1px solid #555; padding-bottom: env(safe-area-inset-bottom); }
-      .dock .drow { display: flex; align-items: stretch; }
-      .dock .drow + .drow { border-top: 1px solid #4a4a4a; }
-      .dcell { display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 8px; border-right: 1px solid #4a4a4a; min-width: 0; }
-      .dcell:last-child { border-right: 0; }
+      .dock .drow, .topbar .drow { display: flex; align-items: stretch; }
+            .dcell { position: relative; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 5px 8px; min-width: 0; }
+      /* divisor: 2 px abaixo da borda de cima e 2 px acima da de baixo, nunca de borda a borda */
+      .dcell:not(:last-child)::after { content: ''; position: absolute; right: 0; top: 2px; bottom: 2px; width: 1px; background: #4a4a4a; }
       .menucell { padding: 4px; }
       #menuBtn { width: 42px; height: 42px; padding: 0; background: transparent; border-color: transparent; }
       #menuBtn.on { background: var(--card2); }
-      .turncell { flex: 1 1 auto; align-items: flex-start; }
-      .scorecell { flex: 0 0 auto; align-items: stretch; }
-      .scorecell h2 { display: none; }
-      .dock .turnchip { border: 0 !important; background: none; padding: 0; gap: 6px; font-size: 12px; white-space: normal; }
-      .dock .turnchip .badge { font-size: 11px; padding: 0 7px; white-space: nowrap; }
-      .dock .phases { gap: 3px; align-items: center; }
-      .dock .ph { display: inline-block; font-size: 10px; padding: 3px 7px; }
-      .dock .score { grid-template-columns: auto auto auto; gap: 3px 6px; font-size: 12px; }
-      .dock .score .who { display: none; }
-      .dock .score .pts { font-size: 13px; min-width: 30px; }
+      .turncell { flex: 1 1 auto; align-items: center; text-align: center; }
+      .topbar .dcell { align-items: center; justify-content: center; }
+      /* avatar e turno colados à esquerda, 16 px depois do divisor do menu */
+      .topbar .turncell { align-items: flex-start; text-align: left; padding-left: 16px; }
+      .topbar .turncell .turnchip { justify-content: flex-start; }
+      .scorecell { flex: 0 0 auto; flex-direction: row; align-items: center; justify-content: center; gap: 6px; }
+      .scorecell h2 { order: 2; margin: 0; display: flex; align-items: center; line-height: 0; align-self: center; }
+      .scorecell h2 > span { display: none; } /* só o (?) fica; o toque no placar abre o detalhamento */
+      .scorecell h2 button.dice-help { margin: 0; vertical-align: middle; }
+      .topbar .turnchip { justify-content: center; flex-wrap: wrap; border: 0 !important; background: none; padding: 0; gap: 6px; font-size: 12px; white-space: normal; }
+      /* avatar: só o rosto do pirata, em fundo azul neutro; o contorno tem a cor do time */
+      .topbar #turnDot { position: relative; width: 36px; height: 36px; border: 3px solid #fff; background: radial-gradient(circle at 50% 35%, #3d7db8, #1d4a75); box-shadow: 0 0 0 1px #0008; overflow: hidden; }
+      .topbar #turnDot img { position: absolute; width: 61px; height: 61px; left: calc(50% - 30px); top: calc(50% - 22px); max-width: none; image-rendering: pixelated; }
+      .topbar .turnchip .badge { display: none; } /* as ações restantes aparecem no aviso azul */
+      .phasebar { width: max-content; max-width: calc(100% - 12px); left: 50%; transform: translateX(-50%); top: calc(var(--top-h, 52px) + 4px); pointer-events: none; }
+      .phasebar > * { pointer-events: auto; }
+      /* etapas soltas na tela, como um stepper: ligadas por um tracinho, a etapa atual fica verde */
+      .phasebar .phases { position: relative; flex-wrap: nowrap !important; gap: 14px; align-items: center; justify-content: center; }
+      .phasebar .phases button.dice-help { position: absolute; left: calc(100% + 4px); top: 50%; margin: 0; transform: translateY(-50%); }
+      .topbar .phases { gap: 3px; align-items: center; }
+      .phasebar .ph { position: relative; display: inline-block; font-size: 11px; padding: 4px 10px; background: rgba(20, 20, 20, 0.88); border: 1px solid #555; color: #c4c4c4; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3); }
+      .phasebar .ph + .ph::before { content: ''; position: absolute; right: 100%; top: 50%; width: 14px; height: 2px; margin-top: -1px; background: #ffffff66; }
+      .phasebar .ph.on { background: var(--ok); border-color: var(--ok-line); color: #fff; outline: 0; box-shadow: 0 0 10px #5bd16b88; }
+      .phasebar .phases button.dice-help { background: rgba(20, 20, 20, 0.88); }
+      .topbar .score { grid-template-columns: auto auto auto; gap: 3px 6px; font-size: 12px; }
+      .topbar .score .who { display: none; }
+      .topbar .score .pts { font-size: 13px; min-width: 30px; }
       .dock .combo { border-top: 1px solid #4a4a4a; gap: 0; }
-      .dock .combo section { align-items: center; padding: 4px 8px; }
+      .dock .combo section { align-items: center; padding: 4px 8px 8px; }
       .dock .slots, .dock .dicefaces { width: 100%; max-width: 280px; }
-      .dock .combo .vbar { margin: 0; }
+      .dock .combo .vbar { margin: 2px 0; }
       /* menu: lista que abre acima do botão */
-      .menu-pop { z-index: 6; left: 6px; bottom: calc(var(--dock-h, 100px) + 6px); top: auto; display: grid; grid-template-columns: repeat(4, 44px); gap: 2px; padding: 6px; }
+      .menu-pop { z-index: 6; left: 6px; top: calc(var(--top-h, 56px) + 6px); display: grid; grid-template-columns: repeat(4, 44px); gap: 2px; padding: 6px; }
       .menu-pop .tools-list { display: contents; }
       .menu-pop button + button::before { display: none; }
       .menu-pop .cam { grid-column: 1 / -1; flex-direction: row; justify-content: center; border-top: 1px solid #555; }
       .hud-bc { bottom: calc(var(--dock-h, 100px) + 6px) !important; }
-      #scorepop { top: auto !important; bottom: calc(var(--dock-h, 100px) + 6px); }
-      .logpanel { top: 10px; }
+      #scorepop { top: calc(var(--top-h, 56px) + 6px) !important; }
+      .logpanel { top: calc(var(--top-h, 56px) + 6px) !important; left: 6px !important; }
+      .topbar { left: 0; right: 0; top: 0; background: rgba(20, 20, 20, 0.84); border-bottom: 1px solid #555; padding-top: env(safe-area-inset-top); }
+      /* desktop: tudo numa linha só. Placar com os jogadores lado a lado; títulos de Convocações e Dado na lateral esquerda dos cartões */
+      @media (min-width: 761px) {
+        .scorecell { gap: 10px; }
+        .scorecell h2 { order: 0; }
+        .scorecell h2 > span { display: inline; margin-right: 6px; font-size: 12px; white-space: nowrap; }
+        .topbar .score { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: auto; gap: 0 6px; font-size: 13px; }
+        .topbar .score .dot { margin-left: 14px; }
+        .topbar .score .dot:first-child { margin-left: 0; }
+        /* desktop: a mesma barra de baixo, com o título de Convocações e de Dado na lateral esquerda dos cartões */
+        .dock .combo section { flex-direction: row; align-items: center; justify-content: center; gap: 10px; padding: 5px 10px; }
+        .dock .combo h2 { margin: 0; white-space: nowrap; font-size: 12px; }
+        .dock .slots, .dock .dicefaces { width: auto; max-width: none; grid-template-columns: repeat(4, 56px); gap: 6px; }
+        .slot, .face { height: 46px; }
+      }
       @media (max-width: 760px) {
         .hud-tl button { width: 40px; height: 40px; }
         .cam .zoomonly { display: none; }
@@ -320,16 +358,16 @@
         .score { grid-template-columns: auto auto auto; gap: 4px 6px; font-size: 12px; }
         .score .who { display: none; }
         /* avisos em cima, convocações + dado numa fileira só embaixo */
-        .hud-bc { bottom: 6px; width: calc(100% - 12px); gap: 5px; }
-        .hud-bc .actionbar { max-height: 30vh; padding: 6px 8px; gap: 8px; }
+        .hud-bc { width: calc(100% - 12px); gap: 5px; } /* folga externa original: 6 px de cada lado */
+        .hud-bc .actionbar { max-height: 30vh; min-height: 44px; --ap: 6px; padding: var(--ap) 16px; gap: 8px; }
         .actionbar .prompt { font-size: 12px; }
         .hud-card { padding: 5px 7px; }
         .combo { gap: 6px; }
         .combo h2 { font-size: 10px; margin-bottom: 3px; }
         .slots, .dicefaces { gap: 3px; }
-        .slot, .face { height: 40px; border-radius: 8px; }
+        .slot, .face { height: 46px; border-radius: 8px; }
         .slot img { width: 26px; height: 26px; }
-        .face img { width: 28px; height: 28px; }
+        .face img { width: 26px; height: 26px; }
         .slot .cost { font-size: 9px; }
         .actionbar .row button { min-height: 36px; padding: 4px 9px; font-size: 12px; }
         .logpanel { left: 60px; top: 60px; width: min(280px, calc(100% - 70px)); }
@@ -348,17 +386,21 @@
         <div class="hud hud-bc">
           <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
         </div>
-        <div class="hud dock" id="dock">
+        <div class="hud topbar" id="topbar">
           <div class="drow top">
             <div class="dcell menucell"><button type="button" id="menuBtn" aria-haspopup="true" aria-controls="tools" aria-label="Menu"></button></div>
             <div class="dcell turncell">
           <div class="turnchip" id="turnchip"><span class="dot" id="turnDot"></span><b id="turnText"></b><span class="badge" id="turnBadge"></span></div>
-          <div class="phases" id="phases">
-            <span class="ph" data-ph="action" data-pt="1 Ação">1 Action</span><span class="ph" data-ph="flood" data-pt="2 Maré">2 Tide</span><span class="ph" data-ph="creatures" data-pt="3 Criaturas">3 Creatures</span><button type="button" class="dice-help" id="helpPhase" aria-label="Rules for this phase" data-pt-aria="Regras desta fase" aria-haspopup="dialog" title="Rules for this phase" data-pt-title="Regras desta fase"></button>
-          </div>
             </div>
             <div class="dcell scorecell"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
           </div>
+        </div>
+        <div class="hud phasebar">
+          <div class="phases" id="phases">
+            <span class="ph" data-ph="action" data-pt="1 Ação">1 Action</span><span class="ph" data-ph="flood" data-pt="2 Maré">2 Tide</span><span class="ph" data-ph="creatures" data-pt="3 Criaturas">3 Creatures</span><button type="button" class="dice-help" id="helpPhase" aria-label="Rules for this phase" data-pt-aria="Regras desta fase" aria-haspopup="dialog" title="Rules for this phase" data-pt-title="Regras desta fase"></button>
+          </div>
+        </div>
+        <div class="hud dock" id="dock">
           <div class="drow combo">
             <section><h2><span data-pt="Convocações">Summons</span><button type="button" class="dice-help" id="helpSummons" aria-label="How summons work" data-pt-aria="Como funcionam as convocações" aria-haspopup="dialog"></button></h2><div class="slots" id="summons"></div></section>
             <i class="vbar"></i>

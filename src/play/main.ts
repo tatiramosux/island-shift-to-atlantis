@@ -699,7 +699,11 @@ const renderHud = () => {
   const a = actor(game);
   const chip = $('turnchip');
   chip.style.borderColor = teamColor(a);
-  $('turnDot').style.background = teamColor(a);
+  const dotEl = $('turnDot');
+  dotEl.style.borderColor = teamColor(a);
+  dotEl.style.background = game.phase === 'ended' ? teamColor(a) : '';
+  // avatar: a carinha de quem joga agora, num círculo da cor do jogador
+  dotEl.replaceChildren(...(game.phase === 'ended' ? [] : [Object.assign(document.createElement('img'), { src: teamIcons(a)[0], alt: '' })]));
   const tt = $('turnText');
   tt.replaceChildren(document.createTextNode(game.phase === 'ended' ? t('Match over', 'Fim da partida') : t(`${pname(a)}'s turn `, `Vez de ${pname(a)} `)));
   if (game.phase !== 'ended' && isBotSeat(a)) tt.appendChild(icon(Bot, 15));
@@ -836,13 +840,6 @@ const renderBar = () => {
   const a = actor(game);
   if (!isHumanTurn()) {
     msg.innerHTML = t(`<b>${pname(a)}</b> is playing…`, `<b>${pname(a)}</b> está jogando…`);
-    const last = logLines[logLines.length - 1];
-    if (last) {
-      const d = document.createElement('div');
-      d.textContent = last;
-      d.style.cssText = 'font-size:12px;color:#8fb4dd;margin-top:2px';
-      msg.appendChild(d);
-    }
     return;
   }
   if (game.phase === 'action') {
@@ -1060,10 +1057,16 @@ tools.append(
   toolsList,
 );
 setMenuOpen(false);
-// a barra inferior avisa a altura dela: o aviso azul, o brilho do placar e o menu ficam logo acima
+// as barras avisam a altura delas: o aviso azul fica acima da de baixo; o menu e o placar abrem abaixo da de cima
 const dock = $('dock');
-const syncDock = () => document.getElementById('app')!.style.setProperty('--dock-h', dock.offsetHeight + 'px');
+const topbar = $('topbar');
+const syncDock = () => {
+  const st = document.getElementById('app')!.style;
+  st.setProperty('--dock-h', dock.offsetHeight + 'px');
+  st.setProperty('--top-h', topbar.offsetHeight + 'px');
+};
 new ResizeObserver(syncDock).observe(dock);
+new ResizeObserver(syncDock).observe(topbar);
 syncDock();
 const zoomBtn = (b: HTMLButtonElement) => (b.classList.add('zoomonly'), b);
 camera.append(
