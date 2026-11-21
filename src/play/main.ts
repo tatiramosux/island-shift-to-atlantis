@@ -1476,6 +1476,7 @@ const showPause = () => {
 let matchStartAt = 0;
 const enterGame = () => {
   inGame = true;
+  $('view').classList.add('ready');
   matchStartAt = Date.now();
   $('home').hidden = true;
   $('hud').hidden = false;
@@ -1542,7 +1543,7 @@ const demoGame = () => {
  */
 const cacheKey = () => {
   const v = $('view');
-  return `r10|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
+  return `r11|${getLang()}|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`; // o idioma entra na chave: o texto muda a altura do painel e, com ela, onde os navios ficam
 };
 const placeHomeShips = () => {
   if (inGame) return;
@@ -1845,12 +1846,17 @@ try {
 }
 // o título muda de tamanho quando a fonte chega: os navios são reposicionados depois disso. A última posição fica guardada
 // (por formato de tela), então ao recarregar (trocar PT/EN) eles já aparecem no lugar final e nada pisca nem pula
+// o cenário só aparece (com um fade curto) depois de tudo no lugar: sem pulo dos navios nem lampejo ao carregar ou trocar o idioma
+const showScene = () => $('view').classList.add('ready');
 void (document.fonts?.ready ?? Promise.resolve()).then(() =>
   setTimeout(() => {
     placeHomeShips();
     shipsLayout = layoutOf();
+    showScene();
   }, 80),
 );
+setTimeout(showScene, 1800); // se a fonte demorar, mostra mesmo assim
+document.body.classList.remove('alarm');
 
 // atalho de teste (só em desenvolvimento)
 if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__atl = { stage, get game() { return game; }, apply, startLocal, opts, showEnd, play };

@@ -4,15 +4,16 @@
  */
 import { lookKey } from '../game/players';
 import * as THREE from 'three';
-import { hexDisk, hexDistance, hexKey, hexToWorld, type Hex } from '../engine/hex';
+import { hexDisk, hexDistance, hexKey, hexNeighbors, hexToWorld, type Hex } from '../engine/hex';
 import { buildNereus, buildPrincess } from './legends';
-import { ISLAND_RADIUS, ORIGIN, WORLD_RADIUS, isWater, islandProgress, sentinelAlert, templeAwake, type Cell, type GameState } from '../engine/atlantida';
+import { ISLAND_RADIUS, ORIGIN, WORLD_RADIUS, isSea, isWater, islandProgress, sentinelAlert, templeAwake, type Cell, type GameState } from '../engine/atlantida';
 import { FLOOR_H, HEX_R, buildCastle, buildCastleTier, buildLevel, buildMarbleBase } from './structures';
 import { Models } from './models';
 import { buildSummon } from './summons';
 
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
+type IdleKind = 'look' | 'scratch' | 'spy' | 'watch' | 'drink' | 'wave' | 'stretch' | 'hat' | 'polish' | 'wobble' | 'fish';
 export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'treasure' | 'wave' | 'both';
 export interface StageScene {
   state: GameState;
@@ -47,10 +48,11 @@ interface Entity {
   spinZ?: number;
   zzz?: THREE.Group; // os Z de quando o personagem dorme
   bubble?: THREE.Sprite; // balão "homem ao mar!" de quem boia
-  idle?: { kind: 'look' | 'scratch' | 'spy' | 'watch' | 'drink'; t0: number; dur: number }; // movimento de espera em andamento
+  idle?: { kind: IdleKind; t0: number; dur: number; water?: number; fished?: boolean }; // `water`: para onde a água fica (ângulo), na pescaria // movimento de espera em andamento
   idleNext?: number;
   cparts?: { tentacles?: THREE.Object3D[]; flag?: THREE.Object3D; levi?: { head: THREE.Object3D; jaw: THREE.Object3D; tail: THREE.Object3D } } | null; // partes animáveis do Polvo e do Leviatã
-  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
+  captain?: boolean;
+  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group; rod: THREE.Group; gear: THREE.Group; fish: THREE.Object3D; bobber: THREE.Object3D }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
   shouting?: boolean;
 }
 
@@ -442,7 +444,9 @@ export class Stage3D {
 
   /* ---------- montar a cena a partir do estado ---------- */
 
+  private lastState: GameState | null = null;
   update(sc: StageScene) {
+    this.lastState = sc.state;
     this.skyTarget = this.home ? 0 : sc.state.vanished ? 1 : islandProgress(sc.state);
     if (sc.state.vanished && !this.vanishAt) {
       this.vanishAt = performance.now();
@@ -1573,6 +1577,8 @@ export class Stage3D {
   }
 
   // a luneta e a garrafa só podem estar na mão de um marujo por vez, e cada uma tem um intervalo bem longo entre usos
+  private idleBy: string | null = null; // só um marujo faz um movimento de espera por vez (nenhum se repete ao mesmo tempo)
+  private nextIdleAt = 0;
   private spyBy: string | null = null;
   private drinkBy: string | null = null;
   private nextSpyAt = 0;
@@ -1588,14 +1594,23 @@ export class Stage3D {
       this.drinkBy = null;
       this.nextDrinkAt = t + 30 + Math.random() * 20;
     }
+    if (this.idleBy === e.id) {
+      this.idleBy = null;
+      this.nextIdleAt = t + 3 + Math.random() * 5; // folga entre um marujo e o próximo
+    }
     e.idle = undefined;
     e.group.rotation.x = e.group.rotation.z = 0;
-    e.idleNext = t + 12 + Math.random() * 16; // bem espaçado
-    if (e.props) e.props.spy.visible = e.props.watch.visible = e.props.bottle.visible = false;
+    e.idleNext = t + 10 + Math.random() * 14; // bem espaçado
+    if (e.props) e.props.spy.visible = e.props.watch.visible = e.props.bottle.visible = e.props.rod.visible = e.props.gear.visible = false;
   }
 
   /** Um movimento de espera suave de vez em quando, cada pirata no seu ritmo. */
   private idleStep(e: Entity, t: number) {
+    // se quem segurava a vez saiu de cena (embarcou, caiu na água...), libera as travas
+    for (const k of ['idleBy', 'spyBy', 'drinkBy'] as const) {
+      const id = this[k];
+      if (id && !this.ents.get(id)?.idle) this[k] = null;
+    }
     if (!e.props) {
       const m = this.models;
       const gold = m.solid('#f2c80f', 0.35);
@@ -1610,19 +1625,64 @@ export class Stage3D {
       bottle.position.set(0, -0.3, 0.03);
       const green = m.solid('#2f9e4f', 0.15);
       bottle.add(m.box(0.07, 0.13, 0.07, green, 0, -0.04, 0), m.box(0.035, 0.07, 0.035, green, 0, 0.06, 0), m.box(0.04, 0.02, 0.04, brown, 0, 0.11, 0));
+      // vara de pescar na mão esquerda; o fio, a boia e o peixe ficam no corpo do marujo, na frente dele (onde está a água)
+      const rod = new THREE.Group();
+      rod.position.set(0, -0.29, 0.02);
+      rod.add(m.box(0.03, 0.62, 0.03, m.solid('#8b5a2b'), 0, -0.3, 0), m.box(0.04, 0.05, 0.04, m.solid('#5b3a1e'), 0, -0.02, 0));
+      const gear = new THREE.Group();
+      const line = m.box(0.008, 0.6, 0.008, m.solid('#e8e8e8'), 0, 0, 0);
+      line.position.set(0, 0.27, 0.72);
+      line.rotation.x = -0.43;
+      const bobber = m.box(0.05, 0.05, 0.05, m.solid('#d8232a'), 0, -0.03, 0.85);
+      const fish = new THREE.Group();
+      fish.add(m.box(0.14, 0.06, 0.04, m.solid('#ff9a3a'), 0, 0, 0), m.box(0.05, 0.08, 0.04, m.solid('#ff9a3a'), -0.1, 0, 0));
+      fish.visible = false;
+      gear.add(line, bobber, fish);
+      rod.visible = gear.visible = false;
       spy.visible = watch.visible = bottle.visible = false;
-      e.armL!.add(spy, watch, bottle);
-      e.props = { spy, watch, bottle };
+      e.armL!.add(spy, watch, bottle, rod);
+      e.group.add(gear);
+      e.props = { spy, watch, bottle, rod, gear, fish, bobber };
     }
     if (e.idleNext === undefined) e.idleNext = t + 6 + Math.random() * 16;
+    if (!e.idle && t >= e.idleNext && (this.idleBy || t < this.nextIdleAt)) e.idleNext = t + 1 + Math.random() * 3; // outro marujo está se mexendo: espera a vez
     if (!e.idle && t >= e.idleNext) {
-      const r = Math.random();
-      let kind: NonNullable<Entity['idle']>['kind'] = r < 0.38 ? 'look' : r < 0.64 ? 'scratch' : r < 0.8 ? 'watch' : r < 0.9 ? 'spy' : 'drink';
+      if (e.captain === undefined) {
+        e.captain = false;
+        e.group.traverse((o) => {
+          if (o.userData.captain) e.captain = true;
+        });
+      }
+      // pescar: só quem está na beirada da ilha, ao lado do mar (vira o corpo para a água)
+      let water: number | undefined;
+      const st = this.lastState;
+      const bd = st?.builders.find((b) => b.id === e.id);
+      if (st && bd?.hex && bd.status === 'board') {
+        const here = worldOf(bd.hex);
+        const sea = hexNeighbors(bd.hex).filter((n) => isSea(st, n));
+        if (sea.length) {
+          const wn = worldOf(sea[Math.floor(Math.random() * sea.length)]);
+          water = Math.atan2(wn.x - here.x, wn.z - here.z);
+        }
+      }
+      const table: [NonNullable<Entity['idle']>['kind'], number][] = [['look', 16], ['scratch', 12], ['watch', 10], ['wave', 10], ['stretch', 10], ['hat', 8], ['polish', 8], ['spy', 6], ['drink', 6]];
+      if (e.captain) table.push(['wobble', 16]);
+      if (water !== undefined) table.push(['fish', 16]);
+      let roll = Math.random() * table.reduce((sum, [, w]) => sum + w, 0);
+      let kind: NonNullable<Entity['idle']>['kind'] = 'look';
+      for (const [k, w] of table) {
+        if ((roll -= w) < 0) {
+          kind = k;
+          break;
+        }
+      }
       if (kind === 'spy' && (this.spyBy || t < this.nextSpyAt)) kind = 'look'; // a luneta só está na mão de um marujo por vez
       if (kind === 'drink' && (this.drinkBy || t < this.nextDrinkAt)) kind = 'scratch'; // a garrafa também
+      this.idleBy = e.id;
       if (kind === 'spy') this.spyBy = e.id;
       if (kind === 'drink') this.drinkBy = e.id;
-      e.idle = { kind, t0: t, dur: kind === 'look' ? 2.8 : kind === 'scratch' ? 2.2 : kind === 'spy' ? 3.4 : kind === 'drink' ? 3.2 : 3 };
+      const dur: Record<string, number> = { look: 2.8, scratch: 2.2, spy: 3.4, drink: 3.2, wave: 2.8, watch: 3, stretch: 3, hat: 2.4, polish: 3, wobble: 3.4, fish: 7 };
+      e.idle = { kind, t0: t, dur: dur[kind], water };
     }
     const id = e.idle;
     if (!id) return;
@@ -1633,6 +1693,7 @@ export class Stage3D {
     e.props.spy.visible = id.kind === 'spy';
     e.props.watch.visible = id.kind === 'watch';
     e.props.bottle.visible = id.kind === 'drink';
+    e.props.rod.visible = e.props.gear.visible = id.kind === 'fish';
     if (id.kind === 'look') {
       e.group.rotation.y += Math.sin(u * Math.PI * 2.4) * 0.7 * kk; // olha para um lado e para o outro
     } else if (id.kind === 'scratch') {
@@ -1643,6 +1704,57 @@ export class Stage3D {
       e.armL!.rotation.x = -1.9 * kk; // luneta no olho, varrendo o horizonte
       e.armL!.rotation.z = (-0.1 + Math.sin(u * Math.PI * 2) * 0.22) * kk;
       e.group.rotation.y += Math.sin(u * Math.PI * 2) * 0.3 * kk;
+    } else if (id.kind === 'stretch') {
+      e.armL!.rotation.x = e.armR!.rotation.x = -2.9 * kk; // espreguiça com os dois braços para o alto e se inclina para trás
+      e.armL!.rotation.z = -0.3 * kk;
+      e.armR!.rotation.z = 0.3 * kk;
+      e.group.rotation.x = (-0.14 + Math.sin(t * 6) * 0.01) * kk;
+    } else if (id.kind === 'hat') {
+      e.armL!.rotation.x = (-2.35 - Math.sin(u * Math.PI) * 0.35) * kk; // cumprimenta tirando o chapéu
+      e.armL!.rotation.z = -0.1 * kk;
+      e.group.rotation.x = Math.sin(u * Math.PI) * 0.1 * kk; // com uma reverência leve
+    } else if (id.kind === 'polish') {
+      e.armR!.rotation.x = -1.25 + Math.sin(t * 10) * 0.12; // esfrega a arma com o pano
+      e.armL!.rotation.x = -1.1 * kk + Math.sin(t * 10 + 1) * 0.1 * kk;
+      e.group.rotation.x = 0.06 * kk;
+    } else if (id.kind === 'wobble') {
+      // perna de pau: quase cai para um lado, os braços girando, e se recompõe
+      const swing = Math.sin(u * Math.PI * 2.2) * (1 - u * 0.4);
+      e.group.rotation.z = swing * 0.42 * kk;
+      e.group.rotation.x = Math.sin(u * Math.PI * 1.4) * 0.12 * kk;
+      e.armL!.rotation.x = (-2.2 + Math.sin(t * 13) * 0.7) * kk;
+      e.armR!.rotation.x = (-2.2 + Math.sin(t * 13 + 2) * 0.7) * kk;
+      e.armL!.rotation.z = -0.8 * kk;
+      e.armR!.rotation.z = 0.8 * kk;
+    } else if (id.kind === 'fish') {
+      // vira para a água, lança a vara, espera, o peixe morde e ele comemora
+      const base = e.group.rotation.y;
+      let d = (id.water ?? base) - base;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      e.group.rotation.y = base + d * kk;
+      const P = e.props;
+      const cast = Math.min(1, u / 0.15);
+      const bite = u > 0.72 && u < 0.86 ? Math.sin(((u - 0.72) / 0.14) * Math.PI) : 0;
+      const cheer = u > 0.86 ? Math.sin(t * 9) * 0.3 : 0;
+      e.armL!.rotation.x = (-2.5 + 0.9 * cast - 0.5 * bite - (u > 0.86 ? 0.5 : 0)) * kk;
+      e.armL!.rotation.z = cheer * kk;
+      P.bobber.position.y = -0.03 + Math.sin(t * 3) * 0.012 - bite * 0.05;
+      P.fish.visible = bite > 0 || (u > 0.86 && u < 0.93);
+      if (P.fish.visible) {
+        const fu = u < 0.86 ? (u - 0.72) / 0.14 : 1 - (u - 0.86) / 0.07;
+        P.fish.position.set(0, -0.03 + Math.sin(Math.min(1, fu) * Math.PI) * 0.35, 0.85);
+        P.fish.rotation.z = fu * 5;
+      }
+      if (u > 0.74 && !id.fished) {
+        id.fished = true;
+        const w = new THREE.Vector3();
+        P.bobber.getWorldPosition(w);
+        this.burst(w.x, 0.15, w.z, '#dff6ff', 8, 0, 1.6);
+      }
+    } else if (id.kind === 'wave') {
+      e.armL!.rotation.x = -2.9 * kk; // tchau: o braço sobe e acena
+      e.armL!.rotation.z = (-0.5 + Math.sin(t * 9) * 0.45) * kk;
+      e.group.rotation.y += Math.sin(u * Math.PI) * 0.25 * kk; // vira um pouco para quem olha
     } else if (id.kind === 'drink') {
       e.armL!.rotation.x = -2.2 * kk; // leva a garrafa à boca, inclina e bebe
       e.armL!.rotation.z = -0.1 * kk;

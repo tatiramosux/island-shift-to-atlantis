@@ -342,7 +342,15 @@ export class Models {
     const tan = this.solid('#c9a56a');
     const wood = this.solid('#8b5a2b');
     const steel = this.solid('#9ea3ad');
+    g.userData.captain = index === 0; // o capitão tem perna de pau (e só ele perde o equilíbrio nos movimentos de espera)
     for (const sx of [-0.07, 0.07]) {
+      if (index === 0 && sx > 0) {
+        // perna de pau: haste de madeira mais fina, com cinta e ponteira, sem o sapato
+        g.add(this.box(0.06, 0.05, 0.06, this.solid('#4a2c12'), sx, 0, 0.0));
+        inner.add(this.box(0.055, 0.17, 0.055, wood, sx, 0.05, 0));
+        inner.add(this.box(0.09, 0.03, 0.09, this.solid('#5b3a1e'), sx, 0.16, 0));
+        continue;
+      }
       g.add(this.box(0.13, 0.07, 0.17, this.solid('#6b3d1a'), sx, 0, 0.02));
       inner.add(this.box(0.11, 0.14, 0.11, tan, sx, 0.07, 0));
     }
