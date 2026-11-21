@@ -55,7 +55,7 @@ const TILE_PT: Record<AtlantisTile, string> = { crystal: t('Crystal', 'Cristal')
 const CREATURE_PT: Record<string, string> = { octopus: t('Colossus Octopus', 'Polvo-colosso'), leviathan: t('Leviathan', 'Leviatã'), guardian: t('Nereus', 'Nereu'), surge: t('Surge Tide', 'Maré viva') };
 const SUMMONS = {
   triton: { name: t('Triton', 'Tritão'), tip: t('Mighty push: throws a neighboring rival up to 2 tiles. In the water, they end up adrift.', 'Empurrão forte: joga um adversário vizinho até 2 casas. Na água, ele fica boiando.') },
-  dolphin: { name: t('Guide Dolphin', 'Golfinho-guia'), tip: t('Rescue: carries one of your castaways up to 2 tiles, to land of level 0 or 1.', 'Resgate: leva um náufrago seu até 2 casas, para terra de nível 0 ou 1.') },
+  lasso: { name: t('Lasso', 'Laço'), tip: t('Steals the Princess from a rival team that has a pirate up to 3 tiles from one of yours. She must not be on the ship yet.', 'Rouba a Princesa de um time rival que tenha um pirata a até 3 casas de um seu. Ela ainda não pode estar no navio.') },
   siren: { name: t('Siren', 'Sereia'), tip: t('Song: steals 1 crystal from a neighboring pirate.', 'Canto: rouba 1 cristal de um pirata vizinho.') },
   colossus: { name: t('Coral Colossus', 'Colosso de coral'), tip: t('Instant dome: places a dome on any free tile except the Castle.', 'Cúpula relâmpago: coloca uma cúpula em qualquer casa livre que não seja o Castelo.') },
 } as const;
@@ -134,6 +134,7 @@ const evText = (e: GameEvent): string | null => {
     case 'escapeStarted': return t(`${P('by')} reached their ship! The island will vanish when the turn comes back to that team: last chance to escape.`, `${P('by')} chegou ao navio! A ilha vai sumir quando a vez voltar a esse time: última chance de fugir.`);
     case 'islandVanishes': return (e.left as string[]).length ? t(`The island vanished into the sea! ${(e.left as string[]).map((id) => bname(id)).join(', ')} left adrift.`, `A ilha sumiu no mar! ${(e.left as string[]).map((id) => bname(id)).join(', ')} ficou boiando.`) : t('The island vanished into the sea! Everyone escaped.', 'A ilha sumiu no mar! Todos escaparam.');
     case 'boatCapsized': return t(`The Octopus flipped ${P('owner')}'s boat: the pirate is adrift.`, `O Polvo virou o bote de ${P('owner')}: o pirata está boiando.`);
+    case 'princessLost': return t(`Nereus took the Princess of ${P('owner')} back to the bottom of the sea!`, `Nereu levou a Princesa de ${P('owner')} de volta ao fundo do mar!`);
     case 'tridentTaken': return t(`${P('owner')} picked up a trident.`, `${P('owner')} pegou um tridente.`);
     case 'calmSea': return t('Calm Tide: the next Tide phase will be skipped.', 'Maré calma: a próxima Maré será pulada.');
     case 'fountain': return t(`${P('owner')} found the Fountain: the next Build places 2 blocks.`, `${P('owner')} achou a Fonte: o próximo construir põe 2 blocos.`);
@@ -162,7 +163,7 @@ const evText = (e: GameEvent): string | null => {
     case 'sentinelSleeps': return t('The Sentinel keeps sleeping: no pirate within 2 tiles.', 'A Sentinela continua dormindo: não há pirata a até 2 casas.');
     case 'landed': return t(`${bname(e.builderId as string)} reached land.`, `${bname(e.builderId as string)} chegou à terra.`);
     case 'summon':
-      return e.kind === 'triton' ? t(`Triton: mighty push${e.falls ? ', and they landed in the water' : ''}.`, `Tritão: empurrão forte${e.falls ? ', e foi parar na água' : ''}.`) : e.kind === 'dolphin' ? t('Guide Dolphin: rescue!', 'Golfinho-guia: resgate!') : e.kind === 'siren' ? t('Siren: stole 1 crystal.', 'Sereia: roubou 1 cristal.') : t('Coral Colossus: instant dome.', 'Colosso de coral: cúpula relâmpago.');
+      return e.kind === 'triton' ? t(`Triton: mighty push${e.falls ? ', and they landed in the water' : ''}.`, `Tritão: empurrão forte${e.falls ? ', e foi parar na água' : ''}.`) : e.kind === 'lasso' ? t(`Lasso: ${teamName(e.to as number)} stole the Princess from ${teamName(e.from as number)}!`, `Laço: ${teamName(e.to as number)} roubou a Princesa de ${teamName(e.from as number)}!`) : e.kind === 'siren' ? t('Siren: stole 1 crystal.', 'Sereia: roubou 1 cristal.') : t('Coral Colossus: instant dome.', 'Colosso de coral: cúpula relâmpago.');
     default: return null;
   }
 };
@@ -260,6 +261,7 @@ const SOUND_OF: [string, SoundName][] = [
   ['floodCancelled', 'trident'],
   ['quake', 'quake'],
   ['summon', 'summon'],
+  ['princessLost', 'splash'],
   ['push', 'push'],
   ['guardianPush', 'push'],
   ['sentinelWake', 'smash'],
@@ -301,6 +303,11 @@ const takeState = (events: GameEvent[]) => {
     if (e.type === 'castleRises') toast(t('The Castle rose! Climb the stairs and towers to rescue the Princess at the top.', 'O Castelo emergiu! Suba pelas escadas e torres para resgatar a Princesa no topo.'));
     if (e.type === 'escapeStarted') toast(e.by === viewer() ? t('You reached the ship! The island will vanish: the others get one more turn to escape.', 'Você chegou ao navio! A ilha vai sumir: os outros têm mais um turno para fugir.') : t('Someone reached the ship! The island will vanish: you have one more turn to escape.', 'Alguém chegou ao navio! A ilha vai sumir: você tem mais um turno para fugir.'));
     if (e.type === 'islandVanishes') toast(t('The island vanished into the sea!', 'A ilha sumiu no mar!'));
+    if (e.type === 'princessLost' && e.owner === viewer()) toast(t('Nereus took your Princess back to the bottom of the sea!', 'Nereu levou a sua Princesa de volta ao fundo do mar!'));
+    if (e.type === 'summon' && e.kind === 'lasso') {
+      if (e.from === viewer()) toast(t(`${teamName(e.to as number)} lassoed your Princess!`, `${teamName(e.to as number)} laçou a sua Princesa!`));
+      else if (e.to === viewer()) toast(t('Lasso! The Princess is yours now. Get her to the ship.', 'Laço! A Princesa agora é sua. Leve-a ao navio.'));
+    }
     if (e.type === 'summon' && e.kind === 'siren') {
       const thief = teamName(e.to as number);
       if (e.from === viewer()) setTimeout(() => explainSiren(thief, true), 1400);
@@ -362,7 +369,7 @@ const cellOf = (a: Action): Hex | null => {
     case 'row': return a.to;
     case 'push': return builderHex(a.targetId);
     case 'moveCreature': return a.to;
-    case 'summon': return a.kind === 'triton' || a.kind === 'siren' ? builderHex(a.targetId) : a.kind === 'dolphin' ? a.to : a.at;
+    case 'summon': return a.kind === 'triton' || a.kind === 'siren' || a.kind === 'lasso' ? builderHex(a.targetId) : a.at;
     default: return null;
   }
 };
@@ -382,7 +389,7 @@ const candidates = (): Action[] => {
 const label = (a: Action): string => {
   switch (a.type) {
     case 'move': return a.portalTo ? t('Teleport to the other Portal', 'Teletransportar para o outro Portal') : game.cells[hexKey(a.to)].tile === 'portal' ? t('Stop on this Portal', 'Parar neste Portal') : t('Move', 'Mover');
-    case 'summon': return a.kind === 'triton' ? t(`Push ${a.distance} tile${a.distance > 1 ? 's' : ''}`, `Empurrar ${a.distance} casa${a.distance > 1 ? 's' : ''}`) : a.kind === 'dolphin' ? t(`Rescue ${bname(a.builderId)}`, `Resgatar ${bname(a.builderId)}`) : a.kind === 'siren' ? t(`Steal with ${bname(a.builderId)}`, `Roubar com ${bname(a.builderId)}`) : t('Dome here', 'Cúpula aqui');
+    case 'summon': return a.kind === 'triton' ? t(`Push ${a.distance} tile${a.distance > 1 ? 's' : ''}`, `Empurrar ${a.distance} casa${a.distance > 1 ? 's' : ''}`) : a.kind === 'lasso' ? t(`Lasso with ${bname(a.builderId)}`, `Laçar com ${bname(a.builderId)}`) : a.kind === 'siren' ? t(`Steal with ${bname(a.builderId)}`, `Roubar com ${bname(a.builderId)}`) : t('Dome here', 'Cúpula aqui');
     case 'swim': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : t('Swim here', 'Nadar até aqui');
     case 'launch': return t('Get into a boat', 'Entrar num bote');
     case 'row': return hexEquals(a.to, game.ships[a.player]) ? t('Board the ship', 'Subir no navio') : isWaterHex(a.to) ? t('Row here', 'Remar até aqui') : t('Land on the beach', 'Descer na praia');
@@ -760,7 +767,7 @@ const renderHud = () => {
   const sm = $('summons');
   sm.replaceChildren();
   const ic = icons();
-  const cost = { triton: game.settings.tritonCost, dolphin: game.settings.dolphinCost, siren: game.settings.sirenCost, colossus: game.settings.colossusCost };
+  const cost = { triton: game.settings.tritonCost, lasso: game.settings.lassoCost, siren: game.settings.sirenCost, colossus: game.settings.colossusCost };
   (Object.keys(SUMMONS) as SummonKind[]).forEach((k) => {
     const ok = isHumanTurn() && legal.some((x) => x.type === 'summon' && x.kind === k);
     const b = document.createElement('button');
@@ -852,7 +859,7 @@ const renderBar = () => {
       ? t('<b>Portal:</b> tap one of the highlighted Portals to arrive there (tapping elsewhere cancels).', '<b>Portal:</b> toque num dos Portais destacados para chegar nele (tocar fora cancela).')
       : mode.startsWith('summon:')
       ? t(`<b>${SUMMONS[mode.slice(7) as SummonKind].name}:</b> tap a yellow tile.`, `<b>${SUMMONS[mode.slice(7) as SummonKind].name}:</b> toque numa casa amarela.`)
-      : t(`<b>${game.actionsLeft} ${game.actionsLeft === 1 ? 'action' : 'actions'} left.</b> Tap your pirate, then a colored tile${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Wave ahead:</b> leave the foamy tiles (or climb to the 2nd floor).' : ''}`, `<b>Restam ${game.actionsLeft} ${game.actionsLeft === 1 ? 'ação' : 'ações'}.</b> Toque no seu pirata e depois numa casa colorida${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Onda à vista:</b> saia das casas com espuma (ou suba ao 2º andar).' : ''}`);
+      : t(`<span class="badge">${game.actionsLeft} ${game.actionsLeft === 1 ? 'action' : 'actions'} left</span> Tap your pirate, then a colored tile${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Wave ahead:</b> leave the foamy tiles (or climb to the 2nd floor).' : ''}`, `<span class="badge">Restam ${game.actionsLeft} ${game.actionsLeft === 1 ? 'ação' : 'ações'}</span> Toque no seu pirata e depois numa casa colorida${bits.length ? ': ' + bits.join(' · ') : ''}.${game.wave !== null && game.wave !== undefined ? ' <b>Onda à vista:</b> saia das casas com espuma (ou suba ao 2º andar).' : ''}`);
     ctl.append(row(btn(t('End actions', 'Terminar ações'), () => apply({ type: 'endActions', player: a }), { icon: ArrowRight, primary: game.actionsLeft === 0 || !legal.some((x) => x.type !== 'endActions' && x.type !== 'summon') })));  // só pisca quando não resta o que fazer
   } else if (game.phase === 'flood') {
     if (game.pendingFlood) {
@@ -1220,7 +1227,7 @@ ${escapeRules()
 <li><b>Push:</b> a neighboring pirate moves 1 tile back, if the tile behind is free and on land.</li>
 <li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in.</li>
 <li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. Nobody is ever eliminated: the Octopus and Leviathan throw floaters farther away and flip boats (whoever was in it ends up floating). Atlantis is fragile: from round 3 a tile crumbles every round and the sea slowly opens channels into the island.</li>
-<li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Guide Dolphin rescues, Siren steals 1 crystal, Coral Colossus places a dome.</li>
+<li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Lasso steals the Princess, Siren steals 1 crystal, Coral Colossus places a dome.</li>
 <li><b>Treasures:</b> stepping onto a closed tile or onto a sunken one (revealed by the quake) shows the piece. Crystal, Trident and Calm Tide are taken at once and the tile becomes a Ruin. The Princess on top of the Castle is worth +4 once she is aboard your ship.</li>
 <li><b>Pieces:</b> tap any tile with a piece in view to see what it is and how to use it.</li>
 </ul>
@@ -1259,7 +1266,7 @@ ${escapeRules()
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>
 <li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar.</li>
 <li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. Ninguém é eliminado: o Polvo e o Leviatã jogam quem já boia mais longe e viram botes (quem estava nele fica boiando). Atlântida é frágil: a partir da rodada 3, uma casa desmorona a cada rodada e o mar vai abrindo canais para dentro da ilha.</li>
-<li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Golfinho-guia resgata, Sereia rouba 1 cristal, Colosso de coral põe uma cúpula.</li>
+<li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Laço rouba a Princesa, Sereia rouba 1 cristal, Colosso de coral põe uma cúpula.</li>
 <li><b>Tesouros:</b> pisar numa casa fechada ou entrar numa afundada (revelada pelo terremoto) mostra a peça. Cristal, Tridente e Maré calma são pegos na hora e a casa vira Ruína. A Princesa do topo do Castelo vale +4 quando estiver a bordo do seu navio.</li>
 <li><b>Peças:</b> toque em qualquer casa com uma peça à vista para ver o que é e como usar.</li>
 </ul>

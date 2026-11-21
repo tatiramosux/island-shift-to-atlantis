@@ -7,7 +7,7 @@ import { Models } from './models';
 import { buildSummon } from './summons';
 import { buildNereus } from './legends';
 
-export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'triton' | 'dolphin' | 'siren' | 'colossus';
+export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'triton' | 'lasso' | 'siren' | 'colossus';
 
 let cache: Record<IconName, string> | null = null;
 
@@ -54,7 +54,7 @@ export const icons = (): Record<IconName, string> => {
     guardian: shoot(buildNereus(models).root), // a face da Sentinela agora é o Nereu
     surge: shoot(crystal),
     triton: shoot(buildSummon(models, 'triton')),
-    dolphin: shoot(buildSummon(models, 'dolphin')),
+    lasso: shoot(buildSummon(models, 'lasso')),
     siren: shoot(buildSummon(models, 'siren')),
     colossus: shoot(buildSummon(models, 'colossus')),
   };

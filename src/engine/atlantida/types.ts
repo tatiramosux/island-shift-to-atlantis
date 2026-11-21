@@ -70,7 +70,7 @@ export interface Settings {
   floodsPerRound: number;
   actionsPerTurn: number;
   tritonCost: number;
-  dolphinCost: number;
+  lassoCost: number;
   sirenCost: number;
   colossusCost: number;
   /** o Polvo alcança construtores em casas com até este número de andares (0 = só no chão). */
@@ -93,8 +93,8 @@ export const DEFAULT_SETTINGS: Settings = {
   floodsPerRound: 4,
   actionsPerTurn: 3,
   tritonCost: 2,
-  dolphinCost: 1,
-  sirenCost: 1,
+  lassoCost: 2,
+  sirenCost: 3,
   colossusCost: 2,
   octopusReach: 1,
   ending: 'castle',
@@ -176,7 +176,8 @@ export type Action =
   /** no bote: rema até 2 casas de água, encosta numa praia ou sobe no navio do time. */
   | { type: 'row'; player: number; builderId: string; to: Hex }
   | { type: 'summon'; player: number; kind: 'triton'; builderId: string; targetId: string; distance: 1 | 2 }
-  | { type: 'summon'; player: number; kind: 'dolphin'; builderId: string; to: Hex }
+  /** Laço: rouba a princesa de um time rival (um pirata dele a até 3 casas do seu). */
+  | { type: 'summon'; player: number; kind: 'lasso'; builderId: string; targetId: string }
   | { type: 'summon'; player: number; kind: 'siren'; builderId: string; targetId: string }
   | { type: 'summon'; player: number; kind: 'colossus'; at: Hex }
   | { type: 'endActions'; player: number }

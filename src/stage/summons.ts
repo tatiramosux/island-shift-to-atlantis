@@ -1,11 +1,11 @@
 /**
- * As 4 convocações: personagens em blocos que entram em cena, agem e somem (Tritão, Golfinho-guia, Sereia, Colosso de coral).
+ * As 4 convocações: personagens em blocos que entram em cena, agem e somem (Tritão, Laço, Sereia, Colosso de coral).
  * Todos olham para +z. Provisório até a arte final.
  */
 import * as THREE from 'three';
 import type { Models } from './models';
 
-export type SummonKind = 'triton' | 'dolphin' | 'siren' | 'colossus';
+export type SummonKind = 'triton' | 'lasso' | 'siren' | 'colossus';
 
 type Draw = (g: CanvasRenderingContext2D) => void;
 const P = (g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, c: string) => {
@@ -47,26 +47,19 @@ export const buildSummon = (m: Models, kind: SummonKind): THREE.Group => {
     g.add(m.box(0.05, 0.95, 0.05, gold, 0.38, 0.1, 0.1));
     g.add(m.box(0.26, 0.05, 0.05, gold, 0.38, 1.0, 0.1));
     for (const x of [0.28, 0.38, 0.48]) g.add(m.box(0.05, 0.16, 0.05, m.solid('#ffd84a', 0.5), x, 1.04, 0.1));
-  } else if (kind === 'dolphin') {
-    // corpo azul-acinzentado com barriga branca, focinho, nadadeira e cauda
-    const body = m.solid('#5d8fc4');
-    const belly = m.solid('#e8f1fa');
-    const fin = m.solid('#4a76a8');
-    const f = face('dolphinFace', (c) => {
-      P(c, 0, 0, 16, 16, '#5d8fc4');
-      P(c, 0, 9, 16, 7, '#e8f1fa');
-      P(c, 2, 4, 3, 3, '#16243f');
-      P(c, 11, 4, 3, 3, '#16243f');
-      P(c, 3, 5, 1, 1, '#ffffff');
-      P(c, 12, 5, 1, 1, '#ffffff');
-    });
-    g.add(m.box(0.3, 0.2, 0.3, body, 0, 0.18, -0.55));
-    g.add(m.box(0.4, 0.3, 0.4, [body, body, body, belly, body, body], 0, 0.16, -0.2));
-    g.add(m.box(0.4, 0.34, 0.4, [body, body, body, belly, body, body], 0, 0.2, 0.18));
-    g.add(m.box(0.36, 0.36, 0.34, [body, body, body, belly, f, body], 0, 0.22, 0.54));
-    g.add(m.box(0.16, 0.12, 0.28, fin, 0, 0.2, 0.84));
-    g.add(m.box(0.06, 0.26, 0.2, fin, 0, 0.54, 0.0));
-    g.add(m.box(0.46, 0.06, 0.16, fin, 0, 0.3, -0.76));
+  } else if (kind === 'lasso') {
+    // laço: argola de corda feita de cubinhos, com nó embaixo e uma ponta solta
+    const rope = m.solid('#d9b062');
+    const ropeD = m.solid('#a77b3a');
+    const N = 14;
+    const R = 0.42;
+    for (let i = 0; i < N; i++) {
+      const a = (i / N) * Math.PI * 2;
+      g.add(m.box(0.14, 0.14, 0.14, i % 2 ? rope : ropeD, Math.cos(a) * R, 0.55 + Math.sin(a) * R, 0));
+    }
+    g.add(m.box(0.22, 0.22, 0.22, ropeD, 0, 0.02, 0));
+    g.add(m.box(0.1, 0.34, 0.1, rope, 0.08, -0.26, 0));
+    g.add(m.box(0.1, 0.1, 0.1, ropeD, 0.14, -0.4, 0));
   } else if (kind === 'siren') {
     // cabelo rosa comprido, concha no peito, cauda verde-água
     const pink = m.solid('#f29ac2');

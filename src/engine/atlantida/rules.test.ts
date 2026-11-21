@@ -798,7 +798,7 @@ describe('convocações', () => {
     put(s, 'p0b0', H(2, 0));
     put(s, 'p1b0', H(2, -1));
     expect(legalActions(s).some((a) => a.type === 'summon')).toBe(false);
-    s.crystals[0] = 1;
+    s.crystals[0] = 3;
     s.crystals[1] = 1;
     s = ok(s, { type: 'summon', player: 0, kind: 'siren', builderId: 'p0b0', targetId: 'p1b0' }).state;
     s.crystals[0] = 9;
@@ -836,23 +836,52 @@ describe('convocações', () => {
     expect(legalActions(s).some((a) => a.type === 'summon' && a.kind === 'triton')).toBe(false); // nem sai do lugar
   });
 
-  it('Golfinho-guia (1): leva o náufrago até 2 casas para terra de nível 0 ou 1', () => {
+  it('Laço (2): rouba a princesa de um time rival que está a até 3 casas', () => {
     let s = blank();
-    float(s, 'p0b0', H(4, -1));
-    put(s, 'p0b1', H(1, 0));
-    s.crystals[0] = 1;
-    bad(s, { type: 'summon', player: 0, kind: 'dolphin', builderId: 'p0b0', to: H(1, 0) }); // longe e ocupada
-    bad(s, { type: 'summon', player: 0, kind: 'dolphin', builderId: 'p0b0', to: H(0, 2) }); // longe demais
-    s = ok(s, { type: 'summon', player: 0, kind: 'dolphin', builderId: 'p0b0', to: H(3, -1) }).state;
-    expect(B(s, 'p0b0').status).toBe('board');
+    put(s, 'p0b0', H(1, 0));
+    put(s, 'p1b0', H(1, 3)); // 3 casas
+    s.princess = { by: 1, safe: false };
+    s.crystals[0] = 2;
+    const lassos = legalActions(s).filter((a) => a.type === 'summon' && a.kind === 'lasso');
+    expect(lassos.length).toBe(1);
+    s = ok(s, { type: 'summon', player: 0, kind: 'lasso', builderId: 'p0b0', targetId: 'p1b0' }).state;
+    expect(s.princess).toEqual({ by: 0, safe: false });
     expect(s.crystals[0]).toBe(0);
   });
 
-  it('Sereia (1): rouba 1 cristal de um construtor vizinho', () => {
+  it('Laço: não serve se a princesa já está a salvo, é do próprio time, está longe ou faltam cristais', () => {
+    const base = () => {
+      const s = blank();
+      put(s, 'p0b0', H(1, 0));
+      put(s, 'p1b0', H(1, 2));
+      s.crystals[0] = 2;
+      return s;
+    };
+    const has = (s: GameState) => legalActions(s).some((a) => a.type === 'summon' && a.kind === 'lasso');
+    let s = base();
+    s.princess = { by: 1, safe: true };
+    expect(has(s)).toBe(false); // já no navio
+    s = base();
+    s.princess = { by: 0, safe: false };
+    expect(has(s)).toBe(false); // já é sua
+    s = base();
+    s.princess = null;
+    expect(has(s)).toBe(false); // ninguém está com ela
+    s = base();
+    s.princess = { by: 1, safe: false };
+    put(s, 'p1b0', H(1, 4)); // 4 casas
+    expect(has(s)).toBe(false);
+    s = base();
+    s.princess = { by: 1, safe: false };
+    s.crystals[0] = 1;
+    expect(has(s)).toBe(false); // custa 2
+  });
+
+  it('Sereia (3): rouba 1 cristal de um construtor vizinho', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
     put(s, 'p1b0', H(2, -1));
-    s.crystals[0] = 1;
+    s.crystals[0] = 3;
     s.crystals[1] = 0;
     expect(legalActions(s).some((a) => a.type === 'summon' && a.kind === 'siren')).toBe(false); // nada para roubar
     s.crystals[1] = 2;

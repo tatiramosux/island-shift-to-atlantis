@@ -76,6 +76,36 @@ describe('partida curta, média e longa', () => {
     expect(faces.size).toBeGreaterThan(0);
   });
 
+  it('Nereu que puxa um pirata do time que está com a princesa leva ela de volta ao fundo do mar', () => {
+    let lost = 0;
+    let kept = 0;
+    for (let seed = 1; seed <= 12; seed++) {
+      let s = start('short');
+      const rng = new Rng(seed);
+      for (let i = 0; i < 2500 && s.phase !== 'ended'; i++) {
+        const a = chooseAction(s, rng);
+        if (a.type === 'rollDie') s.princess = { by: i % 2, safe: false }; // a princesa vai se alternando entre os dois times
+        const before = s.princess;
+        const r = applyAction(s, a);
+        if (!r.ok) throw new Error(r.error);
+        const pull = r.events.find((e) => e.type === 'nereusPull');
+        if (pull && before) {
+          if (pull.owner === before.by) {
+            lost++;
+            expect(r.state.princess).toBeNull();
+            expect(r.events.some((e) => e.type === 'princessLost')).toBe(true);
+          } else {
+            kept++;
+            expect(r.state.princess).toEqual(before);
+          }
+        }
+        s = r.state;
+      }
+    }
+    expect(lost).toBeGreaterThan(0);
+    expect(kept).toBeGreaterThan(0);
+  }, 60000);
+
   it('curta: sem ninguém agindo, a ilha inteira vira Atlântida em 6 rodadas', () => {
     let t = start('short');
     while (t.round <= 6 && t.phase !== 'ended') {

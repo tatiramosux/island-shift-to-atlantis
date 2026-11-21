@@ -1417,7 +1417,7 @@ export class Stage3D {
   }
 
   private playSummon(e: { [k: string]: unknown }, s: GameState) {
-    const kind = e.kind as 'triton' | 'dolphin' | 'siren' | 'colossus';
+    const kind = e.kind as 'triton' | 'lasso' | 'siren' | 'colossus';
     const model = buildSummon(this.models, kind);
     const at = (h: Hex) => {
       const w = worldOf(h);
@@ -1437,18 +1437,22 @@ export class Stage3D {
       this.burst(base.x, base.y + 0.2, base.z, '#f29ac2', 14, 0.15);
       return;
     }
-    if (kind === 'dolphin') {
-      const a = at(e.from as Hex);
-      const b = at(e.to as Hex);
-      model.scale.setScalar(1.1);
-      const yaw = Math.atan2(b.x - a.x, b.z - a.z);
-      this.addFx(model, 1.1, 0, (p) => {
-        model.position.lerpVectors(a, b, p);
-        model.position.y += Math.sin(p * Math.PI) * 1.4 + 0.15;
-        model.rotation.set(-Math.cos(p * Math.PI) * 0.6, yaw, 0);
+    if (kind === 'lasso') {
+      // a argola voa do pirata que laça até o pirata do time rival, aperta e volta trazendo a princesa
+      const from = at(e.by as Hex).add(new THREE.Vector3(0, 1.0, 0));
+      const to = at(e.at as Hex).add(new THREE.Vector3(0, 1.1, 0));
+      const ease = (x: number) => x * x * (3 - 2 * x);
+      const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+      this.addFx(model, 1.5, 0, (p) => {
+        const out = ease(clamp01(p / 0.38));
+        const back = ease(clamp01((p - 0.68) / 0.32));
+        model.position.lerpVectors(from, to, out - back);
+        model.position.y += Math.sin(clamp01(p / 0.38) * Math.PI) * 0.6;
+        model.rotation.set(0, this.az > 0 ? Math.PI / 2 - this.az : 0, p * 16);
+        model.scale.setScalar(p < 0.38 ? 1.1 : p < 0.68 ? 1.1 - 0.45 * ((p - 0.38) / 0.3) : 0.65 + 0.4 * back);
       });
-      this.burst(a.x, a.y, a.z, '#bfe6f5', 12, 0);
-      this.burst(b.x, b.y, b.z, '#bfe6f5', 12, 0.95);
+      this.burst(to.x, to.y - 0.3, to.z, '#ffd23f', 12, 0.5, 1.8);
+      this.burst(from.x, from.y - 0.4, from.z, '#ffd23f', 8, 1.1, 1.4);
       return;
     }
     // Tritão e Sereia aparecem ao lado do construtor, voltados para o alvo

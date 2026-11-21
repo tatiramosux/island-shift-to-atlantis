@@ -97,6 +97,9 @@ export const PRINCESS_BONUS = 4;
 export const TRIDENT_VALUE = 2;
 /** Casa colada na entrada do Castelo (o portão em arco do desenho fica deste lado): ali não se constrói escada. */
 export const CASTLE_GATE: Hex = hex(0, 1);
+
+/** Alcance do Laço, em casas. */
+export const LASSO_RANGE = 3;
 /** Descobrir: casa de superfície longe do Castelo (anel 2 em diante), ainda fechada e livre. */
 const waterFree = (s: GameState, h: Hex): boolean => isSea(s, h) && !isShip(s, h) && !builderAt(s, h) && !creatureAt(s, h);
 
@@ -529,12 +532,12 @@ export const legalActions = (s: GameState): Action[] => {
         }
       }
     }
-    if (cr >= st.dolphinCost) {
+    if (cr >= st.lassoCost && s.princess && !s.princess.safe && s.princess.by !== p) {
+      // Laço: a princesa está com um time rival e ainda não chegou ao navio; qualquer pirata dele a até 3 casas serve de alvo
       for (const b of mine) {
-        if (b.status !== 'floating') continue;
-        for (const c of hexDisk(b.hex!, 2)) {
-          const cell = cellAt(s, c);
-          if (cell && landFree(s, c) && cell.floors <= 1) out.push({ type: 'summon', player: p, kind: 'dolphin', builderId: b.id, to: c });
+        if (b.status !== 'board') continue;
+        for (const t of s.builders) {
+          if (t.owner === s.princess.by && t.status === 'board' && t.hex && hexDistance(b.hex!, t.hex) <= LASSO_RANGE) out.push({ type: 'summon', player: p, kind: 'lasso', builderId: b.id, targetId: t.id });
         }
       }
     }
@@ -1039,13 +1042,13 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         ev.push({ type: 'summon', kind: 'triton', targetId: t.id, by: b.hex, from: t.hex, to, falls });
         t.hex = to;
         if (falls) t.status = 'floating';
-      } else if (a.kind === 'dolphin') {
-        s.crystals[a.player] -= st.dolphinCost;
+      } else if (a.kind === 'lasso') {
+        s.crystals[a.player] -= st.lassoCost;
         const b = s.builders.find((x) => x.id === a.builderId)!;
-        ev.push({ type: 'summon', kind: 'dolphin', builderId: b.id, from: b.hex, to: a.to });
-        b.hex = a.to;
-        b.status = 'board';
-        enter(s, b, ev);
+        const t = s.builders.find((x) => x.id === a.targetId)!;
+        const prev = s.princess!.by;
+        s.princess = { by: a.player, safe: false }; // a coroa (e os pontos, quando ela chegar ao navio) passam para quem laçou
+        ev.push({ type: 'summon', kind: 'lasso', by: b.hex, at: t.hex, from: prev, to: a.player });
       } else if (a.kind === 'siren') {
         s.crystals[a.player] -= st.sirenCost;
         const t = s.builders.find((x) => x.id === a.targetId)!;
@@ -1092,6 +1095,11 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         if (prey.length) {
           const b = prey[Math.floor(rand(s) * prey.length)];
           ev.push({ type: 'nereusPull', builderId: b.id, owner: b.owner, from: b.hex });
+          if (s.princess && !s.princess.safe && s.princess.by === b.owner) {
+            // Nereu leva a princesa de volta ao fundo do mar: o time perde a coroa e os 4 pontos, e ninguém mais a resgata
+            ev.push({ type: 'princessLost', owner: b.owner });
+            s.princess = null;
+          }
           dropIntoWater(s, b, ev);
         } else ev.push({ type: 'nereusSleeps' });
         endTurn(s, ev);
