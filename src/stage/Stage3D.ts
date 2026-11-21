@@ -11,9 +11,6 @@ import { FLOOR_H, HEX_R, buildCastle, buildCastleTier, buildLevel, buildMarbleBa
 import { Models } from './models';
 import { buildSummon } from './summons';
 
-/** Zoom inicial da partida: um pouco afastado para caberem a ilha e os navios dos times. */
-/** Zoom da partida: no celular (tela estreita) mais perto; em tela larga o tabuleiro e os navios precisam caber. */
-const gameZoom = () => (innerWidth < 760 ? 1.32 : 0.82);
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
 export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'treasure' | 'wave' | 'both';
@@ -50,6 +47,10 @@ interface Entity {
   spinZ?: number;
   zzz?: THREE.Group; // os Z de quando o personagem dorme
   bubble?: THREE.Sprite; // balão "homem ao mar!" de quem boia
+  idle?: { kind: 'look' | 'scratch' | 'spy' | 'watch'; t0: number; dur: number }; // movimento de espera em andamento
+  idleNext?: number;
+  cparts?: { tentacles?: THREE.Object3D[]; flag?: THREE.Object3D; levi?: { head: THREE.Object3D; jaw: THREE.Object3D; tail: THREE.Object3D } } | null; // partes animáveis do Polvo e do Leviatã
+  props?: { spy: THREE.Group; watch: THREE.Group }; // luneta e relógio de bolso, que aparecem na mão esquerda
   shouting?: boolean;
 }
 
@@ -75,6 +76,24 @@ export class Stage3D {
   private shimmers: { obj: THREE.Object3D; phase: number }[] = [];
   private azTarget: number | null = null; // a câmera gira sozinha até esse ângulo, pelo caminho mais curto
   private zoom = 1;
+  private insetTop = 0; // altura da barra de cima e da de baixo (a partida enquadra o tabuleiro no espaço livre entre elas)
+  private insetBottom = 0;
+  private autoZoom = 0;
+  /** Zoom de partida: no celular mais perto; no desktop cresce com o espaço livre entre as barras, para o tabuleiro e os navios aparecerem inteiros. */
+  private gameZoomNow(): number {
+    if (innerWidth < 760) return (this.autoZoom = 1.32);
+    const h = this.host.clientHeight || 460;
+    const free = Math.max(200, h - this.insetTop - this.insetBottom);
+    return (this.autoZoom = Math.max(0.6, Math.min(1.25, 0.82 * 1.12 * (free / 650))));
+  }
+  /** As barras do jogo avisam a altura delas: o tabuleiro fica centralizado no espaço livre. */
+  setInsets(top: number, bottom: number) {
+    if (top === this.insetTop && bottom === this.insetBottom) return;
+    this.insetTop = top;
+    this.insetBottom = bottom;
+    if (!this.home && Math.abs(this.zoom - this.autoZoom) < 0.001) this.zoom = this.gameZoomNow(); // quem não mexeu no zoom acompanha o enquadramento
+    this.resize();
+  }
   private raf = 0;
   private clock = new THREE.Clock();
   /** céu: 0 = dia, 0.5 = entardecer, 1 = noite. Segue a parte da ilha que já virou Atlântida (suavizado em `tick`). */
@@ -91,6 +110,7 @@ export class Stage3D {
     private host: HTMLElement,
     private onPick: (h: Hex, clientX: number, clientY: number) => void,
   ) {
+    void document.fonts?.load('68px Bangers'); // a letra dos balões chega antes do primeiro balão
     this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     this.renderer.setClearColor(0x2a6fba);
@@ -249,7 +269,7 @@ export class Stage3D {
       const ppu = h / 2 / half; // pixels por unidade do mundo com zoom 1
       this.zoom = Math.max(0.28, Math.min(1.15, (free * (w / h > 1.2 ? 0.48 : 0.6)) / (4.4 * ppu))); // no desktop a ilha pode ser maior
       this.shift = Math.max(0.12, Math.min(0.42, (h / 2 - free / 2) / h));
-    } else this.shift = w < 760 ? 0.06 : 0.1; // na partida, sobe o tabuleiro para a barra de baixo não cobrir
+    } else this.shift = w < 760 ? 0.06 : (this.insetBottom - this.insetTop) / (2 * h) + 0.02; // desktop: centralizado entre as barras (com um respiro para o aviso de baixo)
     this.cam.left = -half * (w / h);
     this.cam.right = half * (w / h);
     this.cam.top = half;
@@ -275,7 +295,7 @@ export class Stage3D {
   /** Tela inicial: o tabuleiro sobe na tela e fica um pouco menor, para o logo e o painel ficarem embaixo. */
   setHomeMode(on: boolean) {
     this.home = on;
-    this.zoom = on ? 0.8 : gameZoom();
+    this.zoom = on ? 0.8 : this.gameZoomNow();
     if (on) {
       // volta ao centro: o arrastar/zoom de uma partida anterior não pode deixar a ilha torta, nem o céu de entardecer
       this.target.set(0, 0, 0);
@@ -297,7 +317,7 @@ export class Stage3D {
   }
   resetView() {
     this.azTarget = FRONT_AZ;
-    this.zoom = gameZoom();
+    this.zoom = this.gameZoomNow();
     this.target.set(0, 0, 0);
     this.resize();
   }
@@ -456,9 +476,16 @@ export class Stage3D {
     c.width = 320;
     c.height = 220; // sobra espaço embaixo para o rabinho comprido: o balão fica longe do personagem
     const g = c.getContext('2d')!;
+    // letra de quadrinhos (Bangers, com alternativas parecidas caso a fonte ainda não tenha chegado)
+    const FONT = '"Bangers", "Luckiest Guy", "Comic Sans MS", "Chalkboard SE", cursive, sans-serif';
+    let px = 68;
+    g.font = `${px}px ${FONT}`;
+    (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '2px';
+    while (g.measureText(text).width > 270 && px > 20) g.font = `${--px}px ${FONT}`; // textos longos encolhem para caber
+    const bw = Math.min(304, Math.max(150, Math.ceil(g.measureText(text).width) + 56)); // o balão tem a largura do texto (com um respiro)
     // balão e rabinho são UM desenho só: primeiro os contornos (grossos), depois os dois preenchimentos por cima,
     // assim a linha de baixo do balão some onde o rabinho nasce e não há emenda
-    const box = () => g.roundRect(8, 8, 304, 84, 22);
+    const box = () => g.roundRect(8, 8, bw, 84, 22);
     const tail = () => {
       g.moveTo(64, 80);
       g.lineTo(46, 208);
@@ -482,12 +509,9 @@ export class Stage3D {
     tail();
     g.fill();
     g.fillStyle = color;
-    let px = 56;
-    g.font = `bold ${px}px sans-serif`;
-    while (g.measureText(text).width > 270 && px > 20) g.font = `bold ${--px}px sans-serif`; // textos longos encolhem para caber
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(text, 160, 52);
+    g.fillText(text, 8 + bw / 2, 52);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
     sp.center.set(46 / 320, 12 / 220); // a pontinha do rabinho fica no ponto da posição: ele sempre aponta para quem fala
     sp.scale.set(2.6, (2.6 * 220) / 320, 1);
@@ -510,7 +534,7 @@ export class Stage3D {
         P.root.scale.setScalar(1.25); // do tamanho dos piratas
         g.add(P.root);
         this.princessParts = P;
-        this.princessBubble = this.makeBubble('HELP!', '#d8232a');
+        this.princessBubble = this.makeBubble('HELP!', '#9e1218');
         this.princessBubble.position.set(0, 1.8, 0); // a pontinha toca acima da cabeça; o balão fica bem acima
         g.add(this.princessBubble);
         this.scene.add(g);
@@ -558,46 +582,90 @@ export class Stage3D {
     N.root.rotation.y = yaw;
     const ease = (x: number) => x * x * (3 - 2 * x);
     const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-    const T = { rise: 0.9, roar: 1.0, grab: 1.75, sink: 2.35 }; // marcos da cena (s)
-    const dur = 3.3;
+    const T = { rise: 0.9, roar: 1.0, grab: 1.7, lift: 2.2, throw: 2.65, land: 3.15, sink: 3.3 }; // marcos da cena (s)
+    const dur = 4.3;
+    const hand = new THREE.Object3D(); // o punho do braço direito: é nele que o pirata fica pendurado pela roupa
+    hand.position.set(0, -2.7, 0.1);
+    N.armR.add(hand);
     this.addFx(N.root, dur, 0, (p) => {
       const tt = p * dur;
       const rise = ease(clamp01(tt / T.rise));
       const sink = ease(clamp01((tt - T.sink) / 0.9));
       const roar = ease(clamp01((tt - T.roar) / 0.2)) * (1 - ease(clamp01((tt - (T.roar + 0.75)) / 0.3)));
-      const grab = ease(clamp01((tt - T.grab) / 0.3));
+      const reach = ease(clamp01((tt - (T.grab - 0.35)) / 0.35)); // o braço se estica para agarrar
+      const lift = ease(clamp01((tt - T.grab) / (T.lift - T.grab))); // levanta o pirata
+      const swing = ease(clamp01((tt - T.lift) / (T.throw - T.lift))); // arma o arremesso para trás
+      const hurl = ease(clamp01((tt - T.throw) / 0.3)); // e joga
       N.body.position.y = -6 + 6 * rise - 6 * sink;
       N.body.position.x = Math.sin(tt * 55) * 0.03 * roar; // treme no urro
       N.head.rotation.x = -0.4 * roar;
       N.mouth.scale.y = N.mouth.userData.baseY * (1 + 4 * roar);
       N.mouth.position.y = N.mouth.userData.posY - 0.2 * roar;
       N.armL.rotation.z = 0.15 + 0.5 * roar;
-      N.armR.rotation.x = -0.4 * roar - 1.1 * grab; // o braço direito se estica para agarrar
+      N.armR.rotation.x = -0.4 * roar - 0.9 * reach + 0.5 * lift - 1.2 * swing + 2.0 * hurl; // estica, ergue, arma e arremessa
+      N.armR.rotation.z = 0.25 * reach;
       N.trident.position.y = 0.55 + 0.7 * roar;
       N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3;
     });
-    // o punho de Nereu, no mundo (do lado do braço direito dele, de frente para a câmera)
-    const side = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw)).multiplyScalar(2.2 * SC);
-    const fwd = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)).multiplyScalar(1.1 * SC);
-    const fistX = end.x + side.x + fwd.x;
-    const fistZ = end.z + side.z + fwd.z;
     for (let i = 0; i < 4; i++) this.burst(end.x + (Math.random() - 0.5) * 1.6, 0.2, end.z + (Math.random() - 0.5) * 1.6, '#dff6ff', 8, i * 0.15, 2.4); // água se abrindo
+    const handAt = new THREE.Vector3();
     if (v) {
-      const hold = T.sink + 0.4; // até o pirata chegar à água, arrastado junto
+      // durante a cena o pirata aparece de pé, sem a boia (ela só surge quando ele cai no mar)
+      const owner = Number(v.id.charAt(1));
+      const idx = Number(v.id.slice(-1));
+      const ghost = new THREE.Group();
+      const fig = this.models.builder(owner, idx);
+      fig.scale.setScalar(1.6);
+      ghost.add(fig);
+      let gArmL: THREE.Object3D | undefined;
+      let gArmR: THREE.Object3D | undefined;
+      ghost.traverse((o) => {
+        if (o.userData.armR) {
+          gArmR = o.userData.armR;
+          gArmL = o.userData.armL;
+        }
+      });
+      v.group.visible = false;
+      const hold = T.land;
       v.script = {
         t0: this.clock.elapsedTime,
         dur: hold,
         step: (p, pos) => {
           const tt = p * hold;
-          const lift = ease(clamp01((tt - T.roar) / 0.7)); // paralisado de medo, sobe um pouco
-          const fly = ease(clamp01((tt - T.grab) / 0.4)); // voa até o punho
-          const fistY = 2.0 + N.body.position.y * SC; // o punho desce junto com Nereu
-          pos.set(start.x, start.y + 0.9 * lift, start.z);
-          if (tt >= T.grab) pos.lerpVectors(new THREE.Vector3(start.x, start.y + 0.9, start.z), new THREE.Vector3(fistX, fistY, fistZ), fly);
-          if (tt >= T.grab + 0.4) pos.set(fistX, fistY, fistZ);
-          v.spinZ = tt < T.roar ? 0 : tt < T.grab ? Math.sin(tt * 18) * 0.25 : (tt - T.grab) * 5;
+          N.root.updateMatrixWorld(true);
+          hand.getWorldPosition(handAt);
+          const base = new THREE.Vector3(start.x, start.y + 0.9 * ease(clamp01((tt - T.roar) / 0.7)), start.z); // paralisado de medo, sobe um pouco
+          const hung = new THREE.Vector3(handAt.x, handAt.y - 0.2, handAt.z); // pendurado pela roupa, logo abaixo do punho
+          pos.copy(base);
+          if (tt >= T.grab) pos.lerpVectors(base, hung, ease(clamp01((tt - T.grab) / 0.3)));
+          if (tt >= T.throw) {
+            // solto: voa em arco até a água, onde cai
+            const u = clamp01((tt - T.throw) / (T.land - T.throw));
+            const dest = new THREE.Vector3(end.x, 0.02, end.z);
+            pos.lerpVectors(hung, dest, u);
+            pos.y += Math.sin(u * Math.PI) * 1.6;
+          }
+          v.spinZ = tt < T.grab ? (tt < T.roar ? 0 : Math.sin(tt * 18) * 0.25) : tt < T.throw ? Math.sin(tt * 7) * 0.12 : (tt - T.throw) * 9; // balança pendurado; gira ao ser jogado
         },
       };
+      // o pirata "de pé" acompanha o roteiro; ao pousar some e a figura boiando (com boia) aparece
+      this.addFx(ghost, T.land, 0, (p) => {
+        const tt = p * T.land;
+        ghost.position.copy(v.group.position);
+        ghost.rotation.set(v.group.rotation.x, v.group.rotation.y, v.group.rotation.z);
+        const f = tt * 9;
+        if (gArmL && gArmR) {
+          const flail = tt >= T.roar;
+          gArmL.rotation.x = flail ? -2.6 + Math.sin(f) * 0.5 : 0;
+          gArmR.rotation.x = flail ? -2.6 + Math.sin(f + 2) * 0.5 : -0.25;
+        }
+      });
+      this.later(T.land, () => {
+        v.group.visible = true;
+        this.burst(end.x, 0.3, end.z, '#bfe6f5', 18, 0, 2.6);
+        this.burst(end.x, 0.3, end.z, '#ffffff', 8, 0.05, 1.8);
+        this.sfx?.('bigSplash');
+      });
       this.later(T.roar + 0.1, () => this.sfx?.('scream'));
       this.later(T.grab, () => this.sfx?.('whoosh'));
     }
@@ -606,11 +674,6 @@ export class Stage3D {
       this.nereusBubble(end.x, 3.5, end.z, 1.3);
       this.shake = 0.9;
       for (let i = 0; i < 5; i++) this.burst(end.x + (Math.random() - 0.5) * 2.4, 0.3, end.z + (Math.random() - 0.5) * 2.4, '#bfe6f5', 8, i * 0.08, 3);
-    });
-    this.later(T.sink + 0.4, () => {
-      this.sfx?.('bigSplash');
-      this.burst(fistX, 0.3, fistZ, '#bfe6f5', 22, 0, 2.8);
-      this.burst(fistX, 0.3, fistZ, '#ffffff', 10, 0.05, 2);
     });
   }
 
@@ -1054,7 +1117,7 @@ export class Stage3D {
   nereusLine = 'MY PRINCESS!!';
   /** Balão de fala de Nereu, sobre a cabeça dele, enquanto ele ruge. */
   private nereusBubble(x: number, y: number, z: number, secs: number) {
-    const b = this.makeBubble(this.nereusLine, '#1b4fa8');
+    const b = this.makeBubble(this.nereusLine, '#0d2f6b');
     b.scale.set(3.6, (3.6 * 220) / 320, 1);
     b.position.set(x, y, z);
     this.addFx(b, secs, 0, () => {
@@ -1446,6 +1509,105 @@ export class Stage3D {
     }
   }
 
+  /** O Polvo levanta tentáculos aos poucos, cada um no seu ritmo; o Leviatã balança a cabeça, abre a boca e ergue o rabo da água, como um réptil. */
+  private creatureIdle(e: Entity, t: number) {
+    if (e.cparts === undefined) {
+      let found: Entity['cparts'] = null;
+      e.group.traverse((o) => {
+        if (o.userData.flag) found = { flag: o.userData.flag as THREE.Object3D };
+        else if (o.userData.tentacles) found = { tentacles: o.userData.tentacles as THREE.Object3D[] };
+        else if (o.userData.levi) found = { levi: o.userData.levi as NonNullable<Entity['cparts']>['levi'] };
+      });
+      e.cparts = found;
+    }
+    const c = e.cparts;
+    if (!c) return;
+    const ph = e.phase;
+    if (c.flag) {
+      // a bandeira pirata tremula ao vento: balança de um lado para o outro e ondula um pouco
+      const f = c.flag;
+      f.rotation.y = Math.sin(t * 2.6 + ph) * 0.3 + Math.sin(t * 5.3 + ph * 2) * 0.08;
+      f.rotation.x = Math.sin(t * 4.1 + ph) * 0.05;
+      f.scale.z = 1 + Math.sin(t * 6.2 + ph) * 0.05;
+    }
+    if (c.tentacles) {
+      c.tentacles.forEach((tn, i) => {
+        const period = 3 + ((i * 0.73) % 2.5);
+        const u = ((t + ph * (i + 1)) % period) / period;
+        const env = u < 0.35 ? Math.sin((u / 0.35) * Math.PI) : 0; // de vez em quando este tentáculo se levanta
+        tn.scale.y = 1 + 1.1 * env;
+        tn.position.y = 0.16 * env;
+        tn.rotation.z = (i % 2 ? 1 : -1) * 0.5 * env * Math.sin(t * 3 + i) + Math.sin(t * 1.4 + i) * 0.05;
+      });
+    }
+    if (c.levi) {
+      const { head, jaw, tail } = c.levi;
+      head.rotation.y = Math.sin(t * 0.8 + ph) * 0.28; // olha de um lado para o outro
+      head.rotation.x = -0.05 + Math.sin(t * 0.6 + ph * 2) * 0.08;
+      const mu = (t + ph) % 6.5;
+      const open = mu < 1.8 ? Math.pow(Math.sin((mu / 1.8) * Math.PI), 2) : 0; // abre e fecha a boca de vez em quando
+      jaw.rotation.x = 0.5 * open;
+      const tv = ((t + ph * 2) % 8) / 8;
+      const lift = tv < 0.3 ? Math.sin((tv / 0.3) * Math.PI) : 0; // ergue o rabo da água e solta
+      tail.rotation.z = 0.7 * lift + Math.sin(t * 1.2 + ph) * 0.05;
+      tail.rotation.x = -0.3 * lift;
+    }
+  }
+
+  private idleStop(e: Entity) {
+    e.idle = undefined;
+    e.group.rotation.x = e.group.rotation.z = 0;
+    e.idleNext = this.clock.elapsedTime + 4 + Math.random() * 6;
+    if (e.props) e.props.spy.visible = e.props.watch.visible = false;
+  }
+
+  /** Um movimento de espera suave de vez em quando, cada pirata no seu ritmo. */
+  private idleStep(e: Entity, t: number) {
+    if (!e.props) {
+      const m = this.models;
+      const gold = m.solid('#f2c80f', 0.35);
+      const brown = m.solid('#6b3d1a');
+      const spy = new THREE.Group(); // luneta: tubo de madeira com anéis dourados
+      spy.position.set(0, -0.29, 0.02);
+      spy.add(m.box(0.05, 0.2, 0.05, brown, 0, -0.1, 0), m.box(0.07, 0.05, 0.07, gold, 0, -0.22, 0), m.box(0.04, 0.04, 0.04, gold, 0, 0.0, 0));
+      const watch = new THREE.Group(); // relógio de bolso: disco dourado com a correntinha
+      watch.position.set(0, -0.31, 0.03);
+      watch.add(m.box(0.09, 0.09, 0.02, gold, 0, 0, 0), m.box(0.06, 0.06, 0.025, m.solid('#fff7e0'), 0, 0, 0.004), m.box(0.012, 0.1, 0.012, gold, 0.03, 0.06, 0));
+      spy.visible = watch.visible = false;
+      e.armL!.add(spy, watch);
+      e.props = { spy, watch };
+    }
+    if (e.idleNext === undefined) e.idleNext = t + 2 + Math.random() * 8;
+    if (!e.idle && t >= e.idleNext) {
+      const r = Math.random();
+      const kind = r < 0.35 ? 'look' : r < 0.6 ? 'scratch' : r < 0.8 ? 'spy' : 'watch';
+      e.idle = { kind, t0: t, dur: kind === 'look' ? 2.8 : kind === 'scratch' ? 2.2 : kind === 'spy' ? 3.4 : 3 };
+    }
+    const id = e.idle;
+    if (!id) return;
+    const u = (t - id.t0) / id.dur;
+    if (u >= 1) return this.idleStop(e);
+    const k = Math.min(1, Math.min(u, 1 - u) * 6); // entra, segura e sai com suavidade
+    const kk = k * k * (3 - 2 * k);
+    e.props.spy.visible = id.kind === 'spy';
+    e.props.watch.visible = id.kind === 'watch';
+    if (id.kind === 'look') {
+      e.group.rotation.y += Math.sin(u * Math.PI * 2.4) * 0.7 * kk; // olha para um lado e para o outro
+    } else if (id.kind === 'scratch') {
+      e.armL!.rotation.x = -2.25 * kk;
+      e.armL!.rotation.z = -0.15 * kk + Math.sin(t * 15) * 0.2 * kk; // coça a cabeça
+      e.group.rotation.z = Math.sin(t * 15) * 0.02 * kk;
+    } else if (id.kind === 'spy') {
+      e.armL!.rotation.x = -1.9 * kk; // luneta no olho, varrendo o horizonte
+      e.armL!.rotation.z = (-0.1 + Math.sin(u * Math.PI * 2) * 0.22) * kk;
+      e.group.rotation.y += Math.sin(u * Math.PI * 2) * 0.3 * kk;
+    } else {
+      e.armL!.rotation.x = -1.0 * kk; // tira o relógio do bolso e olha
+      e.armL!.rotation.z = -0.1 * kk;
+      e.group.rotation.x = 0.12 * kk; // se inclina um pouco para olhar o relógio
+    }
+  }
+
   private playSummon(e: { [k: string]: unknown }, s: GameState) {
     const kind = e.kind as 'triton' | 'lasso' | 'siren' | 'colossus';
     const model = buildSummon(this.models, kind);
@@ -1660,7 +1822,7 @@ export class Stage3D {
       // quem boia grita "homem ao mar!" de tempos em tempos (cada um no seu ritmo), no mesmo estilo da princesa
       if (e.kind.endsWith('-floating')) {
         if (!e.bubble) {
-          e.bubble = this.makeBubble(this.overboardLine, '#1b4fa8');
+          e.bubble = this.makeBubble(this.overboardLine, '#0d2f6b');
           e.bubble.position.set(0, 1.6, 0);
           e.group.add(e.bubble);
         }
@@ -1691,6 +1853,10 @@ export class Stage3D {
         e.armL.rotation.x = Math.sin(t * 2 + e.phase) * 0.06;
         e.armR.rotation.x = sw < 0.7 ? -1.5 + Math.sin((sw / 0.7) * Math.PI * 3) * 0.9 : -0.25 + Math.sin(t * 2 + e.phase + 2) * 0.06;
       }
+      // movimentos de espera dos piratas em pé: olhar em volta, coçar a cabeça, luneta e relógio de bolso
+      if (e.armL && e.armR && !this.sleeping && !e.script && !e.floating && !e.kind.includes('-boat') && dist < 0.05 && t - (e.swingAt ?? -9) > 0.8) this.idleStep(e, t);
+      else if (e.idle) this.idleStop(e);
+      if (!e.armL && !e.script && (!this.sleeping || e.id.startsWith('ship'))) this.creatureIdle(e, t); // a bandeira dos navios continua ao vento mesmo com todos dormindo
       if (this.sleeping && e.armR && e.armL && !e.script && !e.kind.endsWith('-floating')) {
         // dormindo: tombado de lado, cabeça caída, respirando devagar
         e.armL.rotation.x = e.armR.rotation.x = 0.12;

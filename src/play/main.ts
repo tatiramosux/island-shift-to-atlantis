@@ -373,12 +373,19 @@ const cellOf = (a: Action): Hex | null => {
     default: return null;
   }
 };
+/** Jogadas do Polvo/Leviatã: ficar parado só vale se não houver nenhuma outra casa para onde ir. */
+const creatureMoves = (): Extract<Action, { type: 'moveCreature' }>[] => {
+  const all = legal.filter((a): a is Extract<Action, { type: 'moveCreature' }> => a.type === 'moveCreature');
+  const cr = all.length ? game.creatures.find((c) => c.type === all[0].creatureId) : undefined;
+  const moving = cr?.hex ? all.filter((a) => !hexEquals(a.to, cr.hex!)) : all;
+  return moving.length ? moving : all;
+};
 const candidates = (): Action[] => {
   if (!isHumanTurn()) return [];
   switch (game.phase) {
     case 'setup': return legal;
     case 'flood': return game.pendingFlood ? [] : legal;
-    case 'creatures': return rolling ? [] : legal.filter((a) => a.type === 'moveCreature');
+    case 'creatures': return rolling ? [] : creatureMoves();
     case 'action':
       if (portalPick) return portalPick;
       if (mode.startsWith('summon:')) return legal.filter((a) => a.type === 'summon' && a.kind === mode.slice(7));
@@ -463,6 +470,12 @@ const onCell = (h: Hex, px: number, py: number) => {
     if (acts.length) return apply(acts[0]);
     portalPick = null;
     return refresh();
+  }
+  // vez do Polvo/Leviatã: tocar fora das casas em destaque (inclusive em cima do próprio monstro) não faz nada, só avisa
+  if (game.phase === 'creatures' && game.die && !rolling && acts.length === 0) {
+    const name = CREATURE_PT[game.die];
+    toast(t(`Tap one of the highlighted tiles to move the ${name}.`, `Toque numa das casas em destaque para mover o ${name}.`));
+    return;
   }
   // casa com peça à vista: primeiro explica o que é (e oferece o botão), em vez de jogar direto
   const tile = visibleTile(h);
@@ -871,7 +884,7 @@ const renderBar = () => {
       msg.innerHTML = t('<b>Creatures:</b> roll the die to see which one moves.', '<b>Criaturas:</b> role o dado para ver qual delas se mexe.');
       ctl.append(row(btn(t('Roll the die', 'Rolar o dado'), () => apply({ type: 'rollDie', player: a }), { icon: Dices, primary: true })));
     } else if (rolling) msg.innerHTML = t('<b>Rolling the die…</b>', '<b>Rolando o dado…</b>');
-    else msg.innerHTML = t(`<b>${CREATURE_PT[game.die]}:</b> click a yellow tile. Its own tile means stay put.`, `<b>${CREATURE_PT[game.die]}:</b> clique numa casa amarela. A casa dela mesma significa ficar parada.`);
+    else msg.innerHTML = t(`<b>${CREATURE_PT[game.die]}:</b> tap one of the highlighted tiles.`, `<b>${CREATURE_PT[game.die]}:</b> toque numa das casas em destaque.`);
   }
 };
 
@@ -1027,17 +1040,18 @@ const syncVibe = () => {
 syncVibe();
 unlockAudio();
 // menu, som e tela cheia sempre à vista; uma aba com seta logo abaixo abre e recolhe o resto
+const mobileOnly = (b: HTMLButtonElement) => (b.classList.add('mobile-only'), b);
 const toolsList = document.createElement('div');
 toolsList.className = 'tools-list';
 toolsList.id = 'hud-tools';
 toolsList.append(
   musicBtn,
   vibBtn,
-  btn('', () => showRules(), { icon: BookOpen, title: t('How to play and goal', 'Como jogar e objetivo') }),
-  btn('', () => showGestures(), { icon: Pointer, title: t('How to move the board (gestures)', 'Como mexer no tabuleiro (gestos)') }),
+  mobileOnly(btn('', () => showRules(), { icon: BookOpen, title: t('How to play and goal', 'Como jogar e objetivo') })),
+  mobileOnly(btn('', () => showGestures(), { icon: Pointer, title: t('How to move the board (gestures)', 'Como mexer no tabuleiro (gestos)') })),
   btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
   btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
-  camBtn,
+  mobileOnly(camBtn),
   camera,
 );
 // o botão de menu da barra inferior abre e fecha esta lista (acima da barra); tocar fora fecha
@@ -1050,18 +1064,51 @@ const setMenuOpen = (open: boolean) => {
   menuBtn.title = open ? t('Close the menu', 'Fechar o menu') : t('Menu', 'Menu');
   menuBtn.setAttribute('aria-label', menuBtn.title);
 };
-menuBtn.onclick = () => setMenuOpen(!!tools.hidden);
+// desktop: os ícones ficam abertos na barra do topo e o ☰ abre uma lista com as ações que no celular ficam numa janela
+const desktopMq = matchMedia('(min-width: 761px)');
+const menuDrop = $('menudrop');
+const setDropOpen = (open: boolean) => {
+  menuDrop.hidden = !open;
+  menuBtn.classList.toggle('on', open);
+  menuBtn.setAttribute('aria-expanded', String(open));
+};
+menuDrop.append(
+  btn(t('How to play', 'Como jogar'), () => (setDropOpen(false), showRules()), { icon: BookOpen }),
+  btn(t('How to move the board', 'Como mexer no tabuleiro'), () => (setDropOpen(false), showGestures()), { icon: Pointer }),
+  btn(t('What happened', 'O que aconteceu'), () => (setDropOpen(false), toggleLog()), { icon: ScrollText }),
+  btn(t('Back to start', 'Voltar ao início'), () => (setDropOpen(false), leaveGame()), { icon: Menu }),
+);
+menuBtn.onclick = () => (desktopMq.matches ? setDropOpen(!!menuDrop.hidden) : setMenuOpen(!!tools.hidden));
 document.addEventListener('pointerdown', (ev) => {
   const el = ev.target as Node;
   if (!tools.hidden && !tools.contains(el) && !menuBtn.contains(el)) setMenuOpen(false);
+  if (!menuDrop.hidden && !menuDrop.contains(el) && !menuBtn.contains(el)) setDropOpen(false);
 });
 tools.append(
-  btn('', () => (setMenuOpen(false), showPause()), { icon: Menu, title: t('Game menu', 'Menu do jogo') }),
+  mobileOnly(btn('', () => (setMenuOpen(false), showPause()), { icon: Menu, title: t('Game menu', 'Menu do jogo') })),
   soundBtn,
   ...(standalone ? [] : [fsBtn]), // aberto pela Tela de Início já está em tela cheia
   toolsList,
 );
 setMenuOpen(false);
+const toolHome = tools.parentElement!; // no celular a lista mora aqui (abre abaixo da barra); no desktop vai para a barra do topo
+const placeTools = () => {
+  setDropOpen(false);
+  if (desktopMq.matches) {
+    $('toolcell').appendChild(tools);
+    tools.hidden = false;
+    camera.hidden = false; // zoom e centralizar ficam à vista
+    menuBtn.replaceChildren(icon(Menu, 20));
+    menuBtn.title = t('Menu', 'Menu');
+    menuBtn.classList.remove('on');
+  } else {
+    toolHome.appendChild(tools);
+    camera.hidden = true;
+    setMenuOpen(false);
+  }
+};
+desktopMq.addEventListener('change', placeTools);
+placeTools();
 // as barras avisam a altura delas: o aviso azul fica acima da de baixo; o menu e o placar abrem abaixo da de cima
 const dock = $('dock');
 const topbar = $('topbar');
@@ -1069,6 +1116,7 @@ const syncDock = () => {
   const st = document.getElementById('app')!.style;
   st.setProperty('--dock-h', dock.offsetHeight + 'px');
   st.setProperty('--top-h', topbar.offsetHeight + 'px');
+  stage.setInsets(topbar.offsetHeight, dock.offsetHeight);
 };
 new ResizeObserver(syncDock).observe(dock);
 new ResizeObserver(syncDock).observe(topbar);

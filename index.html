@@ -18,7 +18,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@900&family=Nunito:wght@800;900&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Cinzel+Decorative:wght@900&family=Nunito:wght@800;900&display=swap" rel="stylesheet" />
     <style>
       :root {
         --bg: #121212;
@@ -354,6 +354,23 @@
         .dock .slots, .dock .dicefaces { width: auto; max-width: none; grid-template-columns: repeat(4, 56px); gap: 6px; }
         .slot, .face { height: 46px; }
       }
+      /* menu: no celular a lista abre abaixo do ☰; no desktop os ícones ficam abertos na barra do topo e o ☰ abre uma lista de ações */
+      .toolcell { display: none; }
+      .menudrop { display: none; }
+      @media (min-width: 761px) {
+        .toolcell { display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 0 8px; }
+        .toolcell #tools { position: static; display: flex; flex-direction: row; align-items: center; gap: 2px; padding: 0; background: none; border: 0; box-shadow: none; }
+        .toolcell #tools .tools-list { display: contents; }
+        .toolcell #tools button { width: 34px; height: 34px; }
+        .toolcell #tools button + button::before { display: none; }
+        .toolcell #tools .mobile-only { display: none !important; }
+        .toolcell #tools #camera { display: flex !important; flex-direction: row; gap: 2px; margin: 0; padding: 0; border: 0; }
+        .menucell { position: relative; }
+        .menudrop { display: grid; gap: 4px; position: absolute; left: 4px; top: calc(100% + 6px); z-index: 8; min-width: 230px; padding: 6px; background: var(--glass); border: 1px solid #555; border-radius: 10px; box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4); }
+        .menudrop[hidden] { display: none; }
+        .menudrop button { justify-content: flex-start; white-space: nowrap; min-height: 40px; background: transparent; border-color: transparent; }
+        .menudrop button:hover:not(:disabled) { background: var(--card2); }
+      }
       @media (max-width: 760px) {
         .hud-tl button { width: 40px; height: 40px; }
         .cam .zoomonly { display: none; }
@@ -399,10 +416,11 @@
         </div>
         <div class="hud topbar" id="topbar">
           <div class="drow top">
-            <div class="dcell menucell"><button type="button" id="menuBtn" aria-haspopup="true" aria-controls="tools" aria-label="Menu"></button></div>
+            <div class="dcell menucell"><button type="button" id="menuBtn" aria-haspopup="true" aria-controls="tools" aria-label="Menu"></button><div class="menudrop" id="menudrop" hidden></div></div>
             <div class="dcell turncell">
           <div class="turnchip" id="turnchip"><span class="dot" id="turnDot"></span><b id="turnText"></b><span class="badge" id="turnBadge"></span></div>
             </div>
+            <div class="dcell toolcell" id="toolcell"></div>
             <div class="dcell scorecell"><h2><span data-pt="Placar">Scoreboard</span><button type="button" class="dice-help" id="helpScore" aria-label="How to read the scoreboard" data-pt-aria="Como ler o placar" aria-haspopup="dialog"></button></h2><div class="score" id="score"></div></div>
           </div>
         </div>

@@ -674,6 +674,7 @@ export class Models {
       }),
     );
     g.add(flag);
+    g.userData.flag = flag; // balança ao vento (Stage3D)
     return g;
   }
 
@@ -765,6 +766,7 @@ export class Models {
       }),
     );
     g.add(flag);
+    g.userData.flag = flag; // balança ao vento (Stage3D)
     return g;
   }
 
@@ -794,6 +796,7 @@ export class Models {
         arms.add(t);
       }
       g.add(arms);
+      g.userData.tentacles = arms.children; // para o Stage3D levantar os tentáculos de vez em quando
     } else if (type === 'leviathan') {
       // dragão-d'água roxo com listras lilás: corpo de serpente em ondas e cabeça de jacaré (focinho comprido, mandíbula com dentes, olhos no alto)
       const blue = this.solid('#6a2c9e'); // roxo: chama atenção e não se mistura com o azul da água
@@ -812,8 +815,15 @@ export class Models {
         [0.56, -0.58, 0.02, 0.3],
         [0.62, -0.18, 0.0, 0.24],
       ];
+      // a ponta da cauda é um grupo à parte, que pode se levantar da água
+      const tail = new THREE.Group();
+      tail.position.set(0.2, 0.05, -0.88);
+      const tailIn = new THREE.Group();
+      tailIn.position.set(-0.2, -0.05, 0.88);
+      tail.add(tailIn);
       let seg = 0;
       for (let i = 0; i < path.length - 1; i++) {
+        const part = i >= 3 ? tailIn : g;
         const [x0, z0, y0, s0] = path[i];
         const [x1, z1, y1, s1] = path[i + 1];
         const steps = Math.ceil(Math.hypot(x1 - x0, z1 - z0) / 0.14);
@@ -823,8 +833,8 @@ export class Models {
           const x = x0 + (x1 - x0) * t;
           const y = y0 + (y1 - y0) * t;
           const z = z0 + (z1 - z0) * t;
-          g.add(this.box(sz, sz, sz, Math.floor(seg / 2) % 2 ? light : blue, x, y, z));
-          if (seg % 3 === 0) g.add(this.box(0.08, 0.13, 0.16, red, x, y + sz - 0.02, z)); // espinho nas costas
+          part.add(this.box(sz, sz, sz, Math.floor(seg / 2) % 2 ? light : blue, x, y, z));
+          if (seg % 3 === 0) part.add(this.box(0.08, 0.13, 0.16, red, x, y + sz - 0.02, z)); // espinho nas costas
         }
       }
       // pescoço levantado, com espinhos até a cabeça
@@ -833,15 +843,28 @@ export class Models {
       g.add(this.box(0.08, 0.13, 0.16, red, 0, 0.78, 0.2));
       g.add(this.box(0.08, 0.13, 0.16, red, 0, 0.98, 0.34));
       // nadadeira da cauda
-      g.add(this.box(0.16, 0.1, 0.4, red, 0.62, 0.0, 0.1));
-      g.add(this.box(0.16, 0.34, 0.1, red, 0.62, -0.06, 0.1));
+      tailIn.add(this.box(0.16, 0.1, 0.4, red, 0.62, 0.0, 0.1));
+      tailIn.add(this.box(0.16, 0.34, 0.1, red, 0.62, -0.06, 0.1));
+      g.add(tail);
+      // cabeça: grupo que balança, com a mandíbula num grupo próprio que abre e fecha
+      const head = new THREE.Group();
+      head.position.set(0, 0.5, 0.4);
+      const hi = new THREE.Group();
+      hi.position.set(0, -0.5, -0.4);
+      head.add(hi);
+      const jaw = new THREE.Group();
+      jaw.position.set(0, 0.5, 0.68);
+      const ji = new THREE.Group();
+      ji.position.set(0, -0.5, -0.68);
+      jaw.add(ji);
+      hi.add(jaw);
       // cabeça de jacaré: crânio, focinho comprido, mandíbula e dentes
       const skull = this.textured('leviSkullRoxo', 16, 16, (c) => {
         P(c, 0, 0, 16, 16, '#6a2c9e');
         P(c, 0, 0, 16, 4, '#41186b');
         P(c, 3, 8, 3, 3, '#1e0833'); // narinas na ponta do focinho (a face da frente é a do focinho)
       });
-      g.add(this.box(0.52, 0.34, 0.44, [blue, blue, blueD, blueD, skull, blue], 0, 0.62, 0.56));
+      hi.add(this.box(0.52, 0.34, 0.44, [blue, blue, blueD, blueD, skull, blue], 0, 0.62, 0.56));
       const snout = this.textured('leviSnoutRoxo', 16, 16, (c) => {
         P(c, 0, 0, 16, 16, '#6a2c9e');
         P(c, 0, 0, 16, 5, '#41186b');
@@ -850,14 +873,14 @@ export class Models {
         P(c, 0, 12, 16, 4, '#fff7e0'); // fileira de dentes de cima
         for (const x of [1, 4, 7, 10, 13]) P(c, x, 11, 2, 1, '#fff7e0');
       });
-      g.add(this.box(0.34, 0.2, 0.62, [blue, blue, blueD, blueD, snout, blue], 0, 0.62, 0.98)); // focinho (maxila)
+      hi.add(this.box(0.34, 0.2, 0.62, [blue, blue, blueD, blueD, snout, blue], 0, 0.62, 0.98)); // focinho (maxila)
       // mandíbula de baixo, mais clara, um pouco aberta
-      g.add(this.box(0.32, 0.09, 0.58, light, 0, 0.5, 0.96));
+      ji.add(this.box(0.32, 0.09, 0.58, light, 0, 0.5, 0.96));
       // dentes dos lados (de cima e de baixo)
       for (const sx of [-0.18, 0.18])
         for (const z of [0.8, 0.94, 1.08, 1.22]) {
-          g.add(this.box(0.05, 0.09, 0.06, cream, sx, 0.54, z));
-          g.add(this.box(0.05, 0.07, 0.06, cream, sx * 0.9, 0.59, z + 0.05));
+          ji.add(this.box(0.05, 0.09, 0.06, cream, sx, 0.54, z));
+          hi.add(this.box(0.05, 0.07, 0.06, cream, sx * 0.9, 0.59, z + 0.05));
         }
       // olhos saltados no alto da cabeça, como os de um jacaré
       const eye = this.textured('leviEye', 16, 16, (c) => {
@@ -865,8 +888,10 @@ export class Models {
         P(c, 5, 3, 6, 10, '#1e0833'); // pupila vertical
       });
       for (const sx of [-0.19, 0.19]) {
-        g.add(this.box(0.16, 0.14, 0.16, [blue, blue, blue, blue, eye, blue], sx, 0.94, 0.52));
+        hi.add(this.box(0.16, 0.14, 0.16, [blue, blue, blue, blue, eye, blue], sx, 0.94, 0.52));
       }
+      g.add(head);
+      g.userData.levi = { head, jaw, tail };
       g.children.forEach((c) => (c.position.z -= 0.1)); // centra o monstro na casa
     } else {
       // Sentinela: troll de pedra com chifres, curvado, braços compridos até o chão. Parado, os olhos ficam apagados;
