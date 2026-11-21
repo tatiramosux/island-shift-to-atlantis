@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -1210,33 +1210,107 @@ const NEREUS_ANGRY = `<svg viewBox="0 0 120 130" width="150" height="162" aria-h
 </svg>`;
 
 /** Painel final: cabeça do capitão que venceu piscando (ou Nereu furioso se ninguém venceu), pontos de cada time e, para o vencedor, confete. */
+const fmtTime = (ms: number): string => {
+  const sec = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+};
+
+/** Rosto do pirata do time, num círculo com o contorno na cor do time (só a cabeça e um pouco do peito). */
+const faceAvatar = (p: number, size: number): HTMLElement => {
+  const d = document.createElement('div');
+  d.className = 'endav';
+  d.style.setProperty('--team', teamColor(p));
+  d.style.width = d.style.height = size + 'px';
+  const img = document.createElement('img');
+  img.src = teamIcons(p)[0];
+  img.alt = '';
+  d.appendChild(img);
+  return d;
+};
+
 const showEnd = () => {
   if (!$('modal').hidden && $('modal').querySelector('.winner')) return;
   const w = game.winners ?? [];
   const iWon = w.length > 0 && w.some((p) => mine(p));
   const c = document.createElement('div');
   c.className = 'card winner ' + (w.length ? (iWon ? 'won' : 'lost') : 'nobody');
-  const why = (game.vanished
-    ? { ship: t('Escaped on the ship with the most points. The island vanished into the sea and those left behind are adrift.', 'Fugiu no navio com mais pontos. A ilha sumiu no mar e quem ficou está boiando.'), crystals: t('Even adrift (half the points count), the treasure was enough to win.', 'Mesmo à deriva (metade dos pontos conta), o tesouro foi suficiente para vencer.'), temple: '', last: '', draw: t('Nobody escaped: Nereus keeps the treasure.', 'Ninguém escapou: Nereu ficou com o tesouro.') }
-    : { ship: t('Got the whole team on the ship and escaped with the treasure.', 'Embarcou o time todo no navio e fugiu com o tesouro.'), temple: t('Reached the top of the Castle of Atlantis.', 'Chegou ao topo do Castelo de Atlântida.'), crystals: t('Gathered the most crystals by the end of the match.', 'Juntou mais cristais até o fim da partida.'), last: t('Was the last one standing.', 'Foi o último de pé.'), draw: t('Nobody was left.', 'Ninguém sobrou.') }
-  )[(game.winReason ?? 'draw') as 'ship'];
-  const head = w.length
-    ? `<div class="endhead" style="--team:${teamColor(w[0])}"><img src="${teamIcons(w[0])[0]}" alt="" width="140" height="140"></div>`
-    : `<div class="endhead nereus">${NEREUS_ANGRY}</div>`;
-  const title = w.length ? (iWon ? t('Victory!', 'Vitória!') : t('Defeat', 'Derrota')) : t('Nereus is furious!', 'Nereu está furioso!');
-  const sub = w.length ? t(`${pname(w[0])} wins!`, `${pname(w[0])} venceu!`) : t('Nobody won this time.', 'Ninguém venceu desta vez.');
-  const detail = (p: number) => {
-    const parts = [`${t('crystals', 'cristais')} ${game.crystals[p]}`, `${t('tridents', 'tridentes')} ${game.tridents[p]}×${TRIDENT_VALUE}`];
-    if (game.princess?.by === p && game.princess.safe) parts.push(`${t('Princess', 'Princesa')} +${PRINCESS_BONUS}`);
-    const adrift = game.vanished && !game.builders.some((b) => b.owner === p && b.status === 'aboard');
-    return parts.join(' · ') + (adrift ? ` · ${t('adrift: half', 'boiando: metade')}` : '');
-  };
-  const scores = Array.from({ length: game.playerCount }, (_, p) => ({ p, v: game.vanished ? finalScore(game, p) : basePoints(game, p) }))
-    .sort((a, b) => b.v - a.v)
-    .map(({ p, v }) => `<li style="--team:${teamColor(p)}" class="${w.includes(p) ? 'top' : ''}"><span>${pname(p)}<small>${detail(p)}</small></span><b>${v} ${t('pts', 'pts')}</b></li>`)
-    .join('');
-  c.innerHTML = `${head}<h3>${title}</h3><p class="sub">${sub}</p><p>${why}</p><ul class="scores">${scores}</ul>`;
-  c.appendChild(row(btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { primary: true }), btn(t('See the board', 'Ver o tabuleiro'), closeModal)));
+  const total = (p: number) => (game.vanished ? finalScore(game, p) : basePoints(game, p));
+  const ptsText = (p: number) => `${total(p)} ${t(total(p) === 1 ? 'point' : 'points', total(p) === 1 ? 'ponto' : 'pontos')}`;
+  const nameOf = (p: number) => pname(p); // o nome já traz o (você) e o (BOT)
+  const kicker = document.createElement('div');
+  kicker.className = 'endk';
+  kicker.textContent = !w.length || iWon ? t('GAME OVER', 'FIM DE JOGO') : t('YOU LOST', 'VOCÊ PERDEU');
+  c.appendChild(kicker);
+  if (w.length) {
+    // no lugar da taça: o avatar de quem venceu (se foi o bot, é o avatar do bot)
+    c.appendChild(faceAvatar(w[0], 112));
+    const pill = document.createElement('div');
+    pill.className = 'endname';
+    pill.style.setProperty('--team', teamColor(w[0]));
+    pill.innerHTML = `<span class="dot" style="background:${teamColor(w[0])}"></span><b>${nameOf(w[0])}</b><em>${ptsText(w[0])}</em>`;
+    c.appendChild(pill);
+    const sub = document.createElement('p');
+    sub.className = 'endsub';
+    sub.textContent = t('won the island!', 'venceu a ilha!');
+    c.appendChild(sub);
+  } else {
+    const rage = document.createElement('div');
+    rage.className = 'endhead nereus';
+    rage.innerHTML = NEREUS_ANGRY;
+    c.appendChild(rage);
+    const sub = document.createElement('p');
+    sub.className = 'endsub';
+    sub.textContent = t('Nereus is furious! Nobody won this time.', 'Nereu está furioso! Ninguém venceu desta vez.');
+    c.appendChild(sub);
+  }
+  if (matchStartAt) {
+    const tm = document.createElement('p');
+    tm.className = 'endtime';
+    tm.innerHTML = `${t('Match time', 'Tempo de partida')} <b>${fmtTime(Date.now() - matchStartAt)}</b>`;
+    c.appendChild(tm);
+  }
+  // os outros times: cristais, tridentes e princesa em bolinhas, e o total
+  const others = Array.from({ length: game.playerCount }, (_, p) => p).filter((p) => !w.includes(p)).sort((a, b) => total(b) - total(a));
+  if (others.length) {
+    const hr = document.createElement('hr');
+    hr.className = 'enddiv';
+    c.appendChild(hr);
+    const list = document.createElement('ul');
+    list.className = 'endlist';
+    for (const p of others) {
+      const li = document.createElement('li');
+      const who = document.createElement('span');
+      who.className = 'who';
+      who.innerHTML = `<span class="dot" style="background:${teamColor(p)}"></span>${nameOf(p)}`;
+      const chips = document.createElement('span');
+      chips.className = 'chips';
+      const chip = (ic: IconNode, n: string, title: string) => {
+        const el = document.createElement('span');
+        el.className = 'chip';
+        el.title = title;
+        el.append(icon(ic, 11), document.createTextNode(n));
+        chips.appendChild(el);
+      };
+      chip(Gem, String(game.crystals[p]), t('Crystals', 'Cristais'));
+      chip(Trident, String(game.tridents[p]), t('Tridents', 'Tridentes'));
+      if (game.princess?.by === p && game.princess.safe) chip(Crown, `+${PRINCESS_BONUS}`, t('Princess on the ship', 'Princesa no navio'));
+      const pts = document.createElement('span');
+      pts.className = 'pts';
+      pts.textContent = ptsText(p);
+      li.append(who, chips, pts);
+      list.appendChild(li);
+    }
+    c.appendChild(list);
+  }
+  const again = session.kind === 'bots' || session.kind === 'hot';
+  c.appendChild(
+    row(
+      btn(t('See the board', 'Ver tabuleiro'), closeModal),
+      again
+        ? btn(t('Play again', 'Jogar de novo'), () => (closeModal(), startLocal(session.kind as 'bots' | 'hot')), { icon: RotateCw, primary: true })
+        : btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { primary: true }),
+    ),
+  );
   modal(c);
   if (iWon) confetti();
 };
@@ -1398,8 +1472,10 @@ const showPause = () => {
 
 /* ---------- partida ---------- */
 
+let matchStartAt = 0;
 const enterGame = () => {
   inGame = true;
+  matchStartAt = Date.now();
   $('home').hidden = true;
   $('hud').hidden = false;
   closeModal();

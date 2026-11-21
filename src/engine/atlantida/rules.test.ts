@@ -470,7 +470,7 @@ describe('o Castelo se ergue sozinho', () => {
     s.actionsLeft = 9;
     for (const to of path.slice(1)) s = ok(s, { type: 'move', player: 0, builderId: 'p0b0', to }).state;
     expect(s.castleTaken).toBe(0);
-    expect(s.princess).toEqual({ by: 0, safe: false });
+    expect(s.princess).toMatchObject({ by: 0, safe: false });
   });
 });
 
@@ -845,8 +845,23 @@ describe('convocações', () => {
     const lassos = legalActions(s).filter((a) => a.type === 'summon' && a.kind === 'lasso');
     expect(lassos.length).toBe(1);
     s = ok(s, { type: 'summon', player: 0, kind: 'lasso', builderId: 'p0b0', targetId: 'p1b0' }).state;
-    expect(s.princess).toEqual({ by: 0, safe: false });
+    expect(s.princess).toMatchObject({ by: 0, safe: false });
     expect(s.crystals[0]).toBe(0);
+  });
+
+  it('Laço: o alvo é o pirata que leva a princesa, mesmo no bote ou na água, e quem laça passa a conduzi-la', () => {
+    let s = blank();
+    put(s, 'p0b0', H(1, 0));
+    put(s, 'p1b0', H(1, 2));
+    put(s, 'p1b1', H(2, 1)); // outro pirata do time rival, também perto, mas sem a princesa
+    s.princess = { by: 1, safe: false, carrier: 'p1b0' };
+    s.crystals[0] = 2;
+    const targets = legalActions(s).filter((a) => a.type === 'summon' && a.kind === 'lasso').map((a) => (a as { targetId: string }).targetId);
+    expect(targets).toEqual(['p1b0']);
+    B(s, 'p1b0').status = 'boat'; // agora o portador está num bote
+    expect(legalActions(s).some((a) => a.type === 'summon' && a.kind === 'lasso')).toBe(true);
+    s = ok(s, { type: 'summon', player: 0, kind: 'lasso', builderId: 'p0b0', targetId: 'p1b0' }).state;
+    expect(s.princess).toEqual({ by: 0, safe: false, carrier: 'p0b0' });
   });
 
   it('Laço: não serve se a princesa já está a salvo, é do próprio time, está longe ou faltam cristais', () => {
@@ -915,7 +930,7 @@ describe('como se vence', () => {
   it('o topo do Castelo resgata a princesa (sem cristal na hora) e a partida continua', () => {
     const r = climb(blank());
     expect(r.crystals[0]).toBe(0);
-    expect(r.princess).toEqual({ by: 0, safe: false });
+    expect(r.princess).toMatchObject({ by: 0, safe: false });
     expect(r.castleTaken).toBe(0);
     expect(r.phase).toBe('action');
   });

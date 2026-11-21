@@ -544,24 +544,42 @@ export class Stage3D {
       this.princessObj.visible = true;
       this.princessObj.position.set(w.x, topOf(t) + 0.05, w.z);
     }
-    // depois do resgate: ela vai ao lado do pirata do time que a salvou, até chegar ao navio
+    // depois do resgate: ela vai ao lado do pirata que a conduz (em terra, no bote ou na água) até o navio; lá chegando, fica no convés com o time
     const pr = s.princess;
-    const carrier = pr && !pr.safe && live ? s.builders.filter((b) => b.owner === pr.by && (b.status === 'board' || b.status === 'boat' || b.status === 'floating')).sort((x, y) => (x.status === 'board' ? 0 : 1) - (y.status === 'board' ? 0 : 1))[0] : undefined;
-    const host = carrier ? this.ents.get(carrier.id) : undefined;
+    let host: Entity | undefined;
+    let aboard = false;
+    if (pr && live) {
+      if (pr.safe) {
+        host = this.ents.get(`ship${pr.by}`);
+        aboard = true;
+      } else {
+        const onMap = (b: GameState['builders'][number]) => b.status === 'board' || b.status === 'boat' || b.status === 'floating';
+        const carrier =
+          s.builders.find((b) => b.id === pr.carrier && onMap(b)) ??
+          s.builders.filter((b) => b.owner === pr.by && onMap(b)).sort((x, y) => (x.status === 'board' ? 0 : 1) - (y.status === 'board' ? 0 : 1))[0];
+        host = carrier ? this.ents.get(carrier.id) : undefined;
+      }
+    }
     if (!host) {
       this.princessCarry?.removeFromParent();
       return;
     }
     if (!this.princessCarry) {
-      this.princessCarry = buildPrincess(this.models).root;
+      const P = buildPrincess(this.models);
+      this.princessCarry = P.root;
+      this.princessCarryParts = P;
       this.princessCarry.scale.setScalar(1.25);
     }
     if (this.princessCarry.parent !== host.group) {
       this.princessCarry.removeFromParent();
       host.group.add(this.princessCarry);
     }
-    this.princessCarry.position.set(0.5, 0, 0.1);
+    this.princessAboard = aboard;
+    if (aboard) this.princessCarry.position.set(0.1, 0.55, 0.0); // no convés do navio do time
+    else this.princessCarry.position.set(0.5, 0, 0.1);
   }
+  private princessCarryParts: ReturnType<typeof buildPrincess> | null = null;
+  private princessAboard = false;
 
   /* ---------- Nereu: no fim, quando Atlântida afunda, o deus do mar surge, ruge e some ---------- */
 
@@ -1743,6 +1761,13 @@ export class Stage3D {
       rec.group.scale.y = rec.from + (1 - rec.from) * ease;
     }
     this.seaTime.value = t;
+    if (this.princessCarry?.parent && this.princessCarryParts) {
+      // conduzida: segura firme; a salvo no navio: acena feliz
+      const P = this.princessCarryParts;
+      const wave = this.princessAboard ? 0.9 : 0.15;
+      P.armL.rotation.z = 0.5 + Math.sin(t * 8) * 0.3 * wave;
+      P.armR.rotation.z = -0.5 - Math.sin(t * 8 + 1) * 0.3 * wave;
+    }
     if (this.princessObj?.visible && this.princessParts) {
       this.princessObj.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az)) + Math.sin(t * 1.4) * 0.25; // olha para a câmera e balança
       const P = this.princessParts;

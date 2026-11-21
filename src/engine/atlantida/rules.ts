@@ -327,7 +327,7 @@ const enter = (s: GameState, b: Builder, ev: GameEvent[]) => {
   if (c.state === 'island' && !c.temple && c.ring >= 2 && !c.dug && c.tile && c.tile !== 'hidden') unearth(s, b, c, ev); // pisar descobre
   if (c.temple && c.floors === MAX_FLOORS && s.castleTaken === null) {
     s.castleTaken = b.owner;
-    s.princess = { by: b.owner, safe: false }; // no topo do Castelo estava a princesa: agora ela acompanha o time
+    s.princess = { by: b.owner, safe: false, carrier: b.id }; // no topo do Castelo estava a princesa: agora ela acompanha o time, nas mãos de quem a resgatou
     ev.push({ type: 'castleCrystal', owner: b.owner, hex: c.hex, value: 0 });
   }
   if (c.state !== 'atlantis') return;
@@ -533,12 +533,14 @@ export const legalActions = (s: GameState): Action[] => {
       }
     }
     if (cr >= st.lassoCost && s.princess && !s.princess.safe && s.princess.by !== p) {
-      // Laço: a princesa está com um time rival e ainda não chegou ao navio; qualquer pirata dele a até 3 casas serve de alvo
+      // Laço: a princesa está com um time rival e ainda não chegou ao navio; o alvo é o pirata que a leva (ou, sem ele, qualquer pirata do time)
+      // a até 3 casas, em terra, no bote ou na água
+      const onMap = (x: Builder) => (x.status === 'board' || x.status === 'boat' || x.status === 'floating') && !!x.hex;
+      const carrier = s.builders.find((x) => x.id === s.princess!.carrier && x.owner === s.princess!.by && onMap(x));
+      const targets = carrier ? [carrier] : s.builders.filter((x) => x.owner === s.princess!.by && onMap(x));
       for (const b of mine) {
-        if (b.status !== 'board') continue;
-        for (const t of s.builders) {
-          if (t.owner === s.princess.by && t.status === 'board' && t.hex && hexDistance(b.hex!, t.hex) <= LASSO_RANGE) out.push({ type: 'summon', player: p, kind: 'lasso', builderId: b.id, targetId: t.id });
-        }
+        if ((b.status !== 'board' && b.status !== 'boat') || !b.hex) continue;
+        for (const t of targets) if (hexDistance(b.hex, t.hex!) <= LASSO_RANGE) out.push({ type: 'summon', player: p, kind: 'lasso', builderId: b.id, targetId: t.id });
       }
     }
     if (cr >= st.sirenCost) {
@@ -1047,7 +1049,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
         const b = s.builders.find((x) => x.id === a.builderId)!;
         const t = s.builders.find((x) => x.id === a.targetId)!;
         const prev = s.princess!.by;
-        s.princess = { by: a.player, safe: false }; // a coroa (e os pontos, quando ela chegar ao navio) passam para quem laçou
+        s.princess = { by: a.player, safe: false, carrier: b.id }; // a coroa (e os pontos, quando ela chegar ao navio) passam para quem laçou, que agora a conduz
         ev.push({ type: 'summon', kind: 'lasso', by: b.hex, at: t.hex, from: prev, to: a.player });
       } else if (a.kind === 'siren') {
         s.crystals[a.player] -= st.sirenCost;

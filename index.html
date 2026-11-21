@@ -252,18 +252,30 @@
       .modal h3 { margin: 0 0 10px; font-size: 20px; }
       .modal p, .modal li { line-height: 1.5; font-size: 14px; color: #dedede; }
       .modal ul { padding-left: 18px; margin: 6px 0 12px; }
-      .winner { text-align: center; }
-      .winteam { display: flex; justify-content: center; gap: 6px; margin: -6px auto 8px; padding: 6px 14px; width: fit-content; border-radius: 999px; background: color-mix(in srgb, var(--team) 38%, transparent); border: 2px solid var(--team); }
-      .winteam img { width: 84px; height: 84px; object-fit: contain; filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.45)); }
-      .winner h3 { font-size: 30px; color: var(--accent); }
-      .endhead { display: flex; justify-content: center; margin: -6px auto 6px; animation: headBlink 0.9s steps(1, end) infinite; filter: drop-shadow(0 0 14px var(--team, #ff7a3d)); }
-      .endhead img { width: 140px; height: 140px; object-fit: contain; image-rendering: pixelated; }
+      /* fim de partida: título pequeno, avatar de quem venceu, nome e pontos em pílula, tempo, os outros times e dois botões */
+      .winner { text-align: center; width: min(360px, 100%); }
+      .endk { font-size: 11px; font-weight: 800; letter-spacing: 0.14em; color: var(--accent); margin: 2px 0 12px; }
+      .winner.lost .endk { color: #8ab4ff; }
+      .winner.nobody .endk { color: #ff8b7a; }
+      .endav { position: relative; margin: 0 auto 12px; border-radius: 50%; border: 4px solid var(--team, #fff); background: radial-gradient(circle at 50% 35%, #3d7db8, #1d4a75); overflow: hidden; box-shadow: 0 0 22px color-mix(in srgb, var(--team, #fff) 55%, transparent); }
+      .endav img { position: absolute; width: 169%; height: 169%; left: -34.5%; top: -11%; max-width: none; image-rendering: pixelated; }
+      .endname { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 999px; border: 2px solid var(--team); background: color-mix(in srgb, var(--team) 14%, #1a1a1a); box-shadow: 0 0 16px color-mix(in srgb, var(--team) 40%, transparent); }
+      .endname b { font-size: 18px; }
+      .endname em { font-style: normal; font-weight: 800; font-size: 13px; color: var(--accent); }
+      .endsub { margin: 10px 0 4px; font-size: 14px; color: #dedede; }
+      .endtime { margin: 0; font-size: 11px; color: var(--muted); }
+      .endtime b { color: #fff; }
+      .enddiv { border: 0; border-top: 1px solid #3a3a3a; margin: 14px 12px 10px; }
+      .endlist { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 8px; }
+      .endlist li { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 0 6px; }
+      .endlist .who { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; flex: 1; text-align: left; }
+      .endlist .chips { display: inline-flex; gap: 4px; }
+      .endlist .chip { display: inline-flex; align-items: center; gap: 2px; min-width: 22px; height: 22px; padding: 0 6px; justify-content: center; border-radius: 999px; background: #fff; color: #1a1a1a; font-size: 11px; font-weight: 800; }
+      .endlist .pts { min-width: 64px; text-align: right; color: #dedede; }
+      .winner .actions { margin-top: 4px; }
+      .endhead { display: flex; justify-content: center; margin: -6px auto 6px; }
       .endhead.nereus { animation: nereusRage 0.18s linear infinite; --team: #ff2a2a; }
-      @keyframes headBlink { 0%, 100% { opacity: 1; transform: scale(1.04); } 50% { opacity: 0.25; transform: scale(0.97); } }
       @keyframes nereusRage { 0% { transform: translate(0, 0) rotate(-1deg); } 50% { transform: translate(2px, -2px) rotate(1deg); } 100% { transform: translate(-2px, 1px) rotate(-1deg); } }
-      .winner.lost .endhead { animation-duration: 1.6s; filter: grayscale(0.4) drop-shadow(0 0 8px var(--team)); }
-      .winner .sub { font-size: 20px; font-weight: 700; margin: 2px 0 8px; }
-      .winner.nobody h3 { color: #ff6a5a; }
       .scores { list-style: none; padding: 0; margin: 10px auto 14px; width: min(320px, 100%); display: grid; gap: 6px; }
       .scores li small { display: block; font-size: 11px; color: #cfe3f7; font-weight: 400; }
       .scores li { display: flex; justify-content: space-between; align-items: center; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--team) 26%, transparent); border: 2px solid var(--team); }

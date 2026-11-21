@@ -133,7 +133,8 @@ export interface GameState {
   /** O Castelo já se ergueu sozinho (3 andares, torres e escadas) quando despertou. */
   castleRisen?: boolean;
   /** A princesa do Castelo: quem a resgatou e se já está a salvo no navio (aí vale o bônus). */
-  princess: { by: number; safe: boolean } | null;
+  /** `carrier`: o pirata que a leva (quem a resgatou ou laçou); é ele que conduz a princesa até o navio. */
+  princess: { by: number; safe: boolean; carrier?: string } | null;
   /** fase final: lado (0 a 5) de onde vem a próxima onda gigante, avisado uma rodada antes; null = nenhuma à vista. */
   wave?: number | null;
   /** final por fuga: time que chegou primeiro ao navio (a ilha some quando a vez volta a ele); undefined = ninguém ainda. */
