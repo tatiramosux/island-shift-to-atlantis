@@ -2,6 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
+import { inject } from '@vercel/analytics';
 import { ArrowRight, BookOpen, Bot, X, Footprints, Hand, Shovel, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
@@ -1680,6 +1681,9 @@ const renderHome = (notice = '') => {
 };
 
 /* ---------- início ---------- */
+
+// Initialize Vercel Web Analytics
+inject();
 
 // textos fixos do index.html: ficam em inglês no HTML e trocam para português quando esse idioma está escolhido
 document.documentElement.lang = getLang() === 'pt' ? 'pt-BR' : 'en';
