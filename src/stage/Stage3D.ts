@@ -247,7 +247,7 @@ export class Stage3D {
       const above = lg ? lg.getBoundingClientRect().top - 8 : h - (500 + (h > 820 ? 70 : 0));
       const free = Math.max(100, above);
       const ppu = h / 2 / half; // pixels por unidade do mundo com zoom 1
-      this.zoom = Math.max(0.28, Math.min(1, (free * 0.6) / (4.4 * ppu)));
+      this.zoom = Math.max(0.28, Math.min(1.15, (free * (w / h > 1.2 ? 0.48 : 0.6)) / (4.4 * ppu))); // no desktop a ilha pode ser maior
       this.shift = Math.max(0.12, Math.min(0.42, (h / 2 - free / 2) / h));
     } else this.shift = w < 760 ? 0.06 : 0.1; // na partida, sobe o tabuleiro para a barra de baixo não cobrir
     this.cam.left = -half * (w / h);
@@ -426,7 +426,9 @@ export class Stage3D {
     this.skyTarget = this.home ? 0 : sc.state.vanished ? 1 : islandProgress(sc.state);
     if (sc.state.vanished && !this.vanishAt) {
       this.vanishAt = performance.now();
-      this.playNereus();
+      // se a princesa ainda esperava no Castelo, ela pula e o Nereu a pega
+      const c0 = this.princessObj?.visible ? sc.state.cells['0,0'] : undefined;
+      this.playNereus(c0 ? topOf(c0) + 0.05 : null);
     }
     if (!sc.state.vanished && this.vanishAt) {
       this.vanishAt = 0; // nova partida: a ilha volta ao lugar
@@ -612,7 +614,7 @@ export class Stage3D {
     });
   }
 
-  private playNereus() {
+  private playNereus(princessY: number | null = null) {
     const N = buildNereus(this.models);
     const delay = 2.0;
     const dur = 4.4;
@@ -640,6 +642,34 @@ export class Stage3D {
       N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3; // a nadadeira balança, e mais forte no urro
       N.trident.rotation.z = -0.05 * roar;
     });
+    if (princessY !== null) {
+      // a princesa, ainda no topo do Castelo que afunda, pula para a mão do Nereu e é levada com ele
+      const P = buildPrincess(this.models);
+      const root = new THREE.Group();
+      P.root.scale.setScalar(1.25);
+      root.add(P.root);
+      const hand = new THREE.Vector3();
+      const start = new THREE.Vector3();
+      const jumpAt = 0.95;
+      const landAt = 1.6;
+      this.addFx(root, delay + dur, 0, (p) => {
+        const tt = p * (delay + dur) - delay; // 0 = Nereu começa a subir; antes disso ela já espera no Castelo
+        root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az));
+        N.armL.getWorldPosition(hand);
+        hand.y += 0.35;
+        const waiting = tt < jumpAt;
+        P.armL.rotation.z = 0.55 + Math.sin(tt * 9) * 0.3;
+        P.armR.rotation.z = -0.55 - Math.sin(tt * 9 + 1) * 0.3;
+        if (waiting) {
+          start.set(0, princessY + this.cellsGroup.position.y, 0); // acompanha o Castelo afundando
+          root.position.copy(start);
+          return;
+        }
+        const k = Math.min(1, (tt - jumpAt) / (landAt - jumpAt));
+        root.position.lerpVectors(start, hand, k * k * (3 - 2 * k));
+        root.position.y += Math.sin(k * Math.PI) * 1.2; // arco do pulo
+      });
+    }
     // água em volta quando surge e quando ruge; tremor de câmera durante o urro; o som sai junto
     for (let i = 0; i < 4; i++) this.burst((Math.random() - 0.5) * 2.4, 0.2, (Math.random() - 0.5) * 2.4, '#dff6ff', 8, delay + 0.2 + i * 0.2, 2.6);
     this.later(delay + 1.55, () => {
@@ -1630,7 +1660,7 @@ export class Stage3D {
       // quem boia grita "homem ao mar!" de tempos em tempos (cada um no seu ritmo), no mesmo estilo da princesa
       if (e.kind.endsWith('-floating')) {
         if (!e.bubble) {
-          e.bubble = this.makeBubble(this.overboardLine, '#d9481c');
+          e.bubble = this.makeBubble(this.overboardLine, '#1b4fa8');
           e.bubble.position.set(0, 1.6, 0);
           e.group.add(e.bubble);
         }

@@ -1417,16 +1417,23 @@ const demoGame = () => {
  */
 const cacheKey = () => {
   const v = $('view');
-  return `r7|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
+  return `r10|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
 };
 const placeHomeShips = () => {
   if (inGame) return;
   const v = $('view');
   const portrait = v.clientWidth / Math.max(1, v.clientHeight) < 0.9;
-  // o navio da esquerda fica na fileira 5 (2 casas de mar de folga até a ilha, perto como o do bot); o 1º fica fora da tela
+  // o 1º navio fica fora da tela; no celular o da esquerda fica na fileira 5 (2 casas de mar de folga até a ilha, perto como o do bot)
+  // desktop: os dois navios ficam a 2 casas de mar da ilha (fileira 5), um no canto de cima à esquerda e outro embaixo à direita,
+  // medidos em relação ao tamanho da ilha na tela (assim valem para qualquer formato de janela)
+  const hc = stage.homeScreenOf({ q: 0, r: 0 });
+  const rim = [] as { x: number; y: number }[];
+  for (let q = -3; q <= 3; q++) for (let r = -3; r <= 3; r++) if (Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) === 3) rim.push(stage.homeScreenOf({ q, r }));
+  const hw = (Math.max(...rim.map((v) => v.x)) - Math.min(...rim.map((v) => v.x))) / 2;
+  const hh = (Math.max(...rim.map((v) => v.y)) - Math.min(...rim.map((v) => v.y))) / 2;
   const spots: { x: number; y: number; ring?: number }[] = portrait
     ? [{ x: -1.5, y: 0.2 }, { x: 0.1, y: 0.1, ring: 5 }, { x: 0.82, y: 0.29 }]
-    : [{ x: -1.5, y: 0.2 }, { x: 0.12, y: 0.4, ring: 5 }, { x: 0.91, y: 0.51 }];
+    : [{ x: -1.5, y: 0.2 }, { x: hc.x - 1.28 * hw, y: hc.y - 0.7 * hh, ring: 5 }, { x: hc.x + 0.88 * hw, y: hc.y + 0.35 * hh, ring: 5 }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)
