@@ -143,7 +143,7 @@ const evText = (e: GameEvent): string | null => {
       ? t('SHIFT incoming! Next round the wave sweeps the foamy tiles: they turn into Atlantis and anyone on the ground or 1st floor falls into the sea. Towers (2nd floor or higher), domes and Shields hold.', 'SHIFT à vista! Na próxima rodada a onda varre as casas com espuma: elas viram Atlântida e quem estiver no chão ou no 1º andar cai no mar. Torres (2º andar ou mais), cúpulas e Escudos resistem.')
       : t('Giant wave ahead! Next round it sweeps the foamy tiles: anyone on the ground or 1st floor there falls into the sea.', 'Onda gigante à vista! Na próxima rodada ela varre as casas com espuma: quem estiver no chão ou no 1º andar ali cai no mar.');
     case 'wave': return (e.hit as string[]).length ? t(`The giant wave knocked ${(e.hit as string[]).map((id) => bname(id)).join(', ')} into the sea!`, `A onda gigante derrubou ${(e.hit as string[]).map((id) => bname(id)).join(', ')} no mar!`) : t('The giant wave passed and caught nobody.', 'A onda gigante passou e não pegou ninguém.');
-    case 'floodPicked': return t('The quake picked the tile marked in red. Anyone with a trident can save it.', 'O terremoto sorteou a casa marcada em vermelho. Quem tem tridente pode salvá-la.');
+    case 'floodPicked': return t('The quake picked the tile marked in red, where your pirate stands. A trident can save it.', 'O terremoto sorteou a casa marcada em vermelho, onde está o seu pirata. Um tridente pode salvá-la.');
     case 'quake': return t(`Earthquake! ${e.count} ${e.count === 1 ? 'tile is' : 'tiles are'} about to crumble and reveal Atlantis.`, `Terremoto! ${e.count} ${e.count === 1 ? 'casa vai' : 'casas vão'} se desfazer e revelar Atlântida.`);
     case 'floodCancelled': return t(`${P('by')} used the trident: the tile did not sink.`, `${P('by')} usou o tridente: a casa não afundou.`);
     case 'guardianAppears': return t('The Stone Sentinel appeared on the first Atlantis tile.', 'A Sentinela de pedra apareceu na primeira casa de Atlântida.');
@@ -858,7 +858,7 @@ const renderBar = () => {
     ctl.append(row(btn(t('End actions', 'Terminar ações'), () => apply({ type: 'endActions', player: a }), { icon: ArrowRight, primary: true })));
   } else if (game.phase === 'flood') {
     if (game.pendingFlood) {
-      msg.innerHTML = t(`<b>Tide:</b> a trident can stop the tile from sinking. You have ${game.tridents[a]}.`, `<b>Maré:</b> um tridente pode impedir que a casa afunde. Você tem ${game.tridents[a]}.`);
+      msg.innerHTML = t(`<b>Tide:</b> a trident can stop the tile under your pirate from sinking. You have ${game.tridents[a]}.`, `<b>Maré:</b> um tridente pode impedir que a casa do seu pirata afunde. Você tem ${game.tridents[a]}.`);
       ctl.append(row(btn(t('Use trident', 'Usar tridente'), () => apply({ type: 'useTrident', player: a }), { icon: Trident, primary: true }), btn(t('Let it sink', 'Deixar afundar'), () => apply({ type: 'passTrident', player: a }))));
     } else msg.innerHTML = t('<b>Quake:</b> the table is picking the tiles that sink.', '<b>Terremoto:</b> a mesa está sorteando as casas que afundam.');
   } else if (game.phase === 'creatures') {
@@ -1270,7 +1270,7 @@ ${escapeRules()
 <h4>Recursos: como usar</h4>
 <ul>
 <li><b>Cristal:</b> pise na casa para pegar. É um recurso: vale 1 ponto se guardar, e paga as Convocações (painel de baixo).</li>
-<li><b>Tridente:</b> pise para pegar; fica no placar (ícone de tridente). No terremoto, quando a mesa sorteia uma casa, aparece o botão <b>Usar tridente</b> e a casa não afunda.</li>
+<li><b>Tridente:</b> pise para pegar; fica no placar (ícone de tridente). No terremoto, só quando a casa sorteada é a do seu pirata, aparece o botão <b>Usar tridente</b> e a casa não afunda.</li>
 <li><b>Maré calma:</b> pise para pegar; o próximo terremoto é pulado.</li>
 <li><b>Portal:</b> ao entrar, escolha parar ou ir para outro Portal livre. Só funciona com 2 Portais revelados; antes disso fica cinza.</li>
 <li><b>Escudo:</b> fique em cima; o mar e as criaturas não te levam.</li>
@@ -1396,13 +1396,16 @@ const demoGame = () => {
  */
 const cacheKey = () => {
   const v = $('view');
-  return `${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
+  return `r7|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`;
 };
 const placeHomeShips = () => {
   if (inGame) return;
   const v = $('view');
   const portrait = v.clientWidth / Math.max(1, v.clientHeight) < 0.9;
-  const spots = portrait ? [{ x: -1.5, y: 0.2 }, { x: 0.17, y: 0.11 }, { x: 0.82, y: 0.29 }] : [{ x: -1.5, y: 0.2 }, { x: 0.08, y: 0.51 }, { x: 0.91, y: 0.51 }];
+  // o navio da esquerda fica na fileira 5 (2 casas de mar de folga até a ilha, perto como o do bot); o 1º fica fora da tela
+  const spots: { x: number; y: number; ring?: number }[] = portrait
+    ? [{ x: -1.5, y: 0.2 }, { x: 0.1, y: 0.1, ring: 5 }, { x: 0.82, y: 0.29 }]
+    : [{ x: -1.5, y: 0.2 }, { x: 0.12, y: 0.4, ring: 5 }, { x: 0.91, y: 0.51 }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)
@@ -1416,6 +1419,7 @@ const placeHomeShips = () => {
     let bd = Infinity;
     for (const c of where) {
       if (taken.has(hexKey(c.h))) continue;
+      if (t.ring && Math.max(Math.abs(c.h.q), Math.abs(c.h.r), Math.abs(c.h.q + c.h.r)) !== t.ring) continue;
       const dd = (c.s.x - t.x) ** 2 + (c.s.y - t.y) ** 2;
       if (dd < bd) {
         bd = dd;

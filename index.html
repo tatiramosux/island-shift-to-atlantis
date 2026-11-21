@@ -45,9 +45,9 @@
       /* alarme da reta final: as bordas da tela pulsam em vermelho no ritmo da música de clímax (1 compasso = 1,54 s) */
       .shout { position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 55; pointer-events: none; font: 900 clamp(30px, 7vw, 64px) system-ui, sans-serif; color: #fff; letter-spacing: 2px; text-align: center; text-shadow: 0 0 18px #2fe0cf, 0 4px 0 #0b5c66, 0 0 40px #1fae9d; animation: shoutIn 2.6s ease-out forwards; }
       @keyframes shoutIn { 0% { opacity: 0; transform: translateX(-50%) scale(0.4); } 12% { opacity: 1; transform: translateX(-50%) scale(1.15) rotate(-2deg); } 25%, 80% { opacity: 1; transform: translateX(-50%) scale(1) rotate(1deg); } 100% { opacity: 0; transform: translateX(-50%) scale(1.1); } }
-      #alarm { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.8s; z-index: 5;
+      #alarm { position: absolute; inset: 0; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.8s, visibility 0s 0.8s; z-index: 5;
         background: radial-gradient(ellipse at center, rgba(255, 40, 40, 0) 52%, rgba(255, 30, 30, 0.38) 82%, rgba(190, 0, 20, 0.7) 100%); }
-      body.alarm #alarm { opacity: 1; animation: alarmPulse 1.54s ease-in-out infinite; }
+      body.alarm #alarm { visibility: visible; transition-delay: 0s; opacity: 1; animation: alarmPulse 1.54s ease-in-out infinite; }
       @keyframes alarmPulse { 0%, 100% { opacity: 0.25; } 12% { opacity: 1; } 50% { opacity: 0.45; } 62% { opacity: 0.85; } }
       @media (prefers-reduced-motion: reduce) { body.alarm #alarm { animation: none; opacity: 0.5; } }
       button {

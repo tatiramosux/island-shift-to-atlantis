@@ -275,6 +275,13 @@ export class Stage3D {
   setHomeMode(on: boolean) {
     this.home = on;
     this.zoom = on ? 0.8 : gameZoom();
+    if (on) {
+      // volta ao centro: o arrastar/zoom de uma partida anterior não pode deixar a ilha torta, nem o céu de entardecer
+      this.target.set(0, 0, 0);
+      this.skyNow = 0;
+      this.skyTarget = 0;
+      this.applySky(0);
+    }
     this.resize();
   }
   zoomBy(f: number) {
@@ -415,7 +422,7 @@ export class Stage3D {
   /* ---------- montar a cena a partir do estado ---------- */
 
   update(sc: StageScene) {
-    this.skyTarget = sc.state.vanished ? 1 : islandProgress(sc.state);
+    this.skyTarget = this.home ? 0 : sc.state.vanished ? 1 : islandProgress(sc.state);
     if (sc.state.vanished && !this.vanishAt) {
       this.vanishAt = performance.now();
       this.playNereus();
@@ -581,7 +588,7 @@ export class Stage3D {
     const ease = (x: number) => x * x * (3 - 2 * x);
     const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
     N.root.position.set(0, 0, 0);
-    N.root.scale.setScalar(1.3); // enorme: o rei dos mares
+    N.root.scale.setScalar(0.65); // grande, mas sem tomar a tela: o rei dos mares
     // de frente para a câmera
     N.root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az));
     this.addFx(N.root, dur, delay, (p) => {

@@ -461,6 +461,7 @@ describe('fase de Maré', () => {
   it('Tridente cancela a descida da casa sorteada; passar deixa afundar', () => {
     let s = blank();
     put(s, 'p0b0', H(1, 0));
+    put(s, 'p1b0', H(4, 0)); // só é perguntado a quem tem pirata em cima da casa
     s.tridents[1] = 1;
     s = floodAt(s, H(4, 0));
     expect(s.pendingFlood?.responders).toEqual([1]);
@@ -473,6 +474,15 @@ describe('fase de Maré', () => {
     const passed = ok(s, { type: 'passTrident', player: 1 }).state;
     expect(cell(passed, H(4, 0)).state).toBe('atlantis');
     expect(passed.tridents[1]).toBe(1);
+  });
+
+  it('sem pirata em cima da casa, o tridente nem é oferecido', () => {
+    let s = blank();
+    put(s, 'p0b0', H(1, 0));
+    s.tridents[1] = 1;
+    s = floodAt(s, H(4, 0));
+    expect(s.pendingFlood).toBeNull();
+    expect(cell(s, H(4, 0)).state).toBe('atlantis');
   });
 });
 

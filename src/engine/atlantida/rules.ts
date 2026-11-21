@@ -665,6 +665,12 @@ const startFlood = (s: GameState, ev: GameEvent[]) => {
   autoFlood(s, ev);
 };
 
+/** Só é perguntado sobre o tridente a quem tem tridente E tem um pirata em cima da casa que vai afundar. */
+const tridentResponders = (s: GameState, h: Hex): number[] =>
+  Array.from({ length: s.playerCount }, (_, i) => (s.current + i) % s.playerCount).filter(
+    (p) => s.tridents[p] > 0 && s.builders.some((b) => b.owner === p && b.hex && hexKey(b.hex) === hexKey(h)),
+  );
+
 /**
  * Regra: o terremoto é da mesa, não de um jogador. As casas que afundam são sorteadas entre as candidatas, uma de cada
  * vez. Se alguém tem tridente, o sorteio para e espera a decisão (usar ou deixar afundar).
@@ -677,7 +683,7 @@ const autoFlood = (s: GameState, ev: GameEvent[]) => {
       return startCreatures(s);
     }
     const h = cands[Math.floor(rand(s) * cands.length)];
-    const responders = Array.from({ length: s.playerCount }, (_, i) => (s.current + i) % s.playerCount).filter((p) => s.tridents[p] > 0);
+    const responders = tridentResponders(s, h);
     if (responders.length) {
       s.pendingFlood = { hex: h, responders };
       ev.push({ type: 'floodPicked', hex: h });
@@ -1070,7 +1076,7 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       startFlood(s, ev);
       return;
     case 'flood': {
-      const responders = Array.from({ length: s.playerCount }, (_, i) => (s.current + i) % s.playerCount).filter((p) => s.tridents[p] > 0);
+      const responders = tridentResponders(s, a.hex);
       if (responders.length) s.pendingFlood = { hex: a.hex, responders };
       else resolveFlood(s, a.hex, ev);
       return;
