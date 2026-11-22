@@ -477,6 +477,16 @@ const onCell = (h: Hex, px: number, py: number) => {
   // vez do Polvo/Leviatã: tocar fora das casas em destaque (inclusive em cima do próprio monstro) não faz nada, só avisa
   if (game.phase === 'creatures' && game.die && !rolling && acts.length === 0) {
     const name = CREATURE_PT[game.die];
+    // pirata fora de alcance (2º andar ou mais, ou sob Escudo): avisa que o monstro não consegue agarrá-lo
+    if (game.die === 'octopus' || game.die === 'leviathan') {
+      const prey = game.builders.find((b) => isAlive(b) && b.status === 'board' && b.hex && hexEquals(b.hex, h));
+      const cell = prey?.hex ? game.cells[hexKey(prey.hex)] : undefined;
+      if (prey && cell && (cell.tile === 'shield' || cell.floors > game.settings.octopusReach)) {
+        const why = cell.tile === 'shield' ? t('is protected by a Shield', 'está protegido por um Escudo') : t('is up on the 2nd floor or higher', 'está no 2º andar ou mais alto');
+        toast(t(`Not possible: the ${name} cannot grab ${bname(prey.id)}, who ${why}.`, `Não é possível: o ${name} não consegue agarrar ${bname(prey.id)}, que ${why}.`));
+        return;
+      }
+    }
     toast(t(`Tap one of the highlighted tiles to move the ${name}.`, `Toque numa das casas em destaque para mover o ${name}.`));
     return;
   }
