@@ -199,6 +199,7 @@ const toast = (t: string) => {
 /* ---------- rolagem do dado ---------- */
 
 let rollUntil = 0; // os bots esperam a rolagem terminar
+let botWaitUntil = 0; // e esperam a cena da criatura (agarrar e jogar ao mar) terminar antes da primeira ação do BOT
 let rolling = false; // enquanto o dado gira, o resultado fica escondido
 let rollTimer: ReturnType<typeof setTimeout> | null = null;
 const ROLL_MS = 1100;
@@ -286,6 +287,10 @@ const soundFor = (events: GameEvent[]) => {
 const takeState = (events: GameEvent[]) => {
   wake();
   soundFor(events);
+  // depois de a criatura agarrar, virar bote ou derrubar algo, o BOT espera a cena acabar: senão ele já mexe no pirata que está sendo jogado ao mar
+  const CREATURE_SCENE_MS: Record<string, number> = { octopusGrab: 4200, leviathanGrab: 4200, nereusPull: 6500, nereusSleeps: 5200, leviathanSmash: 3200, boatCapsized: 3200, creatureMove: 900 };
+  const scene = events.reduce((m, e) => Math.max(m, CREATURE_SCENE_MS[e.type] ?? 0), 0);
+  if (scene) botWaitUntil = Math.max(botWaitUntil, Date.now() + scene);
   events.forEach((e) => {
     if (e.type === 'die') {
       lastDie = e.face as string;
@@ -351,7 +356,7 @@ const schedule = () => {
   if (timer) clearTimeout(timer);
   timer = null;
   if (!inGame || session.kind !== 'bots' || game.phase === 'ended' || isHumanTurn()) return;
-  timer = setTimeout(() => apply(chooseAction(game, rng)), Math.max(560, rollUntil - Date.now()));
+  timer = setTimeout(() => apply(chooseAction(game, rng)), Math.max(560, rollUntil - Date.now(), botWaitUntil - Date.now()));
 };
 
 const faceActor = () => {
