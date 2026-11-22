@@ -60,6 +60,8 @@ const SOUNDS: Record<string, Note[]> = {
   dieLand: [{ f: NOTE('C5'), d: 0.18, w: 'square', v: 0.3 }, { f: NOTE('G5'), d: 0.18, w: 'square', v: 0.25 }],
   // criaturas
   creature: [{ f: 110, to: 160, d: 0.18, w: 'square', v: 0.35 }, { f: 90, to: 130, d: 0.18, w: 'square', v: 0.3, at: 0.2 }],
+  // arroto: grave, rouco e meio desafinado
+  burp: [{ f: 150, to: 65, d: 0.45, w: 'sawtooth', v: 0.5 }, { f: 118, to: 55, d: 0.4, w: 'square', v: 0.35, at: 0.04 }, { f: 300, d: 0.35, w: 'noise', v: 0.12, at: 0.02 }],
   grab: [{ f: 400, to: 90, d: 0.3, w: 'square', v: 0.45 }],
   smash: [{ f: 120, to: 40, d: 0.2, w: 'square', v: 0.55 }, { f: 300, d: 0.18, w: 'noise', v: 0.4 }],
   // convocação: brilho mágico subindo

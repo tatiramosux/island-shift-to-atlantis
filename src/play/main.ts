@@ -461,10 +461,13 @@ const onCell = (h: Hex, px: number, py: number) => {
     if (t) showTileInfo(h, px, py, t, []);
     return;
   }
-  const acts = candidates().filter((a) => {
-    const c = cellOf(a);
-    return c && hexEquals(c, h);
-  });
+  const acts = candidates()
+    .filter((a) => {
+      const c = cellOf(a);
+      return c && hexEquals(c, h);
+    })
+    // jogadas idênticas (ex.: nadar até o navio aparece duas vezes) viram uma só: não precisa perguntar
+    .filter((a, i, all) => all.findIndex((x) => x.type === a.type && JSON.stringify(x) === JSON.stringify(a)) === i);
   if (portalPick) {
     // tocou num Portal de chegada: vai; tocou fora: desiste da escolha
     if (acts.length) return apply(acts[0]);
@@ -479,7 +482,9 @@ const onCell = (h: Hex, px: number, py: number) => {
   }
   // casa com peça à vista: primeiro explica o que é (e oferece o botão), em vez de jogar direto
   const tile = visibleTile(h);
-  if (tile && !acts.some((a) => a.type === 'moveCreature' || a.type === 'flood' || a.type === 'summon')) {
+  // (andar, nadar ou remar para a casa vai direto, sem perguntar; só o Portal com teletransporte ainda oferece a escolha)
+  const goesStraight = !acts.some((a) => a.type === 'move' && a.portalTo) && acts.some((a) => a.type === 'move' || a.type === 'swim' || a.type === 'row' || a.type === 'launch');
+  if (tile && !goesStraight && !acts.some((a) => a.type === 'moveCreature' || a.type === 'flood' || a.type === 'summon')) {
     const own = game.builders.some((b) => b.owner === viewer() && isAlive(b) && b.hex && hexEquals(b.hex, h));
     if (!own) return showTileInfo(h, px, py, tile, acts);
   }
@@ -859,6 +864,12 @@ const renderBar = () => {
   $('bar').classList.toggle('idle', game.phase !== 'ended' && !isHumanTurn()); // vez do bot: aviso discreto
   if (game.phase === 'ended') return;
   const a = actor(game);
+  // terremoto sorteou a casa de um pirata de quem tem tridente: o tridente é usado sozinho, sem perguntar
+  if (game.phase === 'flood' && game.pendingFlood && isHumanTurn() && game.tridents[a] > 0) {
+    window.setTimeout(() => game.phase === 'flood' && game.pendingFlood && game.tridents[a] > 0 && apply({ type: 'useTrident', player: a }), 450);
+    msg.innerHTML = t('<b>Tide:</b> the trident saves your tile!', '<b>Maré:</b> o tridente salva a sua casa!');
+    return;
+  }
   if (!isHumanTurn()) {
     msg.innerHTML = t(`<b>${pname(a)}</b> is playing…`, `<b>${pname(a)}</b> está jogando…`);
     return;

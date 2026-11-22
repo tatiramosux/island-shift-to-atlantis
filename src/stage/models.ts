@@ -345,13 +345,14 @@ export class Models {
     g.userData.captain = index === 0; // o capitão tem perna de pau (e só ele perde o equilíbrio nos movimentos de espera)
     for (const sx of [-0.07, 0.07]) {
       if (index === 0 && sx > 0) {
-        // perna de pau: haste de madeira mais fina, com cinta e ponteira, sem o sapato
-        g.add(this.box(0.06, 0.05, 0.06, this.solid('#4a2c12'), sx, 0, 0.0));
-        inner.add(this.box(0.055, 0.17, 0.055, wood, sx, 0.05, 0));
+        // perna de pau: só a haste de madeira, sem sapato (a ponta toca o chão), com uma cinta no alto
+        inner.add(this.box(0.05, 0.22, 0.05, wood, sx, 0, 0));
         inner.add(this.box(0.09, 0.03, 0.09, this.solid('#5b3a1e'), sx, 0.16, 0));
         continue;
       }
-      g.add(this.box(0.13, 0.07, 0.17, this.solid('#6b3d1a'), sx, 0, 0.02));
+      const foot = this.box(0.13, 0.07, 0.17, this.solid('#6b3d1a'), sx, 0, 0.02);
+      if (sx < 0) g.userData.foot = foot; // o pé esquerdo bate no chão nos movimentos de espera
+      g.add(foot);
       inner.add(this.box(0.11, 0.14, 0.11, tan, sx, 0.07, 0));
     }
     // torso, cinto de ferramentas e alças
