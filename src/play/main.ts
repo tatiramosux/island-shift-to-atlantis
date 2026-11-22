@@ -1553,7 +1553,10 @@ const demoGame = () => {
   g.builders.forEach((b, i) => (b.hex = pickAt(i % 2 ? 2 : 3, 0.4 + (i * Math.PI) / 3)));
   // Polvo à esquerda e Leviatã à direita, mais para o alto, na água ao lado da ilha
   g.creatures[0].hex = { q: -1, r: -3 };
-  g.creatures[1].hex = { q: 1, r: 3 };
+  g.creatures[1].hex = { q: 2, r: 2 }; // uma casa acima (na tela) de onde estava
+  // o pirata preto do canto direito de cima também sobe uma casa
+  const top = g.builders[0];
+  if (top.hex) top.hex = { q: top.hex.q + 1, r: top.hex.r - 1 };
   return g;
 };
 
@@ -1564,7 +1567,7 @@ const demoGame = () => {
  */
 const cacheKey = () => {
   const v = $('view');
-  return `r11|${getLang()}|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`; // o idioma entra na chave: o texto muda a altura do painel e, com ela, onde os navios ficam
+  return `r12|${getLang()}|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`; // o idioma entra na chave: o texto muda a altura do painel e, com ela, onde os navios ficam
 };
 const placeHomeShips = () => {
   if (inGame) return;
@@ -1578,9 +1581,9 @@ const placeHomeShips = () => {
   for (let q = -3; q <= 3; q++) for (let r = -3; r <= 3; r++) if (Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) === 3) rim.push(stage.homeScreenOf({ q, r }));
   const hw = (Math.max(...rim.map((v) => v.x)) - Math.min(...rim.map((v) => v.x))) / 2;
   const hh = (Math.max(...rim.map((v) => v.y)) - Math.min(...rim.map((v) => v.y))) / 2;
-  const spots: { x: number; y: number; ring?: number }[] = portrait
+  const spots: { x: number; y: number; ring?: number; down?: boolean }[] = portrait
     ? [{ x: -1.5, y: 0.2 }, { x: 0.1, y: 0.1, ring: 5 }, { x: 0.82, y: 0.29 }]
-    : [{ x: -1.5, y: 0.2 }, { x: hc.x - 1.28 * hw, y: hc.y - 0.7 * hh, ring: 5 }, { x: hc.x + 0.88 * hw, y: hc.y + 0.35 * hh, ring: 5 }];
+    : [{ x: -1.5, y: 0.2 }, { x: hc.x - 1.28 * hw, y: hc.y - 0.7 * hh, ring: 5 }, { x: hc.x + 0.88 * hw, y: hc.y + 0.35 * hh, ring: 5, down: true }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)
@@ -1600,6 +1603,16 @@ const placeHomeShips = () => {
         bd = dd;
         best = c;
       }
+    }
+    if (t.down) {
+      // desce uma casa na tela, continuando na mesma fileira de mar (2 casas da ilha)
+      const ringOf = (h: Hex) => Math.max(Math.abs(h.q), Math.abs(h.r), Math.abs(h.q + h.r));
+      const lower = [[1, 0], [1, -1], [0, -1], [-1, 0], [-1, 1], [0, 1]]
+        .map(([dq, dr]) => ({ q: best.h.q + dq, r: best.h.r + dr }))
+        .filter((n) => ringOf(n) === ringOf(best.h) && !taken.has(hexKey(n)))
+        .map((n) => ({ h: n, s: stage.homeScreenOf(n) }))
+        .sort((p, q) => q.s.y - p.s.y)[0];
+      if (lower && lower.s.y > best.s.y) best = lower;
     }
     taken.add(hexKey(best.h));
     return best.h;
