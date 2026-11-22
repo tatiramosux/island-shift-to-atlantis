@@ -2,7 +2,7 @@
 # Para criar: Render > New > Blueprint > escolher este repositório.
 services:
   - type: web
-    name: atlantida-cidade-submersa
+    name: island-shift-to-atlantis
     runtime: node
     plan: free
     buildCommand: npm ci --include=dev && npm run build
