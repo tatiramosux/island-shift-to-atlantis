@@ -51,7 +51,7 @@ const Trident = [
 ] as unknown as IconNode;
 const icon = (n: IconNode, size = 18) => createElement(n, { width: size, height: size, class: 'icon' }) as unknown as SVGElement;
 
-const TILE_PT: Record<AtlantisTile, string> = { crystal: t('Crystal', 'Cristal'), column: t('Column', 'Coluna'), portal: 'Portal', trident: t('Trident', 'Tridente'), calm: t('Calm Tide', 'Maré calma'), fountain: t('Fountain', 'Fonte'), shield: t('Shield', 'Escudo'), ruin: t('Ruin', 'Ruína') };
+const TILE_PT: Record<AtlantisTile, string> = { crystal: t('Crystal', 'Cristal'), column: t('Column', 'Coluna'), portal: 'Portal', trident: t('Trident', 'Tridente'), calm: t('Calm Tide', 'Maré calma'), shield: t('Shield', 'Escudo'), ruin: t('Ruin', 'Ruína') };
 const CREATURE_PT: Record<string, string> = { octopus: t('Colossus Octopus', 'Polvo-colosso'), leviathan: t('Leviathan', 'Leviatã'), guardian: t('Nereus', 'Nereu'), surge: t('Surge Tide', 'Maré viva') };
 const SUMMONS = {
   triton: { name: t('Triton', 'Tritão'), tip: t('Mighty push: throws a neighboring rival up to 2 tiles. In the water, they end up adrift.', 'Empurrão forte: joga um adversário vizinho até 2 casas. Na água, ele fica boiando.') },
@@ -137,7 +137,6 @@ const evText = (e: GameEvent): string | null => {
     case 'princessLost': return t(`Nereus took the Princess of ${P('owner')} back to the bottom of the sea!`, `Nereu levou a Princesa de ${P('owner')} de volta ao fundo do mar!`);
     case 'tridentTaken': return t(`${P('owner')} picked up a trident.`, `${P('owner')} pegou um tridente.`);
     case 'calmSea': return t('Calm Tide: the next Tide phase will be skipped.', 'Maré calma: a próxima Maré será pulada.');
-    case 'fountain': return t(`${P('owner')} found the Fountain: the next Build places 2 blocks.`, `${P('owner')} achou a Fonte: o próximo construir põe 2 blocos.`);
     case 'flood': return t(`The tile sank and revealed: ${TILE_PT[e.tile as AtlantisTile]}.`, `A casa afundou e revelou: ${TILE_PT[e.tile as AtlantisTile]}.`);
     case 'floodSkipped': return t('The Tide phase was skipped.', 'A Maré foi pulada.');
     case 'waveWarning': return game.settings.tideShift
@@ -296,8 +295,12 @@ const takeState = (events: GameEvent[]) => {
     const mine = e.owner === viewer() && !e.surge;
     if (mine && e.type === 'crystal') toast(t('+1 crystal: worth 1 point if you keep it, and pays for Summons.', '+1 cristal: vale 1 ponto se você guardar, e paga as Convocações.'));
     if (mine && e.type === 'tridentTaken') toast(t('Trident kept: during the quake, use it to stop a tile from sinking.', 'Tridente guardado: no terremoto, use para impedir uma casa de afundar.'));
-    if (mine && e.type === 'calmSea') toast(t('Calm Tide: the next quake will be skipped.', 'Maré calma: o próximo terremoto será pulado.'));
-    if (mine && e.type === 'fountain') toast(t('Fountain: your next Build places 2 blocks.', 'Fonte: seu próximo Construir põe 2 blocos.'));
+    // a Maré calma se aplica sozinha ao ser pega: todo mundo recebe o aviso, e outro avisa quando o terremoto é pulado
+    if (e.type === 'calmSea') {
+      if (mine) toast(t('Calm Tide: the next quake will be skipped. It applies by itself, nothing to press.', 'Maré calma: o próximo terremoto será pulado. Ela vale sozinha, não precisa apertar nada.'));
+      else if (!e.surge) toast(t(`${teamName(e.owner as number)} found Calm Tide: the next quake will be skipped.`, `${teamName(e.owner as number)} achou a Maré calma: o próximo terremoto será pulado.`));
+    }
+    if (e.type === 'floodSkipped') toast(t('Calm Tide: the quake was skipped this round.', 'Maré calma: o terremoto foi pulado nesta rodada.'));
     if (mine && e.type === 'castleCrystal') toast(t('You rescued the Princess! Get to the ship: boarding with her gives a big bonus (+4).', 'Você resgatou a Princesa! Chegue ao navio: embarcar com ela dá um bônus grande (+4).'));
     if (mine && e.type === 'princessSafe') toast(t('Princess safe! +4 points.', 'Princesa a salvo! +4 pontos.'));
     if (e.type === 'castleRises') toast(t('The Castle rose! Climb the stairs and towers to rescue the Princess at the top.', 'O Castelo emergiu! Suba pelas escadas e torres para resgatar a Princesa no topo.'));
@@ -624,10 +627,9 @@ document.addEventListener('keydown', (e) => e.key === 'Escape' && closePop());
 /** O que cada peça de Atlântida faz, como se pega e como se usa (balão ao tocar na casa e regras). */
 const TILE_INFO: Record<AtlantisTile, { treasure: boolean; get: string; use: string }> = {
   crystal: { treasure: true, get: t('Step on the tile with a pirate: stepping reveals what is under it, even before it sinks.', 'Pise na casa com um pirata: pisar revela o que há embaixo, mesmo antes de ela afundar.'), use: t('A <b>resource</b>: worth <b>1 point</b> if you keep it at the end, and it pays for <b>Summons</b> (bottom panel). Spending it costs you points.', 'É um <b>recurso</b>: vale <b>1 ponto</b> se você guardar até o fim, e paga as <b>Convocações</b> (painel de baixo). Gastar custa pontos.') },
-  trident: { treasure: true, get: t('Step on the tile with a pirate (stepping reveals it).', 'Pise na casa com um pirata (pisar revela).'), use: t('Kept on the scoreboard (trident icon, next to the crystals). When the quake picks a tile to sink, a <b>Use trident</b> button appears: the tile does not sink.', 'Fica guardado no placar (ícone de tridente, ao lado dos cristais). Quando o terremoto sortear uma casa para afundar, aparece o botão <b>Usar tridente</b>: a casa não afunda.') },
-  calm: { treasure: true, get: t('Step on the tile with a pirate.', 'Pise na casa com um pirata.'), use: t('Works at once: the <b>next quake is skipped</b>.', 'Vale na hora: o <b>próximo terremoto é pulado</b>.') },
+  trident: { treasure: true, get: t('Step on the tile with a pirate (stepping reveals it).', 'Pise na casa com um pirata (pisar revela).'), use: t('Kept on the scoreboard (trident icon, next to the crystals). When the quake picks the tile under your pirate, it is used <b>by itself</b>: the tile does not sink.', 'Fica guardado no placar (ícone de tridente, ao lado dos cristais). Quando o terremoto sortear a casa do seu pirata, ele é usado <b>sozinho</b>: a casa não afunda.') },
+  calm: { treasure: true, get: t('Step on the tile with a pirate.', 'Pise na casa com um pirata.'), use: t('It applies <b>by itself</b> the moment it is collected (nothing to store or press): the <b>next quake is skipped</b>, and everyone gets an alert.', 'Vale <b>sozinha</b> na hora em que é pega (não guarda nem aperta nada): o <b>próximo terremoto é pulado</b>, e todos recebem um alerta.') },
   portal: { treasure: false, get: t('Walk onto it.', 'Ande até ela.'), use: t('Tap the tile and choose to <b>stop</b> or <b>go to another free Portal</b> (a shortcut across the map). It only works with <b>2 revealed Portals</b>: until then it stays <b>gray</b>, switched off.', 'Ao tocar na casa, escolha <b>parar</b> ou <b>ir para outro Portal livre</b> (atalho pelo mapa). Só funciona com <b>2 Portais revelados</b>: até lá ele fica <b>cinza</b>, desligado.') },
-  fountain: { treasure: false, get: t('Walk onto it.', 'Ande até ela.'), use: t('Your next <b>Build</b> places 2 blocks at once (only on the Castle and the tiles next to it).', 'Seu próximo <b>Construir</b> põe 2 blocos de uma vez (só no Castelo e nas casas coladas nele).') },
   shield: { treasure: false, get: t('Stay on top of it.', 'Fique em cima dela.'), use: t('While you stand on it, the sea and the creatures <b>cannot take you</b>.', 'Enquanto você estiver em cima, o mar e as criaturas <b>não te levam</b>.') },
   column: { treasure: false, get: t('Walk onto it.', 'Ande até ela.'), use: t('Comes with 1 floor: higher ground, where the Octopus reaches less.', 'Já nasce com 1 andar: um lugar mais alto, onde o Polvo alcança menos.') },
   ruin: { treasure: false, get: '—', use: t('No effect.', 'Nenhum efeito.') },
@@ -763,7 +765,6 @@ const renderHud = () => {
       pip.title = b.status === 'aboard' ? t('on the ship', 'no navio') : b.status === 'boat' ? t('in a boat', 'no bote') : b.status === 'board' ? t('on land', 'em terra') : b.status === 'floating' ? t('adrift', 'boiando') : b.status === 'dead' ? t('out of the game', 'fora do jogo') : '';
       small.appendChild(pip);
     });
-    if (game.fountain[p]) small.appendChild(document.createTextNode(t(' Fountain', ' Fonte')));
     who.appendChild(small);
     const res = document.createElement('div');
     res.className = 'res';
@@ -1367,9 +1368,9 @@ ${escapeRules()
 <ul>
 <li><b>Your turn has 3 phases.</b> 1 Action: 3 actions to walk (and discover), push or swim. 2 Tide (quake): the table randomly picks ${cfg().floodsPerRound} tiles per round (from the edge or the middle) that crumble and reveal Atlantis. Nobody chooses. 3 Creatures: roll the die and move the creature it picks.</li>
 <li><b>Move:</b> climb at most 1 floor at a time.</li>
-<li><b>Nobody builds.</b> When the Castle wakes up it rises by itself with <b>two towers</b> (2 floors) and <b>stairs</b> (1 floor) beside it, and the tile in front of the gate stays free. Stairs let you climb up to 2 floors at once. Whoever stands on a tower cannot be pushed (not even by Triton), is out of reach of Nereus, the Octopus and the Sentinel, and cannot be washed away by the giant wave.</li>
+<li><b>Nobody builds.</b> When the Castle wakes up it rises by itself with <b>two towers</b> (2 floors) and <b>stairs</b> (1 floor) beside it, and the tile in front of the gate stays free. Stairs let you climb up to 2 floors at once. Whoever stands on a tower cannot be pushed (not even by Triton), is out of reach of Nereus, the Octopus and the Leviathan, and cannot be washed away by the giant wave.</li>
 <li><b>Push:</b> a neighboring pirate moves 1 tile back, if the tile behind is free and on land.</li>
-<li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in.</li>
+<li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in. The die has two more faces: <b>Nereus</b> rises from the sea and drags a random pirate on land into the water (anyone on a Shield or on the 2nd floor or higher is out of reach), and <b>Surge Tide</b>: no creature moves and every pirate on an Atlantis tile gains 1 crystal.</li>
 <li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. Nobody is ever eliminated: the Octopus and Leviathan throw floaters farther away and flip boats (whoever was in it ends up floating). Atlantis is fragile: from round 3 a tile crumbles every round and the sea slowly opens channels into the island.</li>
 <li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Lasso steals the Princess, Siren steals all crystals but 2 (nothing to steal from a team with 2 or fewer), Coral Colossus places a dome.</li>
 <li><b>Treasures:</b> stepping onto a closed tile or onto a sunken one (revealed by the quake) shows the piece. Crystal, Trident and Calm Tide are taken at once and the tile becomes a Ruin. The Princess on top of the Castle is worth +4 once she is aboard your ship.</li>
@@ -1378,8 +1379,8 @@ ${escapeRules()
 <h4>Resources: how to use them</h4>
 <ul>
 <li><b>Crystal:</b> step on the tile to take it. A resource: worth 1 point if kept, and pays for Summons (bottom panel).</li>
-<li><b>Trident:</b> step on it to take it; it stays on the scoreboard (trident icon). In the quake, when the table picks a tile, a <b>Use trident</b> button appears and the tile does not sink.</li>
-<li><b>Calm Tide:</b> step on it to take it; the next quake is skipped.</li>
+<li><b>Trident:</b> step on it to take it; it stays on the scoreboard (trident icon). In the quake, when the table picks the tile under your pirate, the trident is used <b>by itself</b>: the tile does not sink and you spend 1 trident.</li>
+<li><b>Calm Tide:</b> step on it to take it. It applies <b>by itself</b> right away (nothing to store or press): the next quake is skipped, and everyone gets an alert.</li>
 <li><b>Portal:</b> when you enter, choose to stop or go to another free Portal. It only works with 2 revealed Portals; before that it stays gray.</li>
 <li><b>Shield:</b> stand on it; the sea and creatures cannot take you.</li>
 <li><b>Column:</b> already has 1 floor. <b>Ruin:</b> nothing.</li>
@@ -1406,9 +1407,9 @@ ${escapeRules()
 <ul>
 <li><b>Sua vez tem 3 fases.</b> 1 Ação: 3 ações para andar (e pegar tesouros), empurrar ou nadar. 2 Maré (terremoto): a mesa sorteia ${cfg().floodsPerRound} casas por rodada (da borda ou do meio), que se desfazem e revelam Atlântida. Ninguém escolhe. 3 Criaturas: role o dado e mova a criatura sorteada.</li>
 <li><b>Mover:</b> suba no máximo 1 andar por vez.</li>
-<li><b>Ninguém constrói.</b> Quando o Castelo desperta, ele emerge sozinho com <b>duas torres</b> (2 andares) e <b>escadas</b> (1 andar) ao lado, e a casa na frente do portão fica livre. As escadas deixam subir até 2 andares de uma vez. Quem está numa torre não pode ser empurrado (nem pelo Tritão), fica fora do alcance do Nereu, do Polvo e da Sentinela, e a onda gigante não o leva.</li>
+<li><b>Ninguém constrói.</b> Quando o Castelo desperta, ele emerge sozinho com <b>duas torres</b> (2 andares) e <b>escadas</b> (1 andar) ao lado, e a casa na frente do portão fica livre. As escadas deixam subir até 2 andares de uma vez. Quem está numa torre não pode ser empurrado (nem pelo Tritão), fica fora do alcance do Nereu, do Polvo e do Leviatã, e a onda gigante não o leva.</li>
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>
-<li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar.</li>
+<li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar. O dado tem mais duas faces: o <b>Nereu</b> sobe do mar e arrasta para a água um pirata sorteado em terra (quem está num Escudo ou no 2º andar ou mais alto fica fora do alcance), e a <b>Maré viva</b>: nenhuma criatura se mexe e todo pirata em casa de Atlântida ganha 1 cristal.</li>
 <li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. Ninguém é eliminado: o Polvo e o Leviatã jogam quem já boia mais longe e viram botes (quem estava nele fica boiando). Atlântida é frágil: a partir da rodada 3, uma casa desmorona a cada rodada e o mar vai abrindo canais para dentro da ilha.</li>
 <li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Laço rouba a Princesa, Sereia rouba todos os cristais menos 2 (nada a roubar de quem tem 2 ou menos), Colosso de coral põe uma cúpula.</li>
 <li><b>Tesouros:</b> pisar numa casa fechada ou entrar numa afundada (revelada pelo terremoto) mostra a peça. Cristal, Tridente e Maré calma são pegos na hora e a casa vira Ruína. A Princesa do topo do Castelo vale +4 quando estiver a bordo do seu navio.</li>
@@ -1417,8 +1418,8 @@ ${escapeRules()
 <h4>Recursos: como usar</h4>
 <ul>
 <li><b>Cristal:</b> pise na casa para pegar. É um recurso: vale 1 ponto se guardar, e paga as Convocações (painel de baixo).</li>
-<li><b>Tridente:</b> pise para pegar; fica no placar (ícone de tridente). No terremoto, só quando a casa sorteada é a do seu pirata, aparece o botão <b>Usar tridente</b> e a casa não afunda.</li>
-<li><b>Maré calma:</b> pise para pegar; o próximo terremoto é pulado.</li>
+<li><b>Tridente:</b> pise para pegar; fica no placar (ícone de tridente). No terremoto, quando a casa sorteada é a do seu pirata, o tridente é usado <b>sozinho</b>: a casa não afunda e você gasta 1 tridente.</li>
+<li><b>Maré calma:</b> pise para pegar. Ela vale <b>sozinha</b>, na hora (não guarda nem aperta nada): o próximo terremoto é pulado, e todos recebem um alerta.</li>
 <li><b>Portal:</b> ao entrar, escolha parar ou ir para outro Portal livre. Só funciona com 2 Portais revelados; antes disso fica cinza.</li>
 <li><b>Escudo:</b> fique em cima; o mar e as criaturas não te levam.</li>
 <li><b>Coluna:</b> já tem 1 andar. <b>Ruína:</b> nada.</li>

@@ -233,20 +233,6 @@ export class Models {
       case 'calm':
         for (let i = 0; i < 3; i++) this.add(g, 0.5 - i * 0.1, 0.05, 0.12, i % 2 ? '#bfe6f5' : '#8cc4ee', 0, 0.02 + i * 0.07, -0.1 + i * 0.1, 0.2);
         break;
-      case 'fountain': {
-        // fonte maior e irregular: borda de pedra de alturas diferentes, água e um jato
-        for (let i = 0; i < 8; i++) {
-          const ang = (i / 8) * Math.PI * 2 + between(-0.15, 0.15);
-          const rad = between(0.34, 0.44);
-          this.add(g, between(0.2, 0.3), between(0.1, 0.22), between(0.2, 0.3), i % 3 ? '#9ea3ad' : '#b5bac2', Math.cos(ang) * rad, 0, Math.sin(ang) * rad);
-        }
-        this.add(g, 0.5, 0.1, 0.5, '#747985', 0, 0, 0);
-        this.add(g, 0.56, 0.05, 0.5, '#3c82c2', between(-0.04, 0.04), 0.1, between(-0.04, 0.04), 0.3);
-        const jet = between(0.34, 0.5);
-        this.add(g, 0.09, jet, 0.09, '#bfe6f5', 0, 0.1, 0, 0.45);
-        for (const [x, z] of [[0.15, 0.02], [-0.14, -0.03], [0.02, 0.16], [-0.03, -0.15]]) this.add(g, 0.06, 0.06, 0.06, '#e8f6ff', x + between(-0.04, 0.04), 0.1 + jet * between(0.55, 0.85), z + between(-0.04, 0.04), 0.4);
-        break;
-      }
       case 'shield':
         this.add(g, 0.4, 0.46, 0.1, '#d8232a', 0, 0.05, 0);
         this.add(g, 0.1, 0.4, 0.12, '#fff7e0', 0, 0.08, 0);

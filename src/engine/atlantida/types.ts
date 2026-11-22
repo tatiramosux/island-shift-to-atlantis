@@ -5,7 +5,7 @@
 import type { Hex } from '../hex';
 
 /** Peça de Atlântida escondida embaixo de cada casa da ilha. 'hidden' = o jogador não pode ver (veja redact.ts). */
-export type AtlantisTile = 'crystal' | 'column' | 'portal' | 'trident' | 'calm' | 'fountain' | 'shield' | 'ruin';
+export type AtlantisTile = 'crystal' | 'column' | 'portal' | 'trident' | 'calm' | 'shield' | 'ruin';
 
 export interface Cell {
   hex: Hex;
@@ -143,8 +143,6 @@ export interface GameState {
   vanished?: boolean;
   crystals: number[];
   tridents: number[];
-  /** Fonte: o próximo passo de construir do jogador coloca 2 blocos. */
-  fountain: boolean[];
   phase: Phase;
   /** ordem em que os construtores são colocados na preparação. */
   setupOrder: number[];

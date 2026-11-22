@@ -286,9 +286,6 @@ describe('efeitos das peças ao entrar', () => {
     expect(s.skipFlood).toBe(1);
     expect(cell(s, H(3, 0)).tile).toBe('ruin');
   });
-  it('Fonte: marca 2 blocos no próximo construir', () => {
-    expect(walkOnto('fountain').fountain[0]).toBe(true);
-  });
   it('Ruína e Coluna não dão efeito ao entrar', () => {
     for (const t of ['ruin', 'column'] as const) {
       const s = walkOnto(t);

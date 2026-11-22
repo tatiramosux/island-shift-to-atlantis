@@ -34,7 +34,7 @@ for (let p = 0; p < 4; p++) {
 (['triton', 'lasso', 'siren', 'colossus'] as const).forEach((k, i) => put(buildSummon(m, k), i * 1.8 - 2.4, -1.8, 1.2));
 (['octopus', 'leviathan', 'guardian'] as const).forEach((k, i) => put(m.creature(k), i * 2 - 2.4, -3.6, 1.4));
 // fontes e ruínas: cada casa sorteia um desenho um pouco diferente
-([['fountain', 0.12], ['fountain', 0.55], ['fountain', 0.9], ['ruin', 0.2], ['ruin', 0.6], ['ruin', 0.85]] as const).forEach(([k, v], i) => put(m.decor(k, v), (i % 3) * 1.8 - 1.8, -5.6 - Math.floor(i / 3) * 1.6, 1));
+([['calm', 0.12], ['calm', 0.55], ['calm', 0.9], ['ruin', 0.2], ['ruin', 0.6], ['ruin', 0.85]] as const).forEach(([k, v], i) => put(m.decor(k, v), (i % 3) * 1.8 - 1.8, -5.6 - Math.floor(i / 3) * 1.6, 1));
 
 const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
 let az = Math.PI / 2 - 0.5;

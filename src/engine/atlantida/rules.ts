@@ -37,7 +37,6 @@ export const TILE_COUNTS: Record<AtlantisTile, number> = {
   portal: 3,
   trident: 5,
   calm: 3,
-  fountain: 0, // a Fonte saiu do jogo
   shield: 2,
   ruin: 21, // a maioria fica limpa: só RUIN_REMAINS delas mostram restos de colunas
 };
@@ -152,10 +151,10 @@ export interface NewGameOptions {
 }
 
 /** Peças que nunca podem ficar lado a lado no mapa. */
-const NO_NEIGHBOR: AtlantisTile[] = ['fountain', 'portal']; // a Ruína quase sempre emerge limpa: pode ficar ao lado de outra
+const NO_NEIGHBOR: AtlantisTile[] = ['portal']; // a Ruína quase sempre emerge limpa: pode ficar ao lado de outra
 
 /**
- * Troca peças de lugar até nenhuma Fonte ficar ao lado de outra Fonte, nem Ruína ao lado de Ruína.
+ * Troca peças de lugar até nenhum Portal ficar ao lado de outro Portal, nem Ruína ao lado de Ruína.
  * `tiles` está na ordem das casas de superfície (as mesmas que createGame percorre, sem o Castelo).
  */
 const spreadTiles = (tiles: AtlantisTile[], rng: Rng): AtlantisTile[] => {
@@ -258,7 +257,6 @@ export const createGame = ({ players, seed, settings }: NewGameOptions): GameSta
     wave: null,
     crystals: Array(players).fill(0),
     tridents: Array(players).fill(0),
-    fountain: Array(players).fill(false),
     phase: 'setup',
     setupOrder: [...pass, ...pass],
     setupIndex: 0,
@@ -351,10 +349,6 @@ const enter = (s: GameState, b: Builder, ev: GameEvent[]) => {
       c.taken = true;
       c.tile = 'ruin'; // a peça some
       ev.push({ type: 'calmSea', owner: b.owner, hex: c.hex });
-      break;
-    case 'fountain':
-      s.fountain[b.owner] = true;
-      ev.push({ type: 'fountain', owner: b.owner, hex: c.hex });
       break;
     default:
       break; // portal (tratado no movimento), coluna (efeito já aplicado ao afundar), escudo (passivo), ruína
@@ -732,7 +726,7 @@ const waveHit = (s: GameState, k: number, ev: GameEvent[]) => {
 };
 
 /** Tesouros ainda não pegos: a casa que os guarda não desmorona. */
-const CRUMBLE_KEEP = new Set<string>(['crystal', 'trident', 'calm', 'fountain']);
+const CRUMBLE_KEEP = new Set<string>(['crystal', 'trident', 'calm']);
 /**
  * Atlântida é frágil: a cada virada de rodada (da 3ª em diante; 2 casas na fase final) uma casa já emersa, sem construção
  * nem ninguém em cima e colada na água, desmorona e vira um buraco de mar. Assim o mar avança para dentro da ilha em
