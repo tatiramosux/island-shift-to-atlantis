@@ -1,5 +1,5 @@
 /**
- * Fábrica das peças 3D em blocos (estilo Minecraft, texturas de pixel):
+ * Fábrica das peças 3D em blocos (estilo de blocos, texturas de pixel):
  * tudo é feito de caixas coloridas e texturas 16x16 desenhadas por código. Provisório até a arte final.
  */
 import * as THREE from 'three';

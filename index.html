@@ -137,7 +137,7 @@
       .face.on { opacity: 1; background: var(--btn-on); outline: 2px solid var(--accent); }
       .combo .cap { display: none; }
       /* cartão de aviso azul: o texto à esquerda e, quando há uma ação a cumprir, o botão ao lado, depois de uma barrinha */
-      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: var(--ap) 16px; min-height: 56px; max-height: 30vh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
+      .actionbar { display: flex; align-items: stretch; gap: 10px; background: color-mix(in srgb, #2f8cff 16%, #0b1726); border: 1px solid #3b9cff; border-radius: 12px; padding: var(--ap) 16px; min-height: 56px; max-height: 30vh; max-height: 30dvh; overflow: auto; font-size: 14px; color: #d6eaff; box-shadow: 0 0 14px #2f8cff33; }
       .actionbar.idle .prompt { text-align: center; white-space: nowrap; }
       .actionbar.idle { box-shadow: none; } /* vez do bot: continua azul, só sem o brilho */
       .actionbar .prompt { flex: 1 1 auto; min-width: 0; align-self: center; margin: 0; font-size: 13px; line-height: 1.35; text-align: left; }
@@ -155,12 +155,12 @@
       .actionbar .row button.primary { animation: callPulse 1.3s ease-in-out infinite; }
       @keyframes callPulse { 0%, 100% { box-shadow: 0 0 0 0 #ffe14d00; } 50% { box-shadow: 0 0 0 4px #ffe14d99, 0 0 14px #ffe14d88; } }
       @media (prefers-reduced-motion: reduce) { .actionbar .row button.primary { animation: none; } }
-      .logpanel { top: 10px; left: 70px; width: 290px; max-height: 40vh; overflow: auto; font-size: 12px; line-height: 1.4; }
+      .logpanel { top: 10px; left: 70px; width: min(290px, calc(100% - 80px)); max-height: 40%; overflow: auto; font-size: 12px; line-height: 1.4; }
       .logpanel div { padding: 3px 0; border-bottom: 1px solid #333; color: #cfcfcf; }
       #chooser { position: absolute; z-index: 6; background: var(--glass); border: 1px solid var(--accent); border-radius: 10px; padding: 6px; display: flex; flex-direction: column; gap: 5px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); }
       button.dice-help { display: inline-grid; place-items: center; vertical-align: -3px; margin-left: 5px; width: 22px; height: 22px; min-height: 0; padding: 0; border-radius: 50%; border: 1px solid #666; background: transparent; color: #cfcfcf; cursor: pointer; }
       button.dice-help:hover, button.dice-help.open { background: var(--btn-on); color: #fff; border-color: var(--accent); }
-      #pop { position: absolute; z-index: 7; width: 270px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 10px 12px; background: #1a1a1a; border: 1px solid #777; border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.4; text-align: left; }
+      #pop { position: absolute; z-index: 7; width: 270px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; padding: 10px 12px; background: #1a1a1a; border: 1px solid #777; border-radius: 12px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); font-size: 13px; line-height: 1.4; text-align: left; }
       #pop p { margin: 6px 0 0; }
       #pop .pop-head { display: flex; align-items: center; gap: 8px; font-size: 14px; }
       #pop .pop-head img { width: 34px; height: 34px; }
@@ -251,8 +251,9 @@
       .notice a { color: var(--accent); }
 
       /* ---------- janelas ---------- */
-      .modal { position: absolute; inset: 0; z-index: 8; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
-      .modal .card { max-height: 90vh; overflow: auto; }
+      /* janelas: medidas pela área visível (não por vh, que no celular conta as barras do navegador e empurra a janela para fora da tela) */
+      .modal { position: absolute; inset: 0; z-index: 8; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
+      .modal .card { max-height: 100%; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
       .modal h3 { margin: 0 0 10px; font-size: 20px; }
       .modal p, .modal li { line-height: 1.5; font-size: 14px; color: #dedede; }
       .modal ul { padding-left: 18px; margin: 6px 0 12px; }
@@ -296,6 +297,21 @@
         .home .actions button { height: 42px; }
       }
       @media (max-height: 680px) { .logo .l1 { font-size: clamp(32px, 7vw, 54px); } .logo .l2 { font-size: clamp(13px, 2.6vw, 19px); } .home { gap: 8px; padding-top: 10px; } }
+      /* celular deitado (tela baixa): título e painel mais compactos para o botão de começar ficar à vista, sem rolar */
+      @media (max-height: 480px) {
+        .home { gap: 4px; padding: 6px 16px 8px; }
+        .logo .l1 { font-size: clamp(26px, 6vw, 38px); }
+        .logo .l2 { font-size: clamp(11px, 2.2vw, 15px); margin-top: 2px; }
+        .home .card { padding: 6px 12px 8px; }
+        .tabs { margin-bottom: 4px; padding: 3px; }
+        .tab { min-height: 34px; }
+        .step { margin: 6px 0 4px; font-size: 14px; }
+        .step:first-child { margin-top: 2px; }
+        .choices button { height: 36px; font-size: 15px; }
+        .actions { margin-top: 8px; }
+        .actions button { height: 38px; }
+        .codebox { font-size: 28px; padding: 4px 0 4px 0.3em; }
+      }
       /* câmera: pílula separada do menu, sempre à vista */
       .cam { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; padding-top: 2px; border-top: 1px solid #4d4d4d; }
       .cam[hidden] { display: none; }
@@ -403,7 +419,7 @@
         .score .who { display: none; }
         /* avisos em cima, convocações + dado numa fileira só embaixo */
         .hud-bc { width: calc(100% - 12px); gap: 5px; } /* folga externa original: 6 px de cada lado */
-        .hud-bc .actionbar { max-height: 30vh; min-height: 56px; --ap: 6px; padding: var(--ap) 16px; gap: 8px; }
+        .hud-bc .actionbar { max-height: 30vh; max-height: 30dvh; min-height: 56px; --ap: 6px; padding: var(--ap) 16px; gap: 8px; }
         .actionbar .prompt { font-size: 12px; }
         .hud-card { padding: 5px 7px; }
         .combo { gap: 6px; }

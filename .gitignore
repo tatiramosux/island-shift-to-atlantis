@@ -6,3 +6,6 @@ dist
 .claude/
 .env*
 release/
+
+# material antigo guardado só neste computador (não sobe para o GitHub)
+archive/

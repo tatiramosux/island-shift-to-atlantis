@@ -126,7 +126,8 @@ const evText = (e: GameEvent): string | null => {
   const P = (k: string) => teamName(e[k] as number);
   switch (e.type) {
     case 'crystal': return t(`${P('owner')} gained 1 crystal${e.surge ? ' (Surge Tide)' : ''}.`, `${P('owner')} ganhou 1 cristal${e.surge ? ' (Maré viva)' : ''}.`);
-    case 'unearth': return e.tile === 'crystal' || e.tile === 'trident' || e.tile === 'calm' ? t(`${P('owner')} picked up a treasure: ${TILE_PT[e.tile as AtlantisTile]}!`, `${P('owner')} pegou um tesouro: ${TILE_PT[e.tile as AtlantisTile]}!`) : t(`${P('owner')} dug up: ${TILE_PT[e.tile as AtlantisTile]}.`, `${P('owner')} descobriu: ${TILE_PT[e.tile as AtlantisTile]}.`);
+    // tesouro (cristal, tridente, Maré calma): quem conta é o próprio evento dele, logo abaixo; assim a mesma pegada não vira duas linhas
+    case 'unearth': return e.tile === 'crystal' || e.tile === 'trident' || e.tile === 'calm' ? '' : t(`${P('owner')} dug up: ${TILE_PT[e.tile as AtlantisTile]}.`, `${P('owner')} descobriu: ${TILE_PT[e.tile as AtlantisTile]}.`);
     case 'castleCrystal': return t(`${P('owner')} rescued the Princess from the Castle!`, `${P('owner')} resgatou a Princesa do Castelo!`);
     case 'princessSafe': return t(`${P('owner')} brought the Princess safely aboard (+${e.value} points)!`, `${P('owner')} levou a Princesa a salvo para o navio (+${e.value} pontos)!`);
     case 'launch': return t(`${bname(e.builderId as string)} got into a boat.`, `${bname(e.builderId as string)} entrou num bote.`);
@@ -136,7 +137,7 @@ const evText = (e: GameEvent): string | null => {
     case 'boatCapsized': return t(`The Octopus flipped ${P('owner')}'s boat: the pirate is adrift.`, `O Polvo virou o bote de ${P('owner')}: o pirata está boiando.`);
     case 'princessLost': return t(`Nereus took the Princess of ${P('owner')} back to the bottom of the sea!`, `Nereu levou a Princesa de ${P('owner')} de volta ao fundo do mar!`);
     case 'tridentTaken': return t(`${P('owner')} picked up a trident.`, `${P('owner')} pegou um tridente.`);
-    case 'calmSea': return t('Calm Tide: the next Tide phase will be skipped.', 'Maré calma: a próxima Maré será pulada.');
+    case 'calmSea': return t(`${P('owner')} found Calm Tide: the next Tide phase will be skipped.`, `${P('owner')} achou a Maré calma: a próxima Maré será pulada.`);
     case 'flood': return t(`The tile sank and revealed: ${TILE_PT[e.tile as AtlantisTile]}.`, `A casa afundou e revelou: ${TILE_PT[e.tile as AtlantisTile]}.`);
     case 'floodSkipped': return t('The Tide phase was skipped.', 'A Maré foi pulada.');
     case 'waveWarning': return game.settings.tideShift
@@ -584,12 +585,13 @@ const openPop = (key: string, anchor: HTMLElement, build: (box: HTMLElement) => 
   if (anchor.classList.contains('dice-help')) anchor.classList.add('open');
   const app = $('app').getBoundingClientRect();
   const a = anchor.getBoundingClientRect();
+  box.style.maxHeight = Math.max(80, app.height - 16) + 'px'; // balão alto demais (tela baixa): rola por dentro em vez de sair da tela
   const w = box.offsetWidth;
   const h = box.offsetHeight;
   const left = Math.max(8, Math.min(a.left - app.left + a.width / 2 - w / 2, app.width - w - 8));
   const above = a.top - app.top - h - 8;
   box.style.left = left + 'px';
-  box.style.top = (above >= 8 ? above : Math.min(a.bottom - app.top + 8, app.height - h - 8)) + 'px';
+  box.style.top = Math.max(8, above >= 8 ? above : Math.min(a.bottom - app.top + 8, app.height - h - 8)) + 'px';
 };
 const popText = (box: HTMLElement, html: string) => {
   const p = document.createElement('p');

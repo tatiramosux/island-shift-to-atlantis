@@ -8,7 +8,7 @@ disappears into the sea.
 
 - **Play:** solo against bots or pass-and-play on one device. Runs in the browser, no install.
 - **Languages:** English (default) and Portuguese. Switch with the **EN / PT** buttons on the start screen.
-- **Online rooms:** built, but switched off in this release. They come back in a later one.
+- **Online rooms:** play with friends on the Render site, https://island-shift-to-atlantis.onrender.com (the first visit can take about a minute to wake up). The itch.io and Vercel builds are offline-only: vs. bots or pass-and-play.
 
 ## How a match works
 
@@ -55,7 +55,7 @@ Upload the zip as an HTML project and tick "This file will be played in the brow
 - `src/stage/` — the 3D board (three.js): voxel-style pieces, camera, lights, day/night sky.
 - `src/play/` — screens, menus, sounds (all synthesized in the browser, no audio files) and the logo.
 - `src/i18n.ts` — English / Portuguese text.
-- `server/` — room server for online play (switched off for now).
+- `server/` — room server for online play (Node + WebSocket; it also serves the game on Render).
 
 ## Credits
 
