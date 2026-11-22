@@ -94,7 +94,7 @@ As convocações funcionam como poderes de uso único: um personagem entra em ce
 |---|---|---|
 | **Tritão** | 2 cristais | **Empurrão forte:** joga um pirata adversário até 2 casas em linha reta. Se cair na água, fica boiando. |
 | **Golfinho-guia** | 1 cristal | **Resgate:** nada até um náufrago seu, leva-o até 2 casas e o solta numa casa de terra de nível 0 ou 1. Depois vai embora e a boia some. |
-| **Sereia** | 1 cristal | **Canto:** rouba 1 cristal de um pirata vizinho. |
+| **Sereia** | 1 cristal | **Canto:** rouba todos os cristais, menos 2, do time de um pirata vizinho (quem tem 2 ou menos não pode ser roubado). |
 | **Colosso de coral** | 2 cristais | **Cúpula relâmpago:** coloca uma cúpula em qualquer casa que não seja o Castelo. |
 
 Não há eliminação: quem cai no mar só boia.

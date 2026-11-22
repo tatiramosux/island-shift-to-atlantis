@@ -118,10 +118,17 @@ export const buildNereus = (m: Models) => {
   const armL = armOf(-2.2);
   const armR = armOf(2.2);
   const trident = new THREE.Group();
-  trident.position.set(2.75, 0.55, 0.3);
+  // preso ao braço direito: a haste fica na frente do antebraço (visível) e os dedos fecham em volta dela, na altura do punho (y = -2.2)
+  // (a haste fica à frente do ombro, que vai até z = 0.6: sem isso ela atravessava o ombro)
+  // o tridente gira num punho (grip) na mão: o pulso compensa o braço, senão a ponta de cima balançava para trás e entrava no ombro
+  const grip = new THREE.Group();
+  grip.position.set(0, -2.2, 0.85);
+  trident.position.set(0, -1.6, 0);
+  grip.add(trident);
+  armR.add(m.box(0.78, 0.6, 0.6, skinD, 0, -2.2, 0.5), m.box(0.5, 0.36, 0.3, skin, 0, -2.2, 0.98));
   trident.add(m.box(0.2, 4.8, 0.2, gold, 0, 2.4, 0), m.box(1.1, 0.18, 0.2, gold, 0, 4.9, 0));
   for (const x of [-0.48, 0, 0.48]) trident.add(m.box(0.16, x === 0 ? 1.1 : 0.8, 0.16, gold, x, x === 0 ? 5.5 : 5.3, 0));
-  body.add(trident);
+  armR.add(grip);
   // cabeça: barba e cabelo brancos, coroa de ouro, olhos brilhantes, boca que abre no urro
   const head = new THREE.Group();
   head.position.set(0, 4.05, 0.5);
@@ -143,5 +150,5 @@ export const buildNereus = (m: Models) => {
   for (const x of [-0.45, -0.15, 0.15, 0.45]) head.add(m.box(0.16, 0.45, 0.16, gold, x, 1.82, 0.0));
   head.scale.setScalar(1.15);
   body.add(head);
-  return { root, body, head, mouth, armL, armR, trident, tail, fin: finGroup };
+  return { root, body, head, mouth, armL, armR, trident: grip, tail, fin: finGroup };
 };

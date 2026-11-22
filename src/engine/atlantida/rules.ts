@@ -93,6 +93,8 @@ const landFree = (s: GameState, h: Hex): boolean => {
 /** Valor do cristal do topo do Castelo. */
 /** A princesa do Castelo: quem a resgata e embarca no navio com ela ganha este bônus (não vence na hora). */
 export const PRINCESS_BONUS = 4;
+/** A Sereia rouba todos os cristais do alvo, menos estes: quem tem só 2 (ou menos) não pode ser roubado. */
+export const SIREN_KEEP = 2;
 /** Cada tridente que sobra vale 2 pontos (o cristal vale 1). Cristais e tridentes são recursos que se gastam; só os pontos decidem quem vence. */
 export const TRIDENT_VALUE = 2;
 /** Casa colada na entrada do Castelo (o portão em arco do desenho fica deste lado): ali não se constrói escada. */
@@ -547,7 +549,7 @@ export const legalActions = (s: GameState): Action[] => {
       for (const b of mine) {
         for (const n of hexNeighbors(b.hex!)) {
           const t = builderAt(s, n);
-          if (t && t.owner !== p && s.crystals[t.owner] > 0) out.push({ type: 'summon', player: p, kind: 'siren', builderId: b.id, targetId: t.id });
+          if (t && t.owner !== p && s.crystals[t.owner] > SIREN_KEEP) out.push({ type: 'summon', player: p, kind: 'siren', builderId: b.id, targetId: t.id });
         }
       }
     }
@@ -818,7 +820,8 @@ const flipCell = (s: GameState, h: Hex, ev: GameEvent[]) => {
   const tile = c.tile as AtlantisTile;
   c.state = 'atlantis';
   c.dome = false;
-  c.floors = tile === 'column' ? 1 : 0; // a Coluna já nasce com 1 andar
+  // a Coluna já nasce com 1 andar; as torres e escadas do Castelo (fileira 1) mantêm os andares, senão a subida até a princesa some antes de alguém chegar
+  c.floors = Math.max(tile === 'column' ? 1 : 0, s.castleRisen && !c.temple && c.ring === 1 ? c.floors : 0);
   for (const b of here) if (tile !== 'shield') dropIntoWater(s, b, ev);
   ev.push({ type: 'flood', hex: h, tile });
   riseCastle(s, ev);
@@ -1054,9 +1057,10 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       } else if (a.kind === 'siren') {
         s.crystals[a.player] -= st.sirenCost;
         const t = s.builders.find((x) => x.id === a.targetId)!;
-        s.crystals[t.owner] -= 1;
-        s.crystals[a.player] += 1;
-        ev.push({ type: 'summon', kind: 'siren', by: s.builders.find((x) => x.id === a.builderId)!.hex, at: t.hex, from: t.owner, to: a.player });
+        const stolen = s.crystals[t.owner] - SIREN_KEEP; // leva todos, menos os 2 que sempre ficam com a vítima
+        s.crystals[t.owner] -= stolen;
+        s.crystals[a.player] += stolen;
+        ev.push({ type: 'summon', kind: 'siren', by: s.builders.find((x) => x.id === a.builderId)!.hex, at: t.hex, from: t.owner, to: a.player, amount: stolen });
       } else {
         s.crystals[a.player] -= st.colossusCost;
         cellAt(s, a.at)!.dome = true;

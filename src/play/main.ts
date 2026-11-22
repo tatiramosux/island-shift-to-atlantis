@@ -56,7 +56,7 @@ const CREATURE_PT: Record<string, string> = { octopus: t('Colossus Octopus', 'Po
 const SUMMONS = {
   triton: { name: t('Triton', 'Tritão'), tip: t('Mighty push: throws a neighboring rival up to 2 tiles. In the water, they end up adrift.', 'Empurrão forte: joga um adversário vizinho até 2 casas. Na água, ele fica boiando.') },
   lasso: { name: t('Lasso', 'Laço'), tip: t('Steals the Princess from a rival team that has a pirate up to 3 tiles from one of yours. She must not be on the ship yet.', 'Rouba a Princesa de um time rival que tenha um pirata a até 3 casas de um seu. Ela ainda não pode estar no navio.') },
-  siren: { name: t('Siren', 'Sereia'), tip: t('Song: steals 1 crystal from a neighboring pirate.', 'Canto: rouba 1 cristal de um pirata vizinho.') },
+  siren: { name: t('Siren', 'Sereia'), tip: t('Song: steals all crystals but 2 from a neighboring pirate\'s team (nothing to steal if they have 2 or fewer).', 'Canto: rouba todos os cristais, menos 2, do time de um pirata vizinho (nada a roubar se tiver 2 ou menos).') },
   colossus: { name: t('Coral Colossus', 'Colosso de coral'), tip: t('Instant dome: places a dome on any free tile except the Castle.', 'Cúpula relâmpago: coloca uma cúpula em qualquer casa livre que não seja o Castelo.') },
 } as const;
 type SummonKind = keyof typeof SUMMONS;
@@ -163,7 +163,7 @@ const evText = (e: GameEvent): string | null => {
     case 'sentinelSleeps': return t('The Sentinel keeps sleeping: no pirate within 2 tiles.', 'A Sentinela continua dormindo: não há pirata a até 2 casas.');
     case 'landed': return t(`${bname(e.builderId as string)} reached land.`, `${bname(e.builderId as string)} chegou à terra.`);
     case 'summon':
-      return e.kind === 'triton' ? t(`Triton: mighty push${e.falls ? ', and they landed in the water' : ''}.`, `Tritão: empurrão forte${e.falls ? ', e foi parar na água' : ''}.`) : e.kind === 'lasso' ? t(`Lasso: ${teamName(e.to as number)} stole the Princess from ${teamName(e.from as number)}!`, `Laço: ${teamName(e.to as number)} roubou a Princesa de ${teamName(e.from as number)}!`) : e.kind === 'siren' ? t('Siren: stole 1 crystal.', 'Sereia: roubou 1 cristal.') : t('Coral Colossus: instant dome.', 'Colosso de coral: cúpula relâmpago.');
+      return e.kind === 'triton' ? t(`Triton: mighty push${e.falls ? ', and they landed in the water' : ''}.`, `Tritão: empurrão forte${e.falls ? ', e foi parar na água' : ''}.`) : e.kind === 'lasso' ? t(`Lasso: ${teamName(e.to as number)} stole the Princess from ${teamName(e.from as number)}!`, `Laço: ${teamName(e.to as number)} roubou a Princesa de ${teamName(e.from as number)}!`) : e.kind === 'siren' ? t(`Siren: stole ${e.amount ?? 1} crystal${e.amount === 1 ? '' : 's'}.`, `Sereia: roubou ${e.amount ?? 1} cristal${e.amount === 1 ? '' : 'is'}.`) : t('Coral Colossus: instant dome.', 'Colosso de coral: cúpula relâmpago.');
     default: return null;
   }
 };
@@ -310,8 +310,8 @@ const takeState = (events: GameEvent[]) => {
     }
     if (e.type === 'summon' && e.kind === 'siren') {
       const thief = teamName(e.to as number);
-      if (e.from === viewer()) setTimeout(() => explainSiren(thief, true), 1400);
-      else if (e.to === viewer()) toast(t(`Siren: you stole 1 crystal from ${teamName(e.from as number)}.`, `Sereia: você roubou 1 cristal de ${teamName(e.from as number)}.`));
+      if (e.from === viewer()) setTimeout(() => explainSiren(thief, true, (e.amount as number) ?? 1), 1400);
+      else if (e.to === viewer()) toast(t(`Siren: you stole ${e.amount ?? 1} crystal${e.amount === 1 ? '' : 's'} from ${teamName(e.from as number)}.`, `Sereia: você roubou ${e.amount ?? 1} cristal${e.amount === 1 ? '' : 'is'} de ${teamName(e.from as number)}.`));
     }
     const line = evText(e);
     if (line) say(line);
@@ -1371,7 +1371,7 @@ ${escapeRules()
 <li><b>Push:</b> a neighboring pirate moves 1 tile back, if the tile behind is free and on land.</li>
 <li><b>Creatures:</b> the Octopus and the Leviathan swim only in the sea (never on the island or on Atlantis). When one stops, it wraps a pirate up to 2 tiles away and throws them into the water (the Leviathan can also smash a neighboring building). Atlantis crumbles from round 3, opening holes of sea in the middle of the island where they can swim in.</li>
 <li><b>Falling in the water is not death:</b> you sit on a buoy and can swim back. Nobody is ever eliminated: the Octopus and Leviathan throw floaters farther away and flip boats (whoever was in it ends up floating). Atlantis is fragile: from round 3 a tile crumbles every round and the sea slowly opens channels into the island.</li>
-<li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Lasso steals the Princess, Siren steals 1 crystal, Coral Colossus places a dome.</li>
+<li><b>Summons</b> (1 per turn, cost crystals): Triton pushes hard, Lasso steals the Princess, Siren steals all crystals but 2 (nothing to steal from a team with 2 or fewer), Coral Colossus places a dome.</li>
 <li><b>Treasures:</b> stepping onto a closed tile or onto a sunken one (revealed by the quake) shows the piece. Crystal, Trident and Calm Tide are taken at once and the tile becomes a Ruin. The Princess on top of the Castle is worth +4 once she is aboard your ship.</li>
 <li><b>Pieces:</b> tap any tile with a piece in view to see what it is and how to use it.</li>
 </ul>
@@ -1410,7 +1410,7 @@ ${escapeRules()
 <li><b>Empurrar:</b> um pirata vizinho vai 1 casa para trás, se a casa de trás estiver livre e em terra.</li>
 <li><b>Criaturas:</b> o Polvo e o Leviatã nadam só pelo mar (nunca na ilha nem em Atlântida). Ao parar, cada um enrola um pirata a até 2 casas e o joga na água (o Leviatã também pode derrubar uma construção vizinha). Atlântida desmorona a partir da rodada 3 e abre buracos de mar no meio da ilha, por onde eles podem entrar.</li>
 <li><b>Quem cai na água não morre:</b> fica numa boia e pode nadar de volta. Ninguém é eliminado: o Polvo e o Leviatã jogam quem já boia mais longe e viram botes (quem estava nele fica boiando). Atlântida é frágil: a partir da rodada 3, uma casa desmorona a cada rodada e o mar vai abrindo canais para dentro da ilha.</li>
-<li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Laço rouba a Princesa, Sereia rouba 1 cristal, Colosso de coral põe uma cúpula.</li>
+<li><b>Convocações</b> (1 por turno, custam cristais): Tritão empurra forte, Laço rouba a Princesa, Sereia rouba todos os cristais menos 2 (nada a roubar de quem tem 2 ou menos), Colosso de coral põe uma cúpula.</li>
 <li><b>Tesouros:</b> pisar numa casa fechada ou entrar numa afundada (revelada pelo terremoto) mostra a peça. Cristal, Tridente e Maré calma são pegos na hora e a casa vira Ruína. A Princesa do topo do Castelo vale +4 quando estiver a bordo do seu navio.</li>
 <li><b>Peças:</b> toque em qualquer casa com uma peça à vista para ver o que é e como usar.</li>
 </ul>
@@ -1435,15 +1435,15 @@ const showRules = () => {
 
 /** Gestos do tabuleiro: dicas de girar, mover, zoom e centralizar. */
 /** Quem perdeu um cristal para a Sereia entende o que houve (e como evitar). */
-const explainSiren = (thief: string, victim: boolean) => {
+const explainSiren = (thief: string, victim: boolean, amount = 1) => {
   if (!victim) return;
   const c = document.createElement('div');
   c.className = 'card';
   c.innerHTML =
-    t('<h3>The Siren stole your crystal!</h3>', '<h3>A Sereia roubou seu cristal!</h3>') +
+    t('<h3>The Siren stole your crystals!</h3>', '<h3>A Sereia roubou seus cristais!</h3>') +
     `<p>${t(
-      `${thief} paid crystals to summon the Siren. Her song makes a pirate next to yours hand over <b>1 crystal</b>: you lose 1 point and ${thief} gains 1.`,
-      `${thief} pagou cristais para convocar a Sereia. O canto dela faz um pirata vizinho do seu entregar <b>1 cristal</b>: você perde 1 ponto e ${thief} ganha 1.`,
+      `${thief} paid crystals to summon the Siren. Her song makes a pirate next to yours hand over <b>${amount} crystal${amount === 1 ? '' : 's'}</b> (everything above 2): you lose ${amount} point${amount === 1 ? '' : 's'} and ${thief} gains them.`,
+      `${thief} pagou cristais para convocar a Sereia. O canto dela faz um pirata vizinho do seu entregar <b>${amount} cristal${amount === 1 ? '' : 'is'}</b> (tudo o que passa de 2): você perde ${amount} ponto${amount === 1 ? '' : 's'} e ${thief} ganha.`,
     )}</p><p>${t(
       'To avoid it: keep your pirates away from opponents, or spend your crystals on your own Summons before they are stolen.',
       'Para evitar: mantenha seus piratas longe dos adversários, ou gaste seus cristais em Convocações antes que sejam roubados.',

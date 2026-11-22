@@ -799,7 +799,7 @@ describe('convocações', () => {
     put(s, 'p1b0', H(2, -1));
     expect(legalActions(s).some((a) => a.type === 'summon')).toBe(false);
     s.crystals[0] = 3;
-    s.crystals[1] = 1;
+    s.crystals[1] = 4;
     s = ok(s, { type: 'summon', player: 0, kind: 'siren', builderId: 'p0b0', targetId: 'p1b0' }).state;
     s.crystals[0] = 9;
     expect(legalActions(s).some((a) => a.type === 'summon')).toBe(false);
@@ -892,16 +892,18 @@ describe('convocações', () => {
     expect(has(s)).toBe(false); // custa 2
   });
 
-  it('Sereia (3): rouba 1 cristal de um construtor vizinho', () => {
+  it('Sereia (3): rouba todos os cristais do vizinho menos 2; quem tem 2 ou menos não pode ser roubado', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));
     put(s, 'p1b0', H(2, -1));
     s.crystals[0] = 3;
-    s.crystals[1] = 0;
-    expect(legalActions(s).some((a) => a.type === 'summon' && a.kind === 'siren')).toBe(false); // nada para roubar
-    s.crystals[1] = 2;
+    for (const poor of [0, 1, 2]) {
+      s.crystals[1] = poor;
+      expect(legalActions(s).some((a) => a.type === 'summon' && a.kind === 'siren')).toBe(false); // nada para roubar
+    }
+    s.crystals[1] = 7;
     const r = ok(s, { type: 'summon', player: 0, kind: 'siren', builderId: 'p0b0', targetId: 'p1b0' }).state;
-    expect(r.crystals).toEqual([1, 1]);
+    expect(r.crystals).toEqual([0 + 5, 2]); // paga 3, leva 5 (7 - 2)
   });
 
   it('Colosso de coral (2): cúpula em qualquer casa livre que não seja o Templo', () => {

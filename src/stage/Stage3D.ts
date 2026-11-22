@@ -602,17 +602,20 @@ export class Stage3D {
     const end = v ? v.target.clone() : (() => { const w = worldOf({ q: -6, r: 3 }); return new THREE.Vector3(w.x, 0, w.z); })();
     const N = buildNereus(this.models);
     const SC = 0.62;
+    // Nereu sobe do mar aberto, longe da terra (senão o corpo dele atravessaria a ilha); o pirata é puxado até a mão dele e jogado de lá
+    const at = v ? this.nereusSpot(start) : end;
     N.root.scale.setScalar(SC);
-    N.root.position.set(end.x, 0, end.z);
+    N.root.position.set(at.x, 0, at.z);
     const yaw = Math.atan2(Math.cos(this.az), Math.sin(this.az));
     N.root.rotation.y = yaw;
     const ease = (x: number) => x * x * (3 - 2 * x);
     const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-    const T = { rise: 0.9, roar: 1.0, grab: 1.7, lift: 2.2, throw: 2.65, land: 3.15, sink: 3.3 }; // marcos da cena (s)
-    const dur = 4.3;
-    const hand = new THREE.Object3D(); // o punho do braço direito: é nele que o pirata fica pendurado pela roupa
-    hand.position.set(0, -2.7, 0.1);
-    N.armR.add(hand);
+    // marcos da cena (s): 2 s surgindo da água e se firmando; então urra "MY PRINCESS!!"; só depois fisga o pirata e o arremessa
+    const T = { rise: 1.5, settle: 2.0, roar: 2.0, grab: 3.1, lift: 3.6, throw: 4.05, land: 4.55, sink: 4.7 };
+    const dur = 5.6;
+    const hand = new THREE.Object3D(); // a ponta do meio do tridente: ela fisga um pedaço da roupa do pirata, que fica pendurado ali
+    hand.position.set(0, 4.4, 0); // topo do tridente, medido a partir do punho que o segura
+    N.trident.add(hand);
     this.addFx(N.root, dur, 0, (p) => {
       const tt = p * dur;
       const rise = ease(clamp01(tt / T.rise));
@@ -622,18 +625,22 @@ export class Stage3D {
       const lift = ease(clamp01((tt - T.grab) / (T.lift - T.grab))); // levanta o pirata
       const swing = ease(clamp01((tt - T.lift) / (T.throw - T.lift))); // arma o arremesso para trás
       const hurl = ease(clamp01((tt - T.throw) / 0.3)); // e joga
-      N.body.position.y = -6 + 6 * rise - 6 * sink;
+      // ao subir ele balança e vai se firmando até o urro (aos 2 s); depois fica parado
+      const unsteady = Math.max(0, 1 - tt / T.settle) * ease(clamp01(tt / 0.3));
+      N.root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az)); // de frente para a câmera
+      N.body.position.y = -6 + 6 * rise - 6 * sink + Math.sin(tt * 8) * 0.18 * unsteady;
+      N.body.rotation.z = Math.sin(tt * 5.5) * 0.08 * unsteady;
       N.body.position.x = Math.sin(tt * 55) * 0.03 * roar; // treme no urro
       N.head.rotation.x = -0.4 * roar;
       N.mouth.scale.y = N.mouth.userData.baseY * (1 + 4 * roar);
       N.mouth.position.y = N.mouth.userData.posY - 0.2 * roar;
       N.armL.rotation.z = 0.15 + 0.5 * roar;
       N.armR.rotation.x = -0.4 * roar - 0.9 * reach + 0.5 * lift - 1.2 * swing + 2.0 * hurl; // estica, ergue, arma e arremessa
+      N.trident.rotation.x = -0.85 * N.armR.rotation.x; // o pulso compensa o braço: o tridente fica quase em pé e não atravessa o ombro
       N.armR.rotation.z = 0.25 * reach;
-      N.trident.position.y = 0.55 + 0.7 * roar;
       N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3;
     });
-    for (let i = 0; i < 4; i++) this.burst(end.x + (Math.random() - 0.5) * 1.6, 0.2, end.z + (Math.random() - 0.5) * 1.6, '#dff6ff', 8, i * 0.15, 2.4); // água se abrindo
+    for (let i = 0; i < 4; i++) this.burst(at.x + (Math.random() - 0.5) * 1.6, 0.2, at.z + (Math.random() - 0.5) * 1.6, '#dff6ff', 8, i * 0.15, 2.4); // água se abrindo
     const handAt = new THREE.Vector3();
     if (v) {
       // durante a cena o pirata aparece de pé, sem a boia (ela só surge quando ele cai no mar)
@@ -653,6 +660,7 @@ export class Stage3D {
       });
       v.group.visible = false;
       const hold = T.land;
+      let stretch = 0; // 0 a 1: a roupa se estica sob o peso do pirata pendurado na ponta do tridente (e volta ao normal quando ele é solto)
       v.script = {
         t0: this.clock.elapsedTime,
         dur: hold,
@@ -660,10 +668,17 @@ export class Stage3D {
           const tt = p * hold;
           N.root.updateMatrixWorld(true);
           hand.getWorldPosition(handAt);
+          stretch = tt < T.throw ? ease(clamp01((tt - T.grab) / 0.6)) : 1 - ease(clamp01((tt - T.throw) / 0.2));
           const base = new THREE.Vector3(start.x, start.y + 0.9 * ease(clamp01((tt - T.roar) / 0.7)), start.z); // paralisado de medo, sobe um pouco
-          const hung = new THREE.Vector3(handAt.x, handAt.y - 0.2, handAt.z); // pendurado pela roupa, logo abaixo do punho
+          // preso pela roupa (na altura dos ombros) na ponta do tridente: com o peso, o corpo se alonga e os pés ficam mais para baixo
+          const hung = new THREE.Vector3(handAt.x, handAt.y - 1.25 * (1 + 0.35 * stretch), handAt.z);
           pos.copy(base);
-          if (tt >= T.grab) pos.lerpVectors(base, hung, ease(clamp01((tt - T.grab) / 0.3)));
+          if (tt >= T.grab) {
+            // a mão de Nereu pode estar longe: o pirata é puxado em arco até ela
+            const g = ease(clamp01((tt - T.grab) / 0.45));
+            pos.lerpVectors(base, hung, g);
+            pos.y += Math.sin(g * Math.PI) * 0.9;
+          }
           if (tt >= T.throw) {
             // solto: voa em arco até a água, onde cai
             const u = clamp01((tt - T.throw) / (T.land - T.throw));
@@ -679,6 +694,7 @@ export class Stage3D {
         const tt = p * T.land;
         ghost.position.copy(v.group.position);
         ghost.rotation.set(v.group.rotation.x, v.group.rotation.y, v.group.rotation.z);
+        ghost.scale.set(1 - 0.18 * stretch, 1 + 0.35 * stretch, 1 - 0.18 * stretch); // a roupa estica com o peso
         const f = tt * 9;
         if (gArmL && gArmR) {
           const flail = tt >= T.roar;
@@ -697,15 +713,39 @@ export class Stage3D {
     }
     this.later(T.roar, () => {
       this.sfx?.('nereus');
-      this.nereusBubble(end.x, 3.5, end.z, 1.3);
+      this.nereusBubble(at.x, 3.5, at.z, 1.3);
       this.shake = 0.9;
-      for (let i = 0; i < 5; i++) this.burst(end.x + (Math.random() - 0.5) * 2.4, 0.3, end.z + (Math.random() - 0.5) * 2.4, '#bfe6f5', 8, i * 0.08, 3);
+      for (let i = 0; i < 5; i++) this.burst(at.x + (Math.random() - 0.5) * 2.4, 0.3, at.z + (Math.random() - 0.5) * 2.4, '#bfe6f5', 8, i * 0.08, 3);
     });
+  }
+
+  /** Onde Nereu pode surgir: a casa de mar mais perto de `near` que fica toda cercada de mar (sem encostar na ilha) e longe de navios e criaturas. */
+  private nereusSpot(near: THREE.Vector3): THREE.Vector3 {
+    const s = this.lastState;
+    const fallback = (() => {
+      const w = worldOf({ q: -6, r: 3 });
+      return new THREE.Vector3(w.x, 0, w.z);
+    })();
+    if (!s) return fallback;
+    const busy: Hex[] = [...s.ships, ...s.creatures.map((c) => c.hex).filter((h): h is Hex => !!h)];
+    let best: THREE.Vector3 | null = null;
+    let bd = Infinity;
+    for (const h of hexDisk(ORIGIN, ISLAND_RADIUS + 4)) {
+      if (!isSea(s, h) || !hexNeighbors(h).every((n) => isSea(s, n))) continue;
+      if (busy.some((b) => hexDistance(b, h) <= 1)) continue;
+      const w = worldOf(h);
+      const d = (w.x - near.x) ** 2 + (w.z - near.z) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = new THREE.Vector3(w.x, 0, w.z);
+      }
+    }
+    return best ?? fallback;
   }
 
   private playNereus(princessY: number | null = null) {
     const N = buildNereus(this.models);
-    const delay = 2.0;
+    const delay = 2.6; // só sobe depois que o Castelo já afundou: o corpo dele não atravessa as torres
     const dur = 4.4;
     const ease = (x: number) => x * x * (3 - 2 * x);
     const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
@@ -727,9 +767,8 @@ export class Stage3D {
       N.mouth.position.y = N.mouth.userData.posY - 0.2 * roar;
       N.armL.rotation.z = 0.15 + 0.5 * roar;
       N.armR.rotation.x = -0.5 * roar;
-      N.trident.position.y = 0.65 + 0.7 * roar;
+      N.trident.rotation.x = -0.85 * N.armR.rotation.x; // o pulso compensa o braço (o tridente não entra no ombro)
       N.fin.rotation.z = Math.sin(tt * 5) * 0.25 + roar * 0.3; // a nadadeira balança, e mais forte no urro
-      N.trident.rotation.z = -0.05 * roar;
     });
     if (princessY !== null) {
       // a princesa, ainda no topo do Castelo que afunda, pula para a mão do Nereu e é levada com ele
@@ -739,8 +778,8 @@ export class Stage3D {
       root.add(P.root);
       const hand = new THREE.Vector3();
       const start = new THREE.Vector3();
-      const jumpAt = 0.95;
-      const landAt = 1.6;
+      const jumpAt = 0.35;
+      const landAt = 1.2;
       this.addFx(root, delay + dur, 0, (p) => {
         const tt = p * (delay + dur) - delay; // 0 = Nereu começa a subir; antes disso ela já espera no Castelo
         root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az));
@@ -2031,8 +2070,6 @@ export class Stage3D {
       this.placeCamera();
     }
     const k = 1 - Math.exp(-dt * 9);
-    // pose isométrica fixa: o personagem gira junto com o tabuleiro e olha para a câmera do momento (a da tela inicial é outra)
-    const faceRy = Math.PI / 2 - (this.home ? HOME_AZ : FRONT_AZ);
     // lado direito da tela, no chão: decide para que lado o bote aponta (espelha a pose isométrica)
     const camRight = new THREE.Vector3().setFromMatrixColumn(this.cam.matrixWorld, 0).setY(0).normalize();
     // de frente para a câmera do momento, virado 45° para a direita ou para a esquerda da tela
@@ -2059,7 +2096,7 @@ export class Stage3D {
       if (e.turns && e.faceTo) {
         const toShip = (e.faceTo.x - e.target.x) * camRight.x + (e.faceTo.z - e.target.z) * camRight.z;
         e.group.rotation.y = toShip >= 0 ? ryRight : ryLeft;
-      } else if (e.turns) e.group.rotation.y = faceRy + ISO_TURN;
+      } else if (e.turns) e.group.rotation.y = ryCam + ISO_TURN; // sempre de frente para a câmera do momento (acompanha quem gira o tabuleiro), como a princesa
       // quem boia grita "homem ao mar!" de tempos em tempos (cada um no seu ritmo), no mesmo estilo da princesa
       if (e.kind.endsWith('-floating')) {
         if (!e.bubble) {
