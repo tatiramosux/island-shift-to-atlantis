@@ -1,5 +1,5 @@
 /**
- * Motor de regras de Atlântida, Cidade Submersa. Funções puras sobre um GameState em JSON (sem three.js, sem DOM).
+ * Motor de regras de Island Shift to Atlantis. Funções puras sobre um GameState em JSON (sem three.js, sem DOM).
  *
  * Desenho: `legalActions(state)` lista TODAS as jogadas permitidas agora; `applyAction` só aceita uma jogada que
  * esteja nessa lista e a executa em uma cópia do estado. Assim a interface, o bot e o servidor usam a mesma verdade.

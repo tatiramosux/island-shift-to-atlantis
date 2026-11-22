@@ -255,6 +255,13 @@
       .modal { position: absolute; inset: 0; z-index: 8; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
       .modal .card { max-height: 100%; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
       .modal h3 { margin: 0 0 10px; font-size: 20px; }
+      /* links legais: Sobre · Política de Privacidade · Termos de Uso (rodapé da tela inicial e fim do Sobre) */
+      .legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; margin-top: 4px; font-size: 12px; }
+      .legal button { min-height: 0; height: auto; padding: 6px 2px; background: none; border: 0; box-shadow: none; color: #fff; font-size: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+      .modal .legal { margin: 10px 0 4px; }
+      .modal small { color: var(--muted); }
+      @media (max-height: 480px) { .home > .legal { display: none; } } /* celular deitado: sem espaço; o Sobre (ⓘ) leva às mesmas páginas */
+      .modal a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
       .modal p, .modal li { line-height: 1.5; font-size: 14px; color: #dedede; }
       .modal ul { padding-left: 18px; margin: 6px 0 12px; }
       /* fim de partida: título pequeno, avatar de quem venceu, nome e pontos em pílula, tempo, os outros times e dois botões */

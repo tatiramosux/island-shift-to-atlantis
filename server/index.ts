@@ -14,6 +14,7 @@ import { WebSocketServer, type WebSocket } from 'ws';
 import { Rng, actor, applyAction, createGame, redactFor, type Action, type GameEvent, type GameState } from '../src/engine/atlantida';
 import { autoSetup } from '../src/game/autoSetup';
 import { chooseAction } from '../src/game/bot';
+import { handleStats } from './stats';
 
 interface Seat {
   kind: 'human' | 'bot';
@@ -59,6 +60,7 @@ export function startServer(port: number, host = '0.0.0.0', distDir?: string) {
 
   /* ---------- arquivos estáticos ---------- */
   const server = http.createServer((req, res) => {
+    if (handleStats(req, res)) return; // estatísticas anônimas (/api/event e /api/stats)
     const url = new URL(req.url ?? '/', 'http://x');
     let file = path.join(root, decodeURIComponent(url.pathname));
     if (!file.startsWith(root)) {
@@ -264,7 +266,7 @@ export const lanAddresses = (): string[] =>
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT ?? 8787);
   startServer(port).then(({ port: p }) => {
-    console.log('\nAtlântida, Cidade Submersa: servidor no ar.\n');
+    console.log('\nIsland Shift to Atlantis: servidor no ar.\n');
     console.log(`  Neste computador:  http://localhost:${p}`);
     lanAddresses().forEach((ip) => console.log(`  No celular/TV (mesmo Wi-Fi):  http://${ip}:${p}`));
     console.log('\nSe o Windows perguntar sobre o firewall, permita o acesso em redes privadas.');

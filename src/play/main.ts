@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Video, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -35,6 +35,7 @@ import { ONLINE_AVAILABLE, ONLINE_SITE, wsUrl, type SeatInfo, type ServerMsg } f
 import { FRONT_AZ, HOME_AZ, Stage3D, type Highlight } from '../stage/Stage3D';
 import { icons, teamIcons, type IconName } from '../stage/icons';
 import { getLang, setLang, t } from '../i18n';
+import { track } from './stats';
 import { logoSvg } from './logo';
 import { isMuted, isMusicOn, isVibeOn, setVibeOn, play, setClimax, setMuted, setMusicOn, unlockAudio, type SoundName } from './sfx';
 
@@ -288,6 +289,10 @@ const soundFor = (events: GameEvent[]) => {
 const takeState = (events: GameEvent[]) => {
   wake();
   soundFor(events);
+  if (!endTracked && events.some((e) => e.type === 'gameOver')) {
+    endTracked = true;
+    track('end', { mode: session.kind, length: session.kind === 'net' ? 'online' : opts.length, players: game.playerCount, rounds: game.round, secs: Math.round((Date.now() - matchStartAt) / 1000), reason: game.winReason ?? 'draw', won: !!game.winners?.some((w) => mine(w)), princess: !!game.princess?.safe });
+  }
   // depois de a criatura agarrar, virar bote ou derrubar algo, o BOT espera a cena acabar: senão ele já mexe no pirata que está sendo jogado ao mar
   const CREATURE_SCENE_MS: Record<string, number> = { octopusGrab: 4200, leviathanGrab: 4200, nereusPull: 6500, nereusSleeps: 5200, leviathanSmash: 3200, boatCapsized: 3200, creatureMove: 900 };
   const scene = events.reduce((m, e) => Math.max(m, CREATURE_SCENE_MS[e.type] ?? 0), 0);
@@ -1078,6 +1083,7 @@ toolsList.append(
   musicBtn,
   vibBtn,
   mobileOnly(btn('', () => showRules(), { icon: BookOpen, title: t('How to play and goal', 'Como jogar e objetivo') })),
+  btn('', () => showAbout(), { icon: Info, title: t('About', 'Sobre') }),
   mobileOnly(btn('', () => showGestures(), { icon: Pointer, title: t('How to move the board (gestures)', 'Como mexer no tabuleiro (gestos)') })),
   btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
   btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
@@ -1434,11 +1440,138 @@ ${escapeRules()
 `);
 
 const showRules = () => {
+  track('rules');
   const c = document.createElement('div');
   c.className = 'card';
   c.innerHTML = rulesHtml();
   c.appendChild(row(btn(t('Got it', 'Entendi'), closeModal, { primary: true })));
   modal(c);
+};
+
+const SITE_URL = 'https://tatiramos.com.br';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/tatiane-ramos-product-designer/';
+const REPO_URL = 'https://github.com/tatiramosux/island-shift-to-atlantis';
+const LEGAL_DATE = t('November 22, 2026', '22 de novembro de 2026');
+
+const link = (href: string, label: string) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
+
+/** Janela de texto corrido (Sobre, Privacidade, Termos). */
+const textModal = (html: string, extra?: HTMLElement) => {
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.innerHTML = html;
+  if (extra) c.appendChild(extra);
+  c.appendChild(row(btn(t('Close', 'Fechar'), closeModal, { primary: true })));
+  modal(c);
+};
+
+/** Linha pequena de links: Sobre, Política de Privacidade e Termos de Uso (na tela inicial) ou só os dois textos legais (dentro do Sobre). */
+const legalRow = (withAbout: boolean): HTMLElement => {
+  const d = document.createElement('div');
+  d.className = 'legal';
+  const items: [string, () => void][] = [[t('Privacy Policy', 'Política de Privacidade'), () => showPrivacy()], [t('Terms of Use', 'Termos de Uso'), () => showTerms()]];
+  if (withAbout) items.unshift([t('About', 'Sobre'), () => showAbout()]);
+  items.forEach(([label, fn]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = label;
+    b.onclick = fn;
+    d.appendChild(b);
+  });
+  return d;
+};
+
+const showAbout = () => {
+  track('about');
+  textModal(
+    t('<h3>About</h3>', '<h3>Sobre</h3>') +
+      `<p>${t('Island Shift to Atlantis is a voxel pirate board game, made for Game Off 2026 (theme: SHIFT).', 'Island Shift to Atlantis é um jogo de tabuleiro de piratas em blocos, feito para a Game Off 2026 (tema: SHIFT).')}</p>` +
+      t('<h4>About the author</h4>', '<h4>Sobre a autora</h4>') +
+      `<p>${t(
+        '<b>Tatiane Ramos</b> is a Product Design Specialist. Creating interactive games is her newest hobby. She is an AI enthusiast, always exploring new ways to use artificial intelligence well.',
+        '<b>Tatiane Ramos</b> é Product Design Specialist. Criar jogos interativos é o seu hobby mais novo. Ela é entusiasta de inteligência artificial e está sempre explorando novas formas de usar a IA da melhor maneira.',
+      )}</p><p>${link(SITE_URL, t('Personal website', 'Site pessoal'))} · ${link(LINKEDIN_URL, 'LinkedIn')}</p>` +
+      t('<h4>How it was made</h4>', '<h4>Como foi feito</h4>') +
+      `<p>${t(
+        'Idea, direction and every design and gameplay decision: Tatiane Ramos. Built with AI assistance (Claude, by Anthropic).',
+        'Ideia, direção e todas as decisões de design e de jogo: Tatiane Ramos. Feito com assistência de IA (Claude, da Anthropic).',
+      )}</p>` +
+      t('<h4>Credits</h4>', '<h4>Créditos</h4>') +
+      `<p>${t(
+        'Made with three.js (MIT), Lucide icons (ISC) and Google Fonts (Cinzel Decorative, Nunito; SIL Open Font License). All art, characters and sounds are original; the sounds are synthesized in your browser.',
+        'Feito com three.js (MIT), ícones Lucide (ISC) e Google Fonts (Cinzel Decorative, Nunito; SIL Open Font License). Toda a arte, os personagens e os sons são originais; os sons são sintetizados no seu navegador.',
+      )}</p><p>${link(REPO_URL, t('Source code', 'Código-fonte'))} · ${link('https://itch.io/jam/game-off-2026', 'Game Off 2026')}</p>`,
+    legalRow(false),
+  );
+};
+
+const showPrivacy = () => {
+  textModal(
+    t('<h3>Privacy Policy</h3>', '<h3>Política de Privacidade</h3>') +
+      `<p><small>${t('Last updated', 'Última atualização')}: ${LEGAL_DATE}</small></p>` +
+      `<p>${t(
+        'Island Shift to Atlantis is a free game. It has no accounts, no ads and no cookies of its own. This page explains the little data involved.',
+        'Island Shift to Atlantis é um jogo gratuito. Não tem contas, nem anúncios, nem cookies próprios. Esta página explica os poucos dados envolvidos.',
+      )}</p>` +
+      t('<h4>Anonymous play counts</h4>', '<h4>Contagem anônima de partidas</h4>') +
+      `<p>${t(
+        'To improve the game, it counts when the game is opened, when a match starts and ends, and when the rules or About are opened. Each count carries only: game mode, match length, number of players, language, which site you are on (itch.io, Vercel or Render), rounds, duration and result. It has no name, e-mail, cookie or personal identifier, and it is not linked to you or to other visits. The game does not store IP addresses; a short-lived in-memory counter limits abuse and is discarded within a minute. If your browser has Do Not Track on, nothing is sent.',
+        'Para melhorar o jogo, ele conta quando o jogo é aberto, quando uma partida começa e termina, e quando as regras ou o Sobre são abertos. Cada contagem leva só: modo de jogo, duração da partida, número de jogadores, idioma, em qual site você está (itch.io, Vercel ou Render), rodadas, tempo e resultado. Não há nome, e-mail, cookie nem identificador pessoal, e a contagem não é ligada a você nem a outras visitas. O jogo não guarda endereços IP; um contador curto, só na memória, limita abusos e é descartado em um minuto. Se o seu navegador tem o "Não rastrear" ligado, nada é enviado.',
+      )}</p>` +
+      t('<h4>Online rooms</h4>', '<h4>Salas online</h4>') +
+      `<p>${t(
+        'In an online room, the nickname you type and the room code are used while the room is open, to run the match. They are kept only in the server memory and are not saved.',
+        'Numa sala online, o apelido que você digita e o código da sala são usados enquanto a sala está aberta, para rodar a partida. Ficam só na memória do servidor e não são salvos.',
+      )}</p>` +
+      t('<h4>On your device</h4>', '<h4>No seu aparelho</h4>') +
+      `<p>${t(
+        'Your browser stores your preferences (language, sound, music, vibration and the last nickname) on your own device. You can clear them in your browser settings.',
+        'O seu navegador guarda no próprio aparelho as suas preferências (idioma, som, música, vibração e o último apelido). Você pode apagá-las nas configurações do navegador.',
+      )}</p>` +
+      t('<h4>Other services</h4>', '<h4>Outros serviços</h4>') +
+      `<p>${t(
+        'The game loads fonts from Google Fonts, so Google receives your IP address and browser details when the page opens. The platforms that host the game (itch.io, Vercel and Render) may keep technical logs under their own policies.',
+        'O jogo carrega fontes do Google Fonts, então o Google recebe o seu endereço IP e dados do navegador quando a página abre. As plataformas que hospedam o jogo (itch.io, Vercel e Render) podem guardar registros técnicos segundo as próprias políticas.',
+      )}</p>` +
+      t('<h4>What we do not do</h4>', '<h4>O que não fazemos</h4>') +
+      `<p>${t('We do not sell or share data, do not track you across sites and do not run ads.', 'Não vendemos nem compartilhamos dados, não rastreamos você entre sites e não exibimos anúncios.')}</p>` +
+      t('<h4>Contact</h4>', '<h4>Contato</h4>') +
+      `<p>${t('Questions or requests about your data: use the contact form on', 'Dúvidas ou pedidos sobre os seus dados: use o formulário de contato em')} ${link(SITE_URL, 'tatiramos.com.br')}. ${t('This policy may change; the date above shows the latest version.', 'Esta política pode mudar; a data acima mostra a versão mais recente.')}</p>`,
+  );
+};
+
+const showTerms = () => {
+  textModal(
+    t('<h3>Terms of Use</h3>', '<h3>Termos de Uso</h3>') +
+      `<p><small>${t('Last updated', 'Última atualização')}: ${LEGAL_DATE}</small></p>` +
+      t('<h4>Using the game</h4>', '<h4>Uso do jogo</h4>') +
+      `<p>${t(
+        'Island Shift to Atlantis is free to play, made by Tatiane Ramos as a hobby project for Game Off 2026. By playing you agree to these terms.',
+        'Island Shift to Atlantis é gratuito, feito por Tatiane Ramos como um projeto de hobby para a Game Off 2026. Ao jogar, você concorda com estes termos.',
+      )}</p>` +
+      t('<h4>No warranty</h4>', '<h4>Sem garantias</h4>') +
+      `<p>${t(
+        'The game is provided "as is", without warranties of any kind. It may have bugs, change or go offline at any time, and online rooms run on free hosting that can be slow to wake up or unavailable. The author is not liable for losses from using it.',
+        'O jogo é oferecido "como está", sem garantias de qualquer tipo. Pode ter erros, mudar ou sair do ar a qualquer momento, e as salas online rodam em hospedagem gratuita que pode demorar a acordar ou ficar indisponível. A autora não se responsabiliza por perdas decorrentes do uso.',
+      )}</p>` +
+      t('<h4>Online play</h4>', '<h4>Jogo online</h4>') +
+      `<p>${t(
+        'Be respectful: do not use offensive or misleading nicknames, and do not try to attack, overload or cheat the server. Rooms and nicknames may be removed without notice.',
+        'Seja respeitoso: não use apelidos ofensivos ou enganosos, e não tente atacar, sobrecarregar ou trapacear no servidor. Salas e apelidos podem ser removidos sem aviso.',
+      )}</p>` +
+      t('<h4>Source code and content</h4>', '<h4>Código-fonte e conteúdo</h4>') +
+      `<p>${t(
+        'The source code is public and licensed under the MIT License (see the repository). The game name, characters, art and sounds are original works of the author. Third-party libraries and fonts keep their own licenses, listed in About.',
+        'O código-fonte é público e licenciado sob a Licença MIT (veja o repositório). O nome do jogo, os personagens, a arte e os sons são obras originais da autora. As bibliotecas e fontes de terceiros mantêm as próprias licenças, listadas em Sobre.',
+      )} ${link(REPO_URL, t('Repository', 'Repositório'))}</p>` +
+      t('<h4>AI assistance</h4>', '<h4>Assistência de IA</h4>') +
+      `<p>${t(
+        'The game was built with AI assistance (Claude, by Anthropic). All design and gameplay decisions were made by the author.',
+        'O jogo foi feito com assistência de IA (Claude, da Anthropic). Todas as decisões de design e de jogo foram tomadas pela autora.',
+      )}</p>` +
+      t('<h4>Changes and contact</h4>', '<h4>Mudanças e contato</h4>') +
+      `<p>${t('These terms may change; the date above shows the latest version. Contact:', 'Estes termos podem mudar; a data acima mostra a versão mais recente. Contato:')} ${link(SITE_URL, 'tatiramos.com.br')}.</p>`,
+  );
 };
 
 /** Gestos do tabuleiro: dicas de girar, mover, zoom e centralizar. */
@@ -1503,10 +1636,13 @@ const showPause = () => {
 /* ---------- partida ---------- */
 
 let matchStartAt = 0;
+let endTracked = false; // a estatística de fim de partida só conta uma vez
 const enterGame = () => {
   inGame = true;
   $('view').classList.add('ready');
   matchStartAt = Date.now();
+  endTracked = false;
+  track('start', { mode: session.kind, length: session.kind === 'net' ? 'online' : opts.length, players: game.playerCount });
   $('home').hidden = true;
   $('hud').hidden = false;
   closeModal();
@@ -1768,6 +1904,9 @@ const langSwitch = (): HTMLElement => {
     b.setAttribute('aria-label', b.title);
     d.appendChild(b);
   });
+  const about = btn('', () => showAbout(), { icon: Info, title: t('About', 'Sobre') });
+  about.setAttribute('aria-label', about.title);
+  d.appendChild(about);
   return d;
 };
 
@@ -1860,6 +1999,7 @@ const renderHome = (notice = '') => {
     card.appendChild(n);
   }
   home.appendChild(card);
+  home.appendChild(legalRow(true));
 };
 
 /* ---------- início ---------- */
@@ -1898,6 +2038,7 @@ void (document.fonts?.ready ?? Promise.resolve()).then(() =>
   }, 80),
 );
 setTimeout(showScene, 1800); // se a fonte demorar, mostra mesmo assim
+track('visit');
 document.body.classList.remove('alarm');
 
 // atalho de teste (só em desenvolvimento)

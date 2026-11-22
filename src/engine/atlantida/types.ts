@@ -1,5 +1,5 @@
 /**
- * Tipos do motor de regras de Atlântida, Cidade Submersa. TypeScript puro e dados simples (serializáveis em JSON),
+ * Tipos do motor de regras de Island Shift to Atlantis. TypeScript puro e dados simples (serializáveis em JSON),
  * para rodar igual no cliente e no servidor. Regras em docs/atlantida.md.
  */
 import type { Hex } from '../hex';
