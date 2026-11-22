@@ -635,6 +635,10 @@ document.addEventListener('pointerdown', (e) => {
   closePop();
 });
 document.addEventListener('keydown', (e) => e.key === 'Escape' && closePop());
+// segurar o dedo ou a caneta no tabuleiro não abre menu de contexto nem seleciona nada (só campos de texto e as janelas de leitura)
+const keepsText = (t: EventTarget | null) => t instanceof Node && !!(t instanceof Element ? t : t.parentElement)?.closest('input, textarea, .modal .card');
+document.addEventListener('contextmenu', (e) => keepsText(e.target) || e.preventDefault());
+document.addEventListener('selectstart', (e) => keepsText(e.target) || e.preventDefault());
 
 /** O que cada peça de Atlântida faz, como se pega e como se usa (balão ao tocar na casa e regras). */
 const TILE_INFO: Record<AtlantisTile, { treasure: boolean; get: string; use: string }> = {
@@ -1083,7 +1087,7 @@ toolsList.append(
   musicBtn,
   vibBtn,
   mobileOnly(btn('', () => showRules(), { icon: BookOpen, title: t('How to play and goal', 'Como jogar e objetivo') })),
-  btn('', () => showAbout(), { icon: Info, title: t('About', 'Sobre') }),
+  mobileOnly(btn('', () => showAbout(), { icon: Info, title: t('About', 'Sobre') })), // no tablet/PC o Sobre fica dentro do menu (☰): a barra de cima não tem espaço
   mobileOnly(btn('', () => showGestures(), { icon: Pointer, title: t('How to move the board (gestures)', 'Como mexer no tabuleiro (gestos)') })),
   btn('', () => stage.rotateBy(Math.PI / 8), { icon: RotateCcw, title: t('Rotate left', 'Girar para a esquerda') }),
   btn('', () => stage.rotateBy(-Math.PI / 8), { icon: RotateCw, title: t('Rotate right', 'Girar para a direita') }),
@@ -1101,7 +1105,7 @@ const setMenuOpen = (open: boolean) => {
   menuBtn.setAttribute('aria-label', menuBtn.title);
 };
 // desktop: os ícones ficam abertos na barra do topo e o ☰ abre uma lista com as ações que no celular ficam numa janela
-const desktopMq = matchMedia('(min-width: 761px)');
+const desktopMq = matchMedia('(min-width: 1100px)');
 const menuDrop = $('menudrop');
 const setDropOpen = (open: boolean) => {
   menuDrop.hidden = !open;
@@ -1112,6 +1116,7 @@ menuDrop.append(
   btn(t('How to play', 'Como jogar'), () => (setDropOpen(false), showRules()), { icon: BookOpen }),
   btn(t('How to move the board', 'Como mexer no tabuleiro'), () => (setDropOpen(false), showGestures()), { icon: Pointer }),
   btn(t('What happened', 'O que aconteceu'), () => (setDropOpen(false), toggleLog()), { icon: ScrollText }),
+  btn(t('About', 'Sobre'), () => (setDropOpen(false), showAbout()), { icon: Info }),
   btn(t('Back to start', 'Voltar ao início'), () => (setDropOpen(false), leaveGame()), { icon: Menu }),
 );
 menuBtn.onclick = () => (desktopMq.matches ? setDropOpen(!!menuDrop.hidden) : setMenuOpen(!!tools.hidden));
@@ -1501,7 +1506,6 @@ const showAbout = () => {
         'Made with three.js (MIT), Lucide icons (ISC) and Google Fonts (Cinzel Decorative, Nunito; SIL Open Font License). All art, characters and sounds are original; the sounds are synthesized in your browser.',
         'Feito com three.js (MIT), ícones Lucide (ISC) e Google Fonts (Cinzel Decorative, Nunito; SIL Open Font License). Toda a arte, os personagens e os sons são originais; os sons são sintetizados no seu navegador.',
       )}</p><p>${link(REPO_URL, t('Source code', 'Código-fonte'))} · ${link('https://itch.io/jam/game-off-2026', 'Game Off 2026')}</p>`,
-    legalRow(false),
   );
 };
 

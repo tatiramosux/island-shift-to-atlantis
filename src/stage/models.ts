@@ -137,10 +137,10 @@ export class Models {
       beach: { side: '#c9b06a', top: this.noise('nBeach', [232, 210, 138], 0.1, 21, (g) => { P(g, 4, 5, 1, 1, '#cdb36b'); P(g, 11, 9, 1, 1, '#cdb36b'); }) },
       forest: { side: '#2f7a39', top: this.noise('nForest', [63, 155, 74], 0.18, 31, (g) => { P(g, 3, 4, 2, 2, '#2f7a39'); P(g, 10, 10, 2, 2, '#2f7a39'); }) },
       mountain: { side: '#6f737c', top: this.noise('nMountain', [139, 143, 153], 0.14, 41, (g) => { for (const [x, y] of [[2, 3], [11, 2], [6, 8], [13, 11], [3, 13], [9, 14]]) P(g, x, y, 2, 1, '#6a6e77'); }) },
-      marble: { side: '#a9d3d6', top: this.noise('nMarble', [226, 244, 242], 0.06, 51, (g) => { P(g, 0, 7, 16, 1, '#cfe6e6'); P(g, 7, 0, 1, 16, '#cfe6e6'); P(g, 2, 2, 3, 1, '#ffffff'); }) },
-      block: { side: '#d6cfb8', top: this.noise('nBlock', [236, 228, 200], 0.07, 61, (g) => { P(g, 0, 0, 16, 1, '#c4bca0'); P(g, 0, 8, 16, 1, '#c4bca0'); P(g, 5, 0, 1, 8, '#c4bca0'); P(g, 11, 8, 1, 8, '#c4bca0'); }) },
+      marble: { side: '#bfd0aa', top: this.noise('nMarble', [238, 243, 220], 0.06, 51, (g) => { P(g, 0, 7, 16, 1, '#e0e8c2'); P(g, 7, 0, 1, 16, '#e0e8c2'); P(g, 2, 2, 3, 1, '#fffff0'); }) },
+      block: { side: '#dcc88c', top: this.noise('nBlock', [238, 224, 172], 0.07, 61, (g) => { P(g, 0, 0, 16, 1, '#cfae5c'); P(g, 0, 8, 16, 1, '#cfae5c'); P(g, 5, 0, 1, 8, '#cfae5c'); P(g, 11, 8, 1, 8, '#cfae5c'); }) },
       // Castelo desperto: mármore claro com mosaico dourado e água-marinha no piso
-      temple: { side: '#ebe5d3', top: this.noise('nTemple', [242, 236, 218], 0.05, 71, (g) => { P(g, 0, 0, 16, 1, '#e0b032'); P(g, 0, 15, 16, 1, '#e0b032'); P(g, 0, 0, 1, 16, '#e0b032'); P(g, 15, 0, 1, 16, '#e0b032'); P(g, 5, 5, 6, 6, '#3fc6c0'); P(g, 7, 7, 2, 2, '#ffe27a'); }) },
+      temple: { side: '#ecd58c', top: this.noise('nTemple', [246, 226, 160], 0.05, 71, (g) => { P(g, 0, 0, 16, 1, '#d19b25'); P(g, 0, 15, 16, 1, '#d19b25'); P(g, 0, 0, 1, 16, '#d19b25'); P(g, 15, 0, 1, 16, '#d19b25'); P(g, 5, 5, 6, 6, '#3fc6c0'); P(g, 7, 7, 2, 2, '#ffe27a'); }) },
       // Castelo adormecido: o mesmo mármore, mas apagado e coberto de limo do fundo do mar
       sealed: { side: '#a7b3ad', top: this.noise('nSealed', [168, 180, 172], 0.12, 81, (g) => { P(g, 0, 0, 16, 1, '#8a9a8e'); P(g, 0, 15, 16, 1, '#8a9a8e'); P(g, 5, 5, 6, 6, '#6f8378'); P(g, 2, 11, 3, 2, '#5f8a5a'); P(g, 11, 3, 2, 2, '#5f8a5a'); }) },
     }[kind];
@@ -242,9 +242,9 @@ export class Models {
       case 'ruin': {
         // ruína de mármore, no mesmo branco da Coluna de Atlântida: uma coluna em pé (inteira ou quebrada), outra caída
         // por cima em pedaço inclinado, e dois cacos no chão. Cada casa sorteia alturas e posições um pouco diferentes.
-        const white = '#ffffff';
-        const cream = '#fff7e0';
-        const vein = '#dfeff0';
+        const white = '#fffaea';
+        const cream = '#fff3cf';
+        const vein = '#eadfb8';
         // para não poluir: só as Ruínas marcadas (relic) mostram restos; as outras ficam como mármore limpo
         if (!relic) break;
         const x0 = between(-0.18, 0.02);

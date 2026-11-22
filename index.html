@@ -39,7 +39,15 @@
         --error: #ff8b8b;
       }
       * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; } /* sem o clarão azul do iOS ao tocar */
-      #view, #view canvas { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; outline: none; }
+      /* sem a seleção azul de texto/tela ao segurar o dedo ou a caneta (S Pen): nada do jogo é selecionável, só campos de texto e as janelas de leitura */
+      html, body, #app, #app * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-user-drag: none; }
+      #view, #view canvas { outline: none; }
+      ::selection { background: transparent; color: inherit; }
+      #app input, #app textarea, input, textarea { -webkit-user-select: text; user-select: text; }
+      input::selection, textarea::selection { background: #2f8cff66; }
+      #app .modal .card, #app .modal .card * { -webkit-user-select: text; user-select: text; }
+      #app .modal .card button, #app .modal .card button * { -webkit-user-select: none; user-select: none; }
+      .modal .card ::selection { background: #2f8cff66; }
       html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; overflow: hidden; }
       #app { position: fixed; inset: 0; }
       #view { position: absolute; inset: 0; transition: opacity 0.3s; }
@@ -254,13 +262,19 @@
       /* janelas: medidas pela área visível (não por vh, que no celular conta as barras do navegador e empurra a janela para fora da tela) */
       .modal { position: absolute; inset: 0; z-index: 8; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left)); }
       .modal .card { max-height: 100%; overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+      /* tablet e computador: janela mais larga e com no máximo 90% da altura da tela (celular fica com a tela toda, que é pequena) */
+      @media (min-width: 700px) and (min-height: 500px) {
+        .modal .card { width: min(780px, 100%); max-height: 90%; }
+        .modal .card.winner { width: min(360px, 100%); }
+      }
       .modal h3 { margin: 0 0 10px; font-size: 20px; }
       /* links legais: Sobre · Política de Privacidade · Termos de Uso (rodapé da tela inicial e fim do Sobre) */
       .legal { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 14px; margin-top: 4px; font-size: 12px; }
       .legal button { min-height: 0; height: auto; padding: 6px 2px; background: none; border: 0; box-shadow: none; color: #fff; font-size: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
       .modal .legal { margin: 10px 0 4px; }
       .modal small { color: var(--muted); }
-      @media (max-height: 480px) { .home > .legal { display: none; } } /* celular deitado: sem espaço; o Sobre (ⓘ) leva às mesmas páginas */
+      /* celular deitado: sem espaço de sobra; o texto de apoio da duração sai e o rodapé fica menor */
+      @media (max-height: 480px) { .home .card .muted { display: none; } .home > .legal { margin-top: 0; font-size: 11px; } .home > .legal button { padding: 3px 2px; } }
       .modal a { color: #fff; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
       .modal p, .modal li { line-height: 1.5; font-size: 14px; color: #dedede; }
       .modal ul { padding-left: 18px; margin: 6px 0 12px; }
@@ -380,7 +394,7 @@
       .logpanel { top: calc(var(--top-h, 56px) + 6px) !important; left: 6px !important; }
       .topbar { left: 0; right: 0; top: 0; background: rgba(20, 20, 20, 0.84); border-bottom: 1px solid #555; padding-top: env(safe-area-inset-top); }
       /* desktop: tudo numa linha só. Placar com os jogadores lado a lado; títulos de Convocações e Dado na lateral esquerda dos cartões */
-      @media (min-width: 761px) {
+      @media (min-width: 1100px) {
         .scorecell { gap: 10px; }
         .scorecell h2 { order: 0; }
         .scorecell h2 > span { display: inline; margin-right: 6px; font-size: 12px; white-space: nowrap; }
@@ -396,7 +410,7 @@
       /* menu: no celular a lista abre abaixo do ☰; no desktop os ícones ficam abertos na barra do topo e o ☰ abre uma lista de ações */
       .toolcell { display: none; }
       .menudrop { display: none; }
-      @media (min-width: 761px) {
+      @media (min-width: 1100px) {
         .toolcell { display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 0 8px; }
         .toolcell #tools { position: static; display: flex; flex-direction: row; align-items: center; gap: 2px; padding: 0; background: none; border: 0; box-shadow: none; }
         .toolcell #tools .tools-list { display: contents; }
@@ -410,7 +424,7 @@
         .menudrop button { justify-content: flex-start; white-space: nowrap; min-height: 40px; background: transparent; border-color: transparent; }
         .menudrop button:hover:not(:disabled) { background: var(--card2); }
       }
-      @media (max-width: 760px) {
+      @media (max-width: 1099px) {
         .hud-tl button { width: 40px; height: 40px; }
         .cam .zoomonly { display: none; }
         .hud-tc { left: 74px; right: 128px; transform: none; align-items: center; } /* mesma folga (14px) entre o menu e o placar */

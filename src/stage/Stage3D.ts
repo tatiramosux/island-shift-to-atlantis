@@ -906,7 +906,7 @@ export class Stage3D {
     g.add(body);
     // cada andar é uma construção de verdade (escadaria, torre de vigia, farol); no centro, os salões do castelo
     if (c.temple) {
-      const castle = buildCastle(m, awake); // fica no topo do bloco; a colunata desce pelos lados
+      const castle = buildCastle(m, awake, c.floors); // fica no topo do bloco; a colunata desce pelos lados
       castle.position.y = base;
       g.add(castle);
     }

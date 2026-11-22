@@ -73,75 +73,84 @@ export const buildMarbleBase = (m: Models): THREE.Group => {
 };
 
 /**
- * Castelo de Atlântida (a casa central), no topo do bloco de mármore: cornija dourada na borda, colunata baixa de templo
- * grego em volta, portão em arco na frente e seis torreões baixos de telhado água-marinha (tudo baixo, para o pirata no
- * topo ficar à vista). Adormecido: pedra apagada, limo, portão gradeado. Desperto: mármore claro, ouro aceso e portão
- * iluminado. O grupo fica no topo do bloco (y = 0).
+ * Castelo de Atlântida (a casa central), no topo do bloco: um templo grego dourado, como o do ícone do jogo. De frente
+ * (o lado do portão), o pórtico com três colunas caneladas, friso de gregas, frontão com o tridente e degraus; em volta,
+ * a cornija dourada na borda; e, flutuando e girando bem acima do topo, o cristal água-marinha. Os andares do Castelo
+ * (salões dourados em degraus) sobem por trás do pórtico. Tudo baixo ou fino, para o pirata no topo ficar à vista.
+ * Adormecido: pedra apagada, limo e grade fechada, sem cristal. `floors` (0 a 3) diz a altura do topo, onde o cristal flutua.
+ * O grupo fica no topo do bloco (y = 0).
  */
-export const buildCastle = (m: Models, awake: boolean): THREE.Group => {
+export const buildCastle = (m: Models, awake: boolean, floors = 0): THREE.Group => {
   const g = new THREE.Group();
-  const marble = m.solid(awake ? '#f2ede0' : '#b4bdb6');
-  const shade = m.solid(awake ? '#d9d1bb' : '#949e97');
-  const gold = m.solid('#e7b830', awake ? 0.45 : 0);
-  const aqua = m.solid(awake ? '#2fc4bd' : '#5d8a84', awake ? 0.2 : 0);
-  const aquaD = m.solid(awake ? '#1d8f8b' : '#46685f');
+  const sand = m.solid(awake ? '#f6e8b6' : '#b4bdb6');
+  const gold = m.solid(awake ? '#f0c64a' : '#a99a62', awake ? 0.35 : 0);
+  const goldD = m.solid(awake ? '#cf9d28' : '#85794d');
+  const goldL = m.solid(awake ? '#ffe58a' : '#bcae78', awake ? 0.55 : 0);
+  const teal = m.solid(awake ? '#1b8f8d' : '#46685f');
   const moss = m.solid('#4f7d4a');
   const ap = HEX_R * Math.cos(Math.PI / 6); // distância do centro até o meio de cada lado do bloco
-  // anéis um pouco mais largos que o bloco (sem faces coladas)
+  // anéis um pouco mais largos que o bloco (sem faces coladas): só a borda de cima aparece. Ali vai a cornija dourada.
   const ring = (r: number, h: number, y: number, mat: THREE.Material) => {
     const s = new THREE.Mesh(m.hexGeo(r, h), mat);
     s.position.y = y + h / 2;
     s.castShadow = s.receiveShadow = true;
     g.add(s);
   };
-  // as casas vizinhas cobrem quase todo o bloco: só a borda de cima aparece. Ali vai a cornija dourada.
   ring(HEX_R + 0.05, 0.07, -0.1, gold);
-  ring(HEX_R + 0.02, 0.04, -0.03, marble);
-  // colunata baixa em volta do topo (peristilo): duas colunas por lado, ligadas por uma viga de mármore
-  for (let k = 0; k < 6; k++) {
-    const a = Math.PI / 6 + (k * Math.PI) / 3;
-    const nx = Math.sin(a);
-    const nz = Math.cos(a);
-    const tx = Math.cos(a);
-    const tz = -Math.sin(a);
-    const d = ap - 0.1;
-    if (k === 0) continue; // a frente fica para o portão
-    for (const off of [-0.2, 0.2]) {
-      const x = nx * d + tx * off;
-      const z = nz * d + tz * off;
-      g.add(m.box(0.12, 0.04, 0.12, shade, x, 0, z)); // base
-      g.add(m.box(0.08, 0.3, 0.08, marble, x, 0.04, z)); // fuste
-      g.add(m.box(0.13, 0.04, 0.13, gold, x, 0.34, z)); // capitel
-      if (!awake && off < 0) g.add(m.box(0.1, 0.1, 0.1, moss, x, 0, z)); // limo no pé
-    }
-    const beam = m.box(0.56, 0.05, 0.1, marble, nx * d, 0.38, nz * d);
-    beam.rotation.y = a; // ao longo do lado
-    g.add(beam);
+  ring(HEX_R + 0.02, 0.04, -0.03, sand);
+
+  // pórtico de frente para o portão: z local aponta para fora do Castelo
+  const a0 = Math.PI / 6;
+  const d0 = ap - 0.14;
+  const front = new THREE.Group();
+  front.position.set(Math.sin(a0) * d0, 0, Math.cos(a0) * d0);
+  front.rotation.y = a0;
+  front.add(m.box(1.0, 0.05, 0.2, goldD, 0, 0, 0)); // plataforma
+  front.add(m.box(0.92, 0.03, 0.05, sand, 0, 0, 0.12)); // degrau
+  for (const x of [-0.3, 0, 0.3]) {
+    front.add(m.box(0.14, 0.04, 0.14, goldD, x, 0.05, 0)); // base
+    front.add(m.box(0.09, 0.34, 0.09, gold, x, 0.09, 0)); // fuste
+    for (const dx of [-0.025, 0.025]) front.add(m.box(0.012, 0.3, 0.012, goldD, x + dx, 0.11, 0.047)); // caneluras
+    front.add(m.box(0.15, 0.05, 0.15, goldL, x, 0.43, 0)); // capitel
+    if (!awake) front.add(m.box(0.1, 0.1, 0.1, moss, x, 0.05, 0.02)); // limo no pé
   }
-  // portão em arco na frente, de pé na borda do topo
-  const [gx, gz] = sideMid(HEX_R - 0.16, 0);
-  const door = new THREE.Group();
-  door.position.set(gx, 0, gz);
-  door.rotation.y = Math.PI / 6;
-  for (const sx of [-0.24, 0.24]) door.add(m.box(0.1, 0.44, 0.1, marble, sx, 0, 0)); // pilares
-  door.add(m.box(0.6, 0.06, 0.12, gold, 0, 0.44, 0)); // verga dourada
-  door.add(m.box(0.4, 0.06, 0.12, aqua, 0, 0.5, 0)); // frontão em degraus
-  door.add(m.box(0.2, 0.06, 0.12, aquaD, 0, 0.56, 0));
-  door.add(m.box(0.06, 0.06, 0.06, awake ? m.solid('#ffe27a', 0.9) : gold, 0, 0.62, 0));
-  if (!awake) for (const y of [0.1, 0.22, 0.34]) door.add(m.box(0.4, 0.035, 0.03, m.solid('#55595e'), 0, y, 0)); // grade fechada
-  else door.add(m.box(0.36, 0.4, 0.02, m.solid('#ffe27a', 0.6), 0, 0.02, -0.02)); // luz no vão
-  g.add(door);
-  // seis torreões baixos nos cantos, com telhado de degraus água-marinha e ponta dourada
-  corners(HEX_R - 0.08).forEach(([x, z], i) => {
-    g.add(m.box(0.26, 0.24, 0.26, marble, x, 0, z));
-    g.add(m.box(0.3, 0.04, 0.3, gold, x, 0.24, z));
-    g.add(m.box(0.26, 0.07, 0.26, aqua, x, 0.28, z));
-    g.add(m.box(0.18, 0.07, 0.18, aquaD, x, 0.35, z));
-    g.add(m.box(0.1, 0.06, 0.1, aqua, x, 0.42, z));
-    g.add(m.box(0.04, 0.08, 0.04, gold, x, 0.48, z));
-    g.add(m.box(0.07, 0.09, 0.02, awake ? m.solid('#ffe27a', 0.9) : m.solid('#2a2f33'), x * 1.0, 0.08, z + (z > 0 ? 0.13 : -0.13))); // janela
-    if (awake && i % 2 === 0) g.add(m.box(0.14, 0.08, 0.02, m.solid('#2fc4bd', 0.3), x + 0.09, 0.5, z)); // flâmula
+  front.add(m.box(0.98, 0.07, 0.16, gold, 0, 0.48, 0)); // arquitrave
+  front.add(m.box(0.98, 0.06, 0.17, goldD, 0, 0.55, 0)); // friso
+  for (let i = 0; i < 10; i++) front.add(m.box(0.05, 0.035, 0.02, teal, -0.42 + i * 0.093, 0.567, 0.088)); // gregas
+  front.add(m.box(1.04, 0.04, 0.2, goldL, 0, 0.61, 0)); // cornija
+  // frontão em degraus, com o tridente no meio
+  const widths = [0.96, 0.8, 0.64, 0.48, 0.32, 0.16];
+  widths.forEach((w, j) => {
+    const y = 0.65 + j * 0.06;
+    front.add(m.box(w, 0.06, 0.16, gold, 0, y, 0));
+    if (w - 0.14 >= 0.06) front.add(m.box(w - 0.14, 0.06, 0.02, teal, 0, y, 0.09));
   });
+  front.add(m.box(0.07, 0.07, 0.07, goldL, 0, 1.01, 0)); // acrotério
+  front.add(m.box(0.022, 0.13, 0.02, goldL, 0, 0.67, 0.104)); // tridente: haste
+  front.add(m.box(0.12, 0.022, 0.02, goldL, 0, 0.77, 0.104)); // travessa
+  for (const x of [-0.05, 0, 0.05]) front.add(m.box(0.02, x === 0 ? 0.11 : 0.08, 0.02, goldL, x, 0.79, 0.104)); // pontas
+  if (!awake) for (const y of [0.1, 0.22, 0.34]) front.add(m.box(0.22, 0.03, 0.03, m.solid('#55595e'), 0, y, 0.02)); // grade entre as colunas
+  g.add(front);
+
+  // cristal água-marinha flutuando acima do topo, girando, com os raios do ícone
+  if (awake) {
+    const y = floors * FLOOR_H + 2.05; // acima da Princesa, que espera no topo
+    const cr = new THREE.Group();
+    cr.position.set(0, y, 0);
+    cr.userData.spin = 0.9;
+    cr.userData.bob = 0.06;
+    cr.userData.baseY = y;
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.24), m.solid('#38e0d6', 0.9));
+    gem.scale.set(0.8, 1.5, 0.8);
+    gem.castShadow = true;
+    cr.add(gem);
+    const glint = m.solid('#bffcf6', 1);
+    for (const s of [-1, 1]) {
+      cr.add(m.box(0.12, 0.018, 0.018, glint, s * 0.34 - 0.06, -0.01, 0));
+      cr.add(m.box(0.018, 0.018, 0.12, glint, 0, -0.01, s * 0.34 - 0.06));
+    }
+    g.add(cr);
+  }
   return g;
 };
 
@@ -150,7 +159,7 @@ export const buildCastleTier = (m: Models, level: number): THREE.Group => {
   const g = new THREE.Group();
   const r = HEX_R - 0.3 - (level - 1) * 0.1;
   g.add(slab(m, r, 'temple'));
-  const band = new THREE.Mesh(m.hexGeo(r + 0.025, 0.05), m.solid('#e7b830', 0.4));
+  const band = new THREE.Mesh(m.hexGeo(r + 0.025, 0.05), m.solid('#f0c64a', 0.4));
   band.position.y = FLOOR_H - 0.09;
   g.add(band);
   for (const [x, z] of corners(r)) g.add(m.box(0.07, 0.07, 0.07, m.solid('#3fc6c0', 0.4), x, FLOOR_H, z));
