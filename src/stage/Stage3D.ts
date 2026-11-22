@@ -13,7 +13,7 @@ import { buildSummon } from './summons';
 
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
-type IdleKind = 'look' | 'scratch' | 'spy' | 'watch' | 'drink' | 'wave' | 'stretch' | 'hat' | 'polish' | 'wobble' | 'fish' | 'wrist' | 'tap';
+type IdleKind = 'look' | 'scratch' | 'spy' | 'watch' | 'drink' | 'wave' | 'stretch' | 'hat' | 'polish' | 'wobble' | 'fish' | 'wrist' | 'tap' | 'gun' | 'ball' | 'fence';
 export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'treasure' | 'wave' | 'both';
 export interface StageScene {
   state: GameState;
@@ -56,7 +56,9 @@ interface Entity {
   foot?: THREE.Object3D | null; // pé que bate no chão
   slept?: boolean; // o modelo do monstro está tombado de sono
   burpBubble?: THREE.Sprite; // "BURP!" depois de beber da garrafa
-  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group; rod: THREE.Group; gear: THREE.Group; fish: THREE.Object3D; bobber: THREE.Object3D }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
+  /** O que este pirata carrega (lido do modelo): sabre ou gancho na mão direita, pistola no cinto (só os de carne e osso). */
+  traits?: { tool?: THREE.Object3D; hookTop?: THREE.Vector3; beltGun?: THREE.Object3D; fencer?: boolean };
+  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group; rod: THREE.Group; gear: THREE.Group; fish: THREE.Object3D; bobber: THREE.Object3D; pistol: THREE.Group; ball: THREE.Object3D }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
   shouting?: boolean;
 }
 
@@ -1641,12 +1643,18 @@ export class Stage3D {
   private drinkBy: string | null = null;
   private nextSpyAt = 0;
   private nextDrinkAt = 0;
+  private gunBy: string | null = null; // só um marujo por vez equilibra a pistola
+  private nextGunAt = 0;
 
   private idleStop(e: Entity) {
     const t = this.clock.elapsedTime;
     if (e.idle?.kind === 'spy' && this.spyBy === e.id) {
       this.spyBy = null;
       this.nextSpyAt = t + 25 + Math.random() * 15;
+    }
+    if (e.idle?.kind === 'gun' && this.gunBy === e.id) {
+      this.gunBy = null;
+      this.nextGunAt = t + 25 + Math.random() * 15;
     }
     if (e.idle?.kind === 'drink' && this.drinkBy === e.id) {
       this.drinkBy = null;
@@ -1663,12 +1671,18 @@ export class Stage3D {
     if (e.burpBubble) e.burpBubble.visible = false;
     if (e.foot) e.foot.rotation.x = 0;
     if (e.props) e.props.watch.position.set(0, -0.31, 0.03);
+    if (e.props) {
+      e.props.pistol.visible = e.props.ball.visible = false;
+      e.group.add(e.props.ball); // a bola volta a ficar solta (estava no gancho)
+    }
+    if (e.traits?.tool) e.traits.tool.rotation.set(0, 0, 0);
+    if (e.traits?.beltGun) e.traits.beltGun.visible = true;
   }
 
   /** Um movimento de espera suave de vez em quando, cada pirata no seu ritmo. */
   private idleStep(e: Entity, t: number) {
     // se quem segurava a vez saiu de cena (embarcou, caiu na água...), libera as travas
-    for (const k of ['idleBy', 'spyBy', 'drinkBy'] as const) {
+    for (const k of ['idleBy', 'spyBy', 'drinkBy', 'gunBy'] as const) {
       const id = this[k];
       if (id && !this.ents.get(id)?.idle) this[k] = null;
     }
@@ -1714,15 +1728,31 @@ export class Stage3D {
       spy.visible = watch.visible = bottle.visible = false;
       e.armL!.add(spy, watch, bottle, rod);
       e.group.add(gear);
-      e.props = { spy, watch, bottle, rod, gear, fish, bobber };
+      // pistola de pirata (cano para a frente da mão, que fica com a palma para cima) e uma bola vermelha de bolso
+      const pistol = new THREE.Group();
+      pistol.position.set(0, -0.34, 0.07);
+      const iron = m.solid('#2a2a2a');
+      pistol.add(m.box(0.03, 0.18, 0.035, iron, 0, -0.05, 0), m.box(0.045, 0.09, 0.05, brown, 0, 0.07, 0), m.box(0.035, 0.06, 0.04, brown, 0, 0.1, -0.05), m.box(0.034, 0.025, 0.04, gold, 0, 0.0, 0));
+      pistol.visible = false;
+      e.armL!.add(pistol);
+      const ball = new THREE.Mesh(new THREE.IcosahedronGeometry(0.05, 0), m.solid('#e8423a', 0.2));
+      ball.add(m.box(0.1, 0.018, 0.1, m.solid('#fff7e0'), 0, 0, 0)); // faixa clara no meio: deixa ver a bola girando
+      ball.visible = false;
+      e.group.add(ball);
+      e.props = { spy, watch, bottle, rod, gear, fish, bobber, pistol, ball };
     }
     if (e.idleNext === undefined) e.idleNext = t + 6 + Math.random() * 16;
     if (!e.idle && t >= e.idleNext && (this.idleBy || t < this.nextIdleAt)) e.idleNext = t + 1 + Math.random() * 3; // outro marujo está se mexendo: espera a vez
     if (!e.idle && t >= e.idleNext) {
       if (e.captain === undefined) {
         e.captain = false;
+        e.traits = {};
         e.group.traverse((o) => {
           if (o.userData.captain) e.captain = true;
+          if (o.userData.tool) e.traits!.tool = o.userData.tool;
+          if (o.userData.hookTop) e.traits!.hookTop = o.userData.hookTop;
+          if (o.userData.beltGun) e.traits!.beltGun = o.userData.beltGun;
+          if (o.userData.fencer) e.traits!.fencer = true;
         });
       }
       // pescar: só quem está na beirada da ilha, ao lado do mar (vira o corpo para a água)
@@ -1739,6 +1769,9 @@ export class Stage3D {
       }
       const table: [NonNullable<Entity['idle']>['kind'], number][] = [['look', 16], ['scratch', 12], ['watch', 10], ['wave', 10], ['stretch', 10], ['hat', 8], ['polish', 8], ['spy', 6], ['drink', 6], ['wrist', 9], ['tap', 9]];
       if (e.captain) table.push(['wobble', 16]);
+      if (e.traits?.beltGun) table.push(['gun', 12]); // quem tem pistola no cinto equilibra a pistola
+      if (e.traits?.hookTop) table.push(['ball', 14]); // o marujo do gancho equilibra uma bola nele
+      if (e.traits?.fencer) table.push(['fence', 16]); // o capitão do sabre treina golpes no ar
       if (water !== undefined) table.push(['fish', 16]);
       let roll = Math.random() * table.reduce((sum, [, w]) => sum + w, 0);
       let kind: NonNullable<Entity['idle']>['kind'] = 'look';
@@ -1750,10 +1783,12 @@ export class Stage3D {
       }
       if (kind === 'spy' && (this.spyBy || t < this.nextSpyAt)) kind = 'look'; // a luneta só está na mão de um marujo por vez
       if (kind === 'drink' && (this.drinkBy || t < this.nextDrinkAt)) kind = 'scratch'; // a garrafa também
+      if (kind === 'gun' && (this.gunBy || t < this.nextGunAt)) kind = 'scratch'; // e só uma pistola no ar de cada vez
       this.idleBy = e.id;
+      if (kind === 'gun') this.gunBy = e.id;
       if (kind === 'spy') this.spyBy = e.id;
       if (kind === 'drink') this.drinkBy = e.id;
-      const dur: Record<string, number> = { look: 2.8, scratch: 2.2, spy: 3.4, drink: 4.8, wave: 2.8, watch: 3, stretch: 3, hat: 2.4, polish: 3, wobble: 3.4, fish: 7, wrist: 3, tap: 4.2 };
+      const dur: Record<string, number> = { look: 2.8, scratch: 2.2, spy: 3.4, drink: 4.8, wave: 2.8, watch: 3, stretch: 3, hat: 2.4, polish: 3, wobble: 3.4, fish: 7, wrist: 3, tap: 4.2, gun: 4.8, ball: 5.4, fence: 5.6 };
       e.idle = { kind, t0: t, dur: dur[kind], water };
     }
     const id = e.idle;
@@ -1766,7 +1801,92 @@ export class Stage3D {
     e.props.watch.visible = id.kind === 'watch' || id.kind === 'wrist';
     e.props.bottle.visible = id.kind === 'drink';
     e.props.rod.visible = e.props.gear.visible = id.kind === 'fish';
-    if (id.kind === 'look') {
+    e.props.pistol.visible = id.kind === 'gun';
+    if (e.traits?.beltGun) e.traits.beltGun.visible = id.kind !== 'gun'; // a pistola do cinto está na mão
+    if (id.kind === 'gun') {
+      // tira a pistola do cinto e a equilibra na palma da mão, balançando; depois joga para o alto, gira e pega
+      const P = e.props.pistol;
+      const v = Math.min(1, Math.max(0, (u - 0.58) / 0.24)); // fase do arremesso
+      e.armL!.rotation.x = (-1.5 + Math.sin(t * 6.5) * 0.06) * kk;
+      e.armL!.rotation.z = Math.sin(t * 4.3) * 0.1 * kk;
+      const settle = 1 - Math.min(1, Math.max(0, (u - 0.84) / 0.1)) * 0.6;
+      P.rotation.set(v > 0 && v < 1 ? v * Math.PI * 2 : Math.sin(t * 8.3) * 0.22 * settle, 0, Math.sin(t * 5.1) * 0.3 * settle);
+      P.position.set(0, -0.34, 0.07 + (v > 0 && v < 1 ? Math.sin(v * Math.PI) * 0.3 : 0));
+      e.group.rotation.x = -0.05 * kk; // fica um pouco para trás, concentrado
+      e.group.rotation.y += Math.sin(u * Math.PI) * 0.1 * kk;
+    } else if (id.kind === 'ball') {
+      // tira uma bola do bolso, joga no gancho e a equilibra lá, com o braço corrigindo o balanço; no fim joga de volta ao bolso
+      const B = e.props.ball;
+      const tool = e.traits!.tool!;
+      const top = e.traits!.hookTop!;
+      const reach = Math.min(1, u / 0.12) * (1 - Math.min(1, Math.max(0, (u - 0.88) / 0.1)));
+      const toHook = Math.min(1, Math.max(0, (u - 0.2) / 0.16)); // voo do bolso até o gancho
+      const toPocket = Math.min(1, Math.max(0, (u - 0.86) / 0.12)); // voo de volta
+      e.armR!.rotation.x = (-0.55 + Math.sin(t * 5.2) * 0.1) * kk * (1 - toPocket * 0.5) + -0.25 * (1 - kk);
+      e.armR!.rotation.z = (0.35 + Math.sin(t * 3.7) * 0.12) * kk;
+      tool.rotation.x = Math.sin(t * 5.2 + 1.5) * 0.12 * kk + 0.55 * kk; // o gancho contra-balança, mantendo a ponta para cima
+      tool.rotation.z = -e.armR!.rotation.z; // e o pulso desfaz a inclinação para o lado
+      e.armL!.rotation.x = -0.35 * reach * (1 - toHook); // a mão esquerda vai ao bolso do quadril
+      e.armL!.rotation.z = 0.3 * reach * (1 - toHook);
+      B.visible = u > 0.12;
+      const pocket = new THREE.Vector3(-0.22, 0.28, 0.17); // bolso no quadril esquerdo, no espaço do pirata
+      if (u < 0.36 || u >= 0.86) {
+        // em voo: arco entre o bolso e a ponta do gancho
+        const hookW = tool.localToWorld(top.clone());
+        const hook = e.group.worldToLocal(hookW);
+        const f = u < 0.36 ? toHook : 1 - toPocket;
+        if (B.parent !== e.group) e.group.add(B);
+        B.scale.setScalar(1.6); // fora do gancho a bola está no espaço do grupo (o pirata é 1,6 maior)
+        B.position.lerpVectors(pocket, hook, f);
+        B.position.y += Math.sin(f * Math.PI) * 0.3;
+        B.rotation.set(0.55, t * 9, 0); // já sai girando do bolso
+        if (u >= 0.86 && toPocket >= 1) B.visible = false;
+      } else {
+        if (B.parent !== tool) tool.add(B); // pousou no gancho: acompanha o braço
+        B.scale.setScalar(1);
+        B.position.set(top.x + Math.sin(t * 7.1) * 0.012, top.y + Math.sin(t * 9) * 0.006, 0);
+        B.rotation.set(0.55, t * 9, Math.sin(t * 7.1) * 0.2); // gira sem parar sobre o gancho (a faixa clara mostra o giro)
+      }
+      e.group.rotation.x = 0.03 * kk;
+      e.group.rotation.y += Math.sin(u * Math.PI) * 0.12 * kk;
+    } else if (id.kind === 'fence') {
+      // treino de espadachim no ar: guarda, estocadas, cortes por cima, giro de sabre e saudação
+      const tool = e.traits!.tool!;
+      const ease = (x: number) => x * x * (3 - 2 * x);
+      const cl = (x: number) => Math.min(1, Math.max(0, x));
+      let th = -0.7; // ângulo do ombro
+      let al = 0.9; // para onde o sabre aponta: 0 = para cima, 1,57 = para a frente
+      let lunge = 0;
+      if (u < 0.1) {
+        // guarda
+      } else if (u < 0.45) {
+        const f = ((u - 0.1) / 0.35) * 3; // três estocadas
+        lunge = Math.pow(Math.max(0, Math.sin((f % 1) * Math.PI)), 0.6);
+        th = -0.7 - 0.8 * lunge;
+        al = 0.9 + 0.65 * lunge;
+      } else if (u < 0.68) {
+        const f = ((u - 0.45) / 0.23) * 2; // dois cortes de cima para baixo
+        const g = ease(cl((f % 1) / 0.75));
+        th = -1.2 - 0.3 * g;
+        al = -0.4 + 2.5 * g;
+        lunge = 0.7 * g;
+      } else if (u < 0.86) {
+        const g = ease(cl((u - 0.68) / 0.18)); // giro do sabre
+        th = -1.0;
+        al = 0.9 + Math.PI * 2 * g;
+      } else {
+        const g = ease(cl((u - 0.86) / 0.14)); // saudação: lâmina para cima à frente do rosto
+        th = -1.0 + 0.2 * g;
+        al = 0.9 + Math.PI * 2 + (0.15 - 0.9) * g; // continua do giro (uma volta completa) para a lâmina em pé
+        lunge = -0.2 * (1 - g);
+      }
+      e.armR!.rotation.x = -0.25 + (th + 0.25) * kk;
+      tool.rotation.x = (((al - th) % (Math.PI * 2)) + (al - th < 0 ? Math.PI * 2 : 0)) % (Math.PI * 2) * kk; // uma volta completa dá na mesma pose
+      e.armL!.rotation.x = (0.6 * lunge - 0.2) * kk; // o outro braço vai para trás, equilibrando
+      e.armL!.rotation.z = 0.5 * kk;
+      e.group.rotation.x = 0.16 * lunge * kk;
+      e.group.rotation.y += Math.sin(u * Math.PI * 2) * 0.1 * kk;
+    } else if (id.kind === 'look') {
       e.group.rotation.y += Math.sin(u * Math.PI * 2.4) * 0.7 * kk; // olha para um lado e para o outro
     } else if (id.kind === 'scratch') {
       e.armL!.rotation.x = -2.25 * kk;

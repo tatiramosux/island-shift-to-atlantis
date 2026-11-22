@@ -361,7 +361,9 @@ export class Models {
     inner.add(this.box(0.06, 0.05, 0.02, this.solid('#f2c80f', 0.3), 0, 0.22, 0.09));
     for (const y of [0.13, 0.3, 0.35]) inner.add(this.box(0.28, 0.025, 0.165, this.solid('#fff7e0'), 0, y, 0)); // listras de marinheiro
     inner.add(this.box(0.08, 0.08, 0.05, this.solid('#f2c80f', 0.4), -0.13, 0.17, 0.09)); // bolsa de moedas
-    inner.add(this.box(0.04, 0.1, 0.03, this.solid('#2a2a2a'), 0.13, 0.17, 0.1)); // pistola no cinto
+    const beltGun = this.box(0.04, 0.1, 0.03, this.solid('#2a2a2a'), 0.13, 0.17, 0.1); // pistola no cinto (sai dali nos movimentos de espera)
+    inner.add(beltGun);
+    g.userData.beltGun = beltGun;
     // braços: o direito segura a ferramenta e balança ao construir
     const mkArm = (sx: number) => {
       const arm = new THREE.Group();
@@ -389,6 +391,9 @@ export class Models {
     armR.add(tool);
     armR.rotation.x = -0.25;
     inner.add(armL, armR);
+    g.userData.tool = tool; // o sabre (capitão) ou o gancho (marujo): gira na mão nos movimentos de espera
+    if (index === 0) g.userData.fencer = true;
+    else g.userData.hookTop = new THREE.Vector3(0.04, 0.41, 0); // onde uma bola se equilibra no gancho
     // cabeça
     const skin = this.solid('#f5c9a0');
     const hairM = this.solid(hair);
@@ -485,6 +490,9 @@ export class Models {
     armR.add(tool);
     armR.rotation.x = -0.25;
     inner.add(armL, armR);
+    g.userData.tool = tool;
+    if (index === 0) g.userData.fencer = true;
+    else g.userData.hookTop = new THREE.Vector3(0.04, 0.23, 0);
     // pescoço e cabeça (cada família tem um formato)
     inner.add(this.box(0.1, 0.05, 0.1, darkMetal, 0, 0.45, 0));
     let top = 0.78;
