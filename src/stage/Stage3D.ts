@@ -868,9 +868,10 @@ export class Stage3D {
     // o Portal só funciona com 2 ou mais revelados (afundados); antes disso fica cinza e parado
     const portalsOn = Object.values(s.cells).filter((c) => c.state === 'atlantis' && c.tile === 'portal').length >= 2;
     this.portalsOn = portalsOn;
+    this.princessRescued = s.castleTaken !== null;
     for (const c of Object.values(s.cells)) {
       const k = hexKey(c.hex);
-      const sig = `${c.state}${c.sunk ? 'S' : ''}|${c.floors}|${c.dome}|${c.tile}|${c.temple && awake}|${!!c.dug}|${!!c.taken}|${c.tile === 'portal' && portalsOn}|${!!c.relic}|${c.flora ?? ''}`;
+      const sig = `${c.state}${c.sunk ? 'S' : ''}|${c.floors}|${c.dome}|${c.tile}|${c.temple && awake}|${c.temple && this.princessRescued}|${!!c.dug}|${!!c.taken}|${c.tile === 'portal' && portalsOn}|${!!c.relic}|${c.flora ?? ''}`;
       let rec = this.cellObjs.get(k);
       if (!rec || rec.sig !== sig) {
         if (rec) this.cellsGroup.remove(rec.group);
@@ -888,12 +889,33 @@ export class Stage3D {
   }
 
   private portalsOn = false;
+  private princessRescued = false;
   private buildCell(c: Cell, awake: boolean): THREE.Group {
     const m = this.models;
     const g = new THREE.Group();
     const w = worldOf(c.hex);
     g.position.set(w.x, 0, w.z);
-    if (c.sunk) return g; // desabou: sobra só o mar
+    if (c.sunk) {
+      // desabou: sobra só o mar. Mas ele precisa ser clicável e parecer água como o mar em volta (contorno e brilho), senão a casa em destaque fica sem chão
+      const hit = new THREE.Mesh(m.hexGeo(HEX_R, 0.1), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.userData.pick = true;
+      hit.userData.hex = c.hex;
+      g.add(hit);
+      const shine = new THREE.Mesh(this.flat('fill', HEX_R * 0.76), new THREE.MeshBasicMaterial({ color: 0x8be9ff, transparent: true, opacity: 0.2, depthWrite: false }));
+      shine.position.y = 0.012;
+      shine.renderOrder = 1;
+      g.add(shine);
+      const pts: number[] = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 180) * (60 * i);
+        const b = (Math.PI / 180) * (60 * (i + 1));
+        pts.push(Math.sin(a) * HEX_R, 0.01, Math.cos(a) * HEX_R, Math.sin(b) * HEX_R, 0.01, Math.cos(b) * HEX_R);
+      }
+      const lg = new THREE.BufferGeometry();
+      lg.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      g.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.09 })));
+      return g;
+    }
     const base = baseHeight(c);
     // a superfície segue os anéis (borda mais clara, centro mais alto), mas cada partida mistura areia, grama e pedra
     const lk = c.look ?? 0.5;
@@ -906,7 +928,7 @@ export class Stage3D {
     g.add(body);
     // cada andar é uma construção de verdade (escadaria, torre de vigia, farol); no centro, os salões do castelo
     if (c.temple) {
-      const castle = buildCastle(m, awake, c.floors); // fica no topo do bloco; a colunata desce pelos lados
+      const castle = buildCastle(m, awake, c.floors, this.princessRescued); // fica no topo do bloco; a colunata desce pelos lados
       castle.position.y = base;
       g.add(castle);
     }

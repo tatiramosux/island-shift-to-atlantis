@@ -80,7 +80,7 @@ export const buildMarbleBase = (m: Models): THREE.Group => {
  * Adormecido: pedra apagada, limo e grade fechada, sem cristal. `floors` (0 a 3) diz a altura do topo, onde o cristal flutua.
  * O grupo fica no topo do bloco (y = 0).
  */
-export const buildCastle = (m: Models, awake: boolean, floors = 0): THREE.Group => {
+export const buildCastle = (m: Models, awake: boolean, floors = 0, rescued = false): THREE.Group => {
   const g = new THREE.Group();
   const sand = m.solid(awake ? '#f6e8b6' : '#b4bdb6');
   const gold = m.solid(awake ? '#f0c64a' : '#a99a62', awake ? 0.35 : 0);
@@ -170,8 +170,8 @@ export const buildCastle = (m: Models, awake: boolean, floors = 0): THREE.Group 
   ruin(2, 'fallen');
   ruin(3, 'half');
 
-  // cristal água-marinha flutuando acima do topo, girando, com os raios do ícone
-  if (awake) {
+  // cristal água-marinha flutuando acima do topo, girando, com os raios do ícone (some depois que a Princesa é resgatada)
+  if (awake && !rescued) {
     const y = floors * FLOOR_H + 2.05; // acima da Princesa, que espera no topo
     const cr = new THREE.Group();
     cr.position.set(0, y, 0);
