@@ -899,7 +899,9 @@ const renderHud = () => {
   const lulls = (game.settings.dieLull ?? 0) + (game.settings.nereus === false ? 1 : 0);
   const totalFaces = 6 + (game.settings.dieLull ?? 0);
   const faceCount = (f: string) => (f === 'lull' ? lulls : FACE_INFO[f].faces);
-  dieFaceList().forEach((f) => {
+  const shown = dieFaceList();
+  dc.style.setProperty('--faces', String(shown.length));
+  shown.forEach((f) => {
     const d = document.createElement('button');
     d.type = 'button';
     d.setAttribute('aria-haspopup', 'dialog');
@@ -1972,10 +1974,7 @@ const langSwitch = (): HTMLElement => {
     b.setAttribute('aria-label', b.title);
     d.appendChild(b);
   });
-  d.appendChild(homeSoundButton()); // depois do idioma vem o som (embaixo no celular, ao lado no computador) e, por último, o Sobre
-  const about = btn('', () => showAbout(), { icon: Info, title: t('About', 'Sobre') });
-  about.setAttribute('aria-label', about.title);
-  d.appendChild(about);
+  d.appendChild(homeSoundButton()); // depois do idioma vem o som (o Sobre fica no rodapé, junto da Privacidade e dos Termos)
   return d;
 };
 

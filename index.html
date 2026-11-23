@@ -140,6 +140,7 @@
       .combo .vbar { width: 1px; background: #4a4a4a; margin: 2px 0; flex: none; }
       .combo h2 { margin: 0 0 4px; font-size: 11px; }
       .slots, .dicefaces { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+      .dicefaces { grid-template-columns: repeat(var(--faces, 4), minmax(0, 1fr)); } /* o dado da média tem 5 faces diferentes */
       .slot, .face { position: relative; width: 100%; height: 50px; padding: 0; border-radius: 10px; background: var(--panel); border: 1px solid #555; overflow: hidden; }
       .slot { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
       .slot img { width: 30px; height: 30px; margin: 0; }
@@ -421,7 +422,7 @@
         /* desktop: a mesma barra de baixo, com o título de Convocações e de Dado na lateral esquerda dos cartões */
         .dock .combo section { flex-direction: row; align-items: center; justify-content: center; gap: 10px; padding: 5px 10px; }
         .dock .combo h2 { margin: 0; white-space: nowrap; font-size: 12px; }
-        .dock .slots, .dock .dicefaces { width: auto; max-width: none; grid-template-columns: repeat(4, 56px); gap: 6px; }
+        .dock .slots, .dock .dicefaces { width: auto; max-width: none; grid-template-columns: repeat(var(--faces, 4), 56px); gap: 6px; }
         .slot, .face { height: 46px; }
       }
       /* menu: no celular a lista abre abaixo do ☰; no desktop os ícones ficam abertos na barra do topo e o ☰ abre uma lista de ações */
@@ -442,8 +443,10 @@
         .menudrop button:hover:not(:disabled) { background: var(--card2); }
       }
       /* tablet (761 a 1099 px): barra do topo compacta, para o avatar, os ícones e o placar caberem lado a lado sem se sobrepor */
+      @media (min-width: 761px) and (max-width: 799px) {
+        .scorecell h2 > span { display: none; } /* a palavra "Placar" só some nas telas mais estreitas; de 800 px para cima ela volta */
+      }
       @media (min-width: 761px) and (max-width: 1099px) {
-        .scorecell h2 > span { display: none; }
         .scorecell { gap: 2px; padding: 5px 4px; }
         .topbar .score { font-size: 11px; gap: 0 2px; }
         .topbar .score .sep { margin: 4px 5px; }
