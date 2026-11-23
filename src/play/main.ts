@@ -298,6 +298,17 @@ const soundFor = (events: GameEvent[]) => {
   for (const [type, s] of SOUND_OF) if (events.some((e) => e.type === type)) return play(s);
 };
 
+/** Por que o pirata de quem joga foi parar na água (para explicar na tela, principalmente na vez do BOT). */
+const fallText = (events: GameEvent[], id: string): string => {
+  const n = bname(id);
+  if (events.some((x) => x.type === 'nereusPull' && x.builderId === id)) return t(`Nereus dragged ${n} into the sea!`, `O Nereu arrastou ${n} para o mar!`);
+  if (events.some((x) => x.type === 'wave' && (x.hit as string[]).includes(id))) return t(`The giant wave swept ${n} into the sea.`, `A onda gigante derrubou ${n} no mar.`);
+  if (events.some((x) => x.type === 'octopusGrab')) return t(`The Octopus grabbed ${n} and threw them into the sea.`, `O Polvo agarrou ${n} e o jogou no mar.`);
+  if (events.some((x) => x.type === 'leviathanGrab')) return t(`The Leviathan lassoed ${n} and threw them into the sea.`, `O Leviatã laçou ${n} e o jogou no mar.`);
+  if (events.some((x) => x.type === 'push')) return t(`A rival pushed ${n} into the sea.`, `Um rival empurrou ${n} para o mar.`);
+  if (events.some((x) => x.type === 'flood')) return t(`The tile under ${n} sank in the quake.`, `A casa de ${n} afundou no terremoto.`);
+  return t(`${n} fell into the sea.`, `${n} caiu no mar.`);
+};
 const takeState = (events: GameEvent[]) => {
   wake();
   soundFor(events);
@@ -313,6 +324,12 @@ const takeState = (events: GameEvent[]) => {
     if (e.type === 'die') {
       lastDie = e.face as string;
       rollDie(lastDie);
+    }
+    // um pirata seu foi parar na água: o aviso diz o motivo
+    if (e.type === 'floating' && e.owner === viewer()) toast(fallText(events, e.builderId as string));
+    if (e.type === 'summon' && e.kind === 'triton' && e.falls) {
+      const tb = game.builders.find((x) => x.id === e.targetId);
+      if (tb && tb.owner === viewer()) toast(t(`A rival's Triton pushed ${bname(tb.id)} into the sea.`, `O Tritão de um rival empurrou ${bname(tb.id)} para o mar.`));
     }
     // ganhou algo: um aviso curto diz para que serve
     const mine = e.owner === viewer() && !e.surge;
