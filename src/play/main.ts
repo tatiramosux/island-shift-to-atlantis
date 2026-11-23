@@ -1531,7 +1531,100 @@ const showRules = () => {
   const c = document.createElement('div');
   c.className = 'card';
   c.innerHTML = rulesHtml();
-  c.appendChild(row(btn(t('Got it', 'Entendi'), closeModal, { primary: true })));
+  c.appendChild(row(btn(t('Step by step', 'Passo a passo'), () => showTutorial(0)), btn(t('Got it', 'Entendi'), closeModal, { primary: true })));
+  modal(c);
+};
+
+/** Passo a passo numerado: objetivo, a vez, as etapas, tesouros, convocações, criaturas, Castelo e final (só texto). */
+const tutorialSteps = (): { title: string; body: string }[] => {
+  const c = cfg();
+  const esc = c.ending === 'escape';
+  const cost = { triton: c.tritonCost, lasso: c.lassoCost, siren: c.sirenCost, colossus: c.colossusCost };
+  const nereus = c.nereus !== false;
+  return [
+    {
+      title: t('The goal', 'O objetivo'),
+      body: t(
+        `<p>Your team of 2 pirates explores a sinking island. <b>Collect treasure</b> (crystals, tridents), <b>rescue the Princess</b> from the Castle (+4 points) and <b>get your team on your ship</b>.</p><p>The team with the <b>most points</b> wins. Anyone left floating when the island vanishes counts <b>half</b>.</p>`,
+        `<p>Seu time de 2 piratas explora uma ilha que afunda. <b>Junte tesouros</b> (cristais, tridentes), <b>resgate a Princesa</b> do Castelo (+4 pontos) e <b>leve o time ao seu navio</b>.</p><p>Vence o time com <b>mais pontos</b>. Quem ficar boiando quando a ilha sumir conta <b>metade</b>.</p>`,
+      ),
+    },
+    {
+      title: t('Your turn: actions', 'A sua vez: ações'),
+      body: t(
+        `<p>In the <b>1 Action</b> phase you have <b>${c.actionsPerTurn} actions</b>. Tap a pirate, then a yellow tile.</p><ul><li><b>Walk</b> one tile (you can climb one floor).</li><li><b>Boat</b>: from a beach, get into a boat and row up to 2 tiles per action toward your ship.</li><li><b>Swim</b> if you are floating.</li><li><b>Push</b> a neighboring rival when it is possible.</li></ul><p>Then tap <b>End actions</b>.</p>`,
+        `<p>Na etapa <b>1 Ação</b> você tem <b>${c.actionsPerTurn} ações</b>. Toque num pirata e depois numa casa amarela.</p><ul><li><b>Andar</b> uma casa (dá para subir um andar).</li><li><b>Bote</b>: de uma praia, entre num bote e reme até 2 casas por ação em direção ao seu navio.</li><li><b>Nadar</b>, se estiver boiando.</li><li><b>Empurrar</b> um rival vizinho quando for possível.</li></ul><p>Depois toque em <b>Terminar ações</b>.</p>`,
+      ),
+    },
+    {
+      title: t('The three phases', 'As três etapas'),
+      body: t(
+        `<p>Every turn has three phases, shown under the top bar:</p><ol><li><b>Action</b>: your ${c.actionsPerTurn} actions.</li><li><b>Tide</b>: an earthquake picks tiles that crumble and turn into Atlantis, revealing a piece below. Nobody chooses. A trident saves the tile under your pirate.</li><li><b>Creatures</b>: you roll the die and move the creature it picks.</li></ol><p>Tap the ? next to each phase for details.</p>`,
+        `<p>Todo turno tem três etapas, mostradas embaixo da barra do topo:</p><ol><li><b>Ação</b>: suas ${c.actionsPerTurn} ações.</li><li><b>Maré</b>: um terremoto sorteia casas que se desfazem e viram Atlântida, revelando uma peça. Ninguém escolhe. Um tridente salva a casa sob o seu pirata.</li><li><b>Criaturas</b>: você rola o dado e move a criatura sorteada.</li></ol><p>Toque no ? ao lado de cada etapa para ver os detalhes.</p>`,
+      ),
+    },
+    {
+      title: t('Treasure', 'Tesouros'),
+      body: t(
+        `<p>Step on a tile of Atlantis to take what is on it:</p><ul><li><b>Crystal</b>: 1 point, and it pays for Summons.</li><li><b>Trident</b>: worth 2 points and protects a tile from the quake.</li><li><b>Calm Tide</b>: skips the next quake.</li><li><b>Shield</b>: keeps the sea and the creatures away.</li><li><b>Portal</b>: teleports you to another Portal.</li><li><b>Column</b>: a base to climb.</li></ul><p>Tap any tile with a piece to see how to use it.</p>`,
+        `<p>Pise numa casa de Atlântida para pegar o que há nela:</p><ul><li><b>Cristal</b>: 1 ponto, e paga as Convocações.</li><li><b>Tridente</b>: vale 2 pontos e protege uma casa do terremoto.</li><li><b>Maré calma</b>: pula o próximo terremoto.</li><li><b>Escudo</b>: afasta o mar e as criaturas.</li><li><b>Portal</b>: leva você a outro Portal.</li><li><b>Coluna</b>: uma base para subir.</li></ul><p>Toque numa casa com peça para ver como usar.</p>`,
+      ),
+    },
+    {
+      title: t('Summons', 'Convocações'),
+      body: t(
+        `<p>Spend crystals to call a character that does <b>one action</b> and leaves. Only <b>1 summon per turn</b>, without spending an action:</p><ul><li><b>Triton</b> (${cost.triton}): a mighty push.</li><li><b>Lasso</b> (${cost.lasso}): steals the Princess from a rival.</li><li><b>Siren</b> (${cost.siren}): steals crystals from a rival.</li><li><b>Coral Colossus</b> (${cost.colossus}): an instant dome that protects a tile.</li></ul>`,
+        `<p>Gaste cristais para chamar um personagem que faz <b>uma ação</b> e vai embora. Só <b>1 convocação por turno</b>, sem gastar ação:</p><ul><li><b>Tritão</b> (${cost.triton}): um empurrão forte.</li><li><b>Laço</b> (${cost.lasso}): rouba a Princesa de um rival.</li><li><b>Sereia</b> (${cost.siren}): rouba cristais de um rival.</li><li><b>Colosso de coral</b> (${cost.colossus}): uma cúpula relâmpago que protege uma casa.</li></ul>`,
+      ),
+    },
+    {
+      title: t('Creatures and the sea', 'Criaturas e o mar'),
+      body: t(
+        `<p>The die picks what happens in phase 3:</p><ul><li><b>Octopus</b> and <b>Leviathan</b> swim through the sea and throw pirates in the water.</li>${nereus ? '<li><b>Nereus</b> drags a random pirate on land into the sea.</li>' : ''}<li><b>Surge Tide</b>: every pirate on Atlantis gains a crystal.</li>${c.nereus === false || (c.dieLull ?? 0) > 0 ? '<li><b>Still Sea</b>: nothing moves.</li>' : ''}</ul><p>A pirate in the water just <b>floats</b>: swim back to land or to a boat. The giant wave also sweeps low tiles each round. Towers (2nd floor and up), domes and Shields are safe.</p>`,
+        `<p>O dado decide o que acontece na etapa 3:</p><ul><li><b>Polvo</b> e <b>Leviatã</b> nadam pelo mar e jogam piratas na água.</li>${nereus ? '<li>O <b>Nereu</b> arrasta para o mar um pirata sorteado em terra.</li>' : ''}<li><b>Maré viva</b>: todo pirata em Atlântida ganha um cristal.</li>${c.nereus === false || (c.dieLull ?? 0) > 0 ? '<li><b>Mar parado</b>: nada se mexe.</li>' : ''}</ul><p>Quem cai na água só <b>boia</b>: nade de volta à terra ou a um bote. A onda gigante também varre as casas baixas a cada rodada. Torres (2º andar ou mais), cúpulas e Escudos estão a salvo.</p>`,
+      ),
+    },
+    {
+      title: t('The Castle and the Princess', 'O Castelo e a Princesa'),
+      body: t(
+        `<p>After ${c.templeWake} tiles have sunk, the <b>Castle</b> rises in the middle, with towers and stairs. At the top (3rd floor) waits the <b>Princess</b>.</p><p>The pirate who reaches the top rescues her and <b>carries her</b>. She is only safe, for <b>+4 points</b>, when <b>that same pirate boards the ship</b>. A rival's Lasso can steal her${nereus ? ' and Nereus can take her back to the sea' : ''}.</p>`,
+        `<p>Depois que ${c.templeWake} casas afundam, o <b>Castelo</b> emerge no meio, com torres e escadas. No topo (3º andar) espera a <b>Princesa</b>.</p><p>O pirata que chega ao topo a resgata e <b>a carrega</b>. Ela só fica a salvo, valendo <b>+4 pontos</b>, quando <b>esse mesmo pirata sobe no navio</b>. O Laço de um rival pode roubá-la${nereus ? ' e o Nereu pode levá-la de volta ao mar' : ''}.</p>`,
+      ),
+    },
+    {
+      title: t('The ending', 'O final'),
+      body: esc
+        ? t(
+            `<p>When someone rescues the Princess, a <b>round count</b> appears under the phases: you have ${c.fleeRounds} rounds to get to your ship.</p><p>The island sinks when <b>a whole team</b> (both pirates) is aboard its ship, or when the count ends. Then the team with the most points wins. There is always a winner.</p>`,
+            `<p>Quando alguém resgata a Princesa, aparece uma <b>contagem de rodadas</b> embaixo das etapas: vocês têm ${c.fleeRounds} rodadas para chegar ao navio.</p><p>A ilha afunda quando <b>um time inteiro</b> (os dois piratas) está a bordo do navio dele, ou quando a contagem acaba. Então vence o time com mais pontos. Sempre há um vencedor.</p>`,
+          )
+        : t(
+            `<p>After the Princess is rescued, the <b>first team with both pirates aboard its ship</b> ends the match. The team with the most points wins; anyone left floating counts half.</p>`,
+            `<p>Depois que a Princesa é resgatada, o <b>primeiro time com os dois piratas a bordo do seu navio</b> encerra a partida. Vence o time com mais pontos; quem ficar boiando conta metade.</p>`,
+          ),
+    },
+  ];
+};
+
+const showTutorial = (i: number) => {
+  const steps = tutorialSteps();
+  const step = steps[Math.max(0, Math.min(steps.length - 1, i))];
+  const c = document.createElement('div');
+  c.className = 'card';
+  const head = document.createElement('p');
+  head.className = 'muted';
+  head.textContent = t(`Step ${i + 1} of ${steps.length}`, `Passo ${i + 1} de ${steps.length}`);
+  const h = document.createElement('h2');
+  h.textContent = `${i + 1}. ${step.title}`;
+  const body = document.createElement('div');
+  body.innerHTML = step.body;
+  c.append(head, h, body);
+  c.appendChild(
+    row(
+      btn(i === 0 ? t('Full rules', 'Regras completas') : t('Back', 'Voltar'), () => (i === 0 ? showRules() : showTutorial(i - 1))),
+      i === steps.length - 1 ? btn(t('Done', 'Concluir'), closeModal, { primary: true }) : btn(t('Next', 'Próximo'), () => showTutorial(i + 1), { primary: true }),
+    ),
+  );
   modal(c);
 };
 
