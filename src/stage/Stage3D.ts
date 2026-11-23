@@ -944,16 +944,8 @@ export class Stage3D {
         d.position.y += top;
         g.add(d);
       }
-    } else if (c.temple && awake && c.floors < 3) {
-      // farol dourado: o objetivo
-      const b = new THREE.Group();
-      b.add(m.box(0.16, 0.16, 0.16, m.solid('#ffd84a', 0.8), 0, 0, 0));
-      b.position.y = top + 0.7;
-      b.userData.spin = 1.4;
-      b.userData.bob = 0.08;
-      b.userData.baseY = top + 0.7;
-      g.add(b);
     }
+    // (o cristal que gira sobre o castelo já marca o objetivo)
     // decorações giratórias guardam a altura original para balançar
     g.traverse((o) => {
       if (o.userData.bob !== undefined && o.userData.baseY === undefined) o.userData.baseY = o.position.y;

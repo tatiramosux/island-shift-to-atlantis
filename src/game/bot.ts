@@ -25,6 +25,8 @@ const value = (s: GameState, p: number, seek = false): number => {
   const ship = s.ships[p];
   for (const b of s.builders) {
     if (b.owner !== p) continue;
+    // quem carrega a Princesa é quem precisa chegar ao navio: ele pesa mais na hora de correr
+    if (carrying && b.id === s.princess!.carrier && b.status !== 'aboard' && b.status !== 'dead') v += run ? 10 - (b.hex ? hexDistance(b.hex, ship) : 6) * 2 : 0;
     if (b.status === 'dead') v -= 40;
     else if (b.status === 'floating') v -= 12;
     else if (b.status === 'aboard') v += run ? 40 : leaving ? 14 : 4; // no navio: ótimo na hora de fugir, ruim cedo demais

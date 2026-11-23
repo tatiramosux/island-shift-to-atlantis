@@ -1087,6 +1087,20 @@ describe('como se vence', () => {
     expect(s.winReason).toBe('ship');
   });
 
+  it('a Princesa só fica a salvo quando quem a carrega chega ao navio, não quando outro pirata do time embarca', () => {
+    let s = blank();
+    s.princess = { by: 0, safe: false, carrier: 'p0b0' };
+    put(s, 'p0b0', H(2, 0));
+    const b1 = s.builders.find((b) => b.id === 'p0b1')!;
+    b1.status = 'boat';
+    b1.hex = H(-5, 5);
+    put(s, 'p1b0', H(-2, 0));
+    s.actionsLeft = 3;
+    s = ok(s, { type: 'row', player: 0, builderId: 'p0b1', to: H(-6, 6) }).state; // o outro pirata sobe no navio
+    expect(s.builders.find((b) => b.id === 'p0b1')!.status).toBe('aboard');
+    expect(s.princess?.safe).toBe(false); // ela continua com quem a carrega
+  });
+
   it('juntar cristais sozinho não encerra o jogo', () => {
     const s = blank();
     put(s, 'p0b0', H(2, 0));

@@ -50,7 +50,7 @@ export const icons = (): Record<IconName, string> => {
   const lullIcon =
     'data:image/svg+xml;utf8,' +
     encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><g transform="translate(48 48) scale(0.62) translate(-48 -48)" fill="none" stroke="#9fe3ff" stroke-width="8" stroke-linecap="round">' +
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><circle cx="48" cy="48" r="40" fill="#14578a"/><circle cx="48" cy="48" r="40" fill="none" stroke="#7fd0ff" stroke-width="3"/><g transform="translate(48 48) scale(0.5) translate(-48 -48)" fill="none" stroke="#d8f4ff" stroke-width="9" stroke-linecap="round">' +
         '<path d="M14 32q11-12 22 0t22 0t22 0"/><path d="M14 52q11-12 22 0t22 0t22 0"/><path d="M14 72q11-12 22 0t22 0t22 0"/></g></svg>',
     );
   const crystal = models.decor('crystal');

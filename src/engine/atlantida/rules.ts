@@ -938,9 +938,12 @@ const climbAboard = (s: GameState, b: Builder, ev: GameEvent[]) => {
   ev.push({ type: 'aboard', builderId: b.id, owner: b.owner, from: b.hex });
   b.status = 'aboard';
   b.hex = null;
-  // a princesa está a salvo quando alguém do time que a resgatou chega ao navio: bônus grande
-  if (s.princess && !s.princess.safe && s.princess.by === b.owner) {
-    s.princess.safe = true; // o bônus entra nos pontos (não vira cristal para gastar)
+  // a princesa está a salvo quando o pirata que a carrega chega ao navio (se ele não está mais em jogo, qualquer um do time serve): bônus grande
+  const pr = s.princess;
+  const carrier = pr?.carrier ? s.builders.find((x) => x.id === pr.carrier) : undefined;
+  const carrierOut = !carrier || carrier.status === 'dead' || carrier.status === 'aboard';
+  if (pr && !pr.safe && pr.by === b.owner && (b.id === pr.carrier || carrierOut)) {
+    pr.safe = true; // o bônus entra nos pontos (não vira cristal para gastar)
     ev.push({ type: 'princessSafe', owner: b.owner, value: PRINCESS_BONUS });
   }
 };

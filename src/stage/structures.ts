@@ -99,8 +99,8 @@ export const buildCastle = (m: Models, awake: boolean, floors = 0): THREE.Group 
   ring(HEX_R + 0.05, 0.07, -0.1, gold);
   ring(HEX_R + 0.02, 0.04, -0.03, sand);
 
-  // pórtico de frente para o portão: z local aponta para fora do Castelo
-  const a0 = Math.PI / 6;
+  // pórtico de frente para o portão: z local aponta para fora do Castelo; o portão fica virado para a câmera da visão inicial
+  const a0 = -Math.PI / 6;
   const d0 = ap - 0.14;
   const front = new THREE.Group();
   front.position.set(Math.sin(a0) * d0, 0, Math.cos(a0) * d0);
@@ -125,12 +125,50 @@ export const buildCastle = (m: Models, awake: boolean, floors = 0): THREE.Group 
     front.add(m.box(w, 0.06, 0.16, gold, 0, y, 0));
     if (w - 0.14 >= 0.06) front.add(m.box(w - 0.14, 0.06, 0.02, teal, 0, y, 0.09));
   });
-  front.add(m.box(0.07, 0.07, 0.07, goldL, 0, 1.01, 0)); // acrotério
   front.add(m.box(0.022, 0.13, 0.02, goldL, 0, 0.67, 0.104)); // tridente: haste
   front.add(m.box(0.12, 0.022, 0.02, goldL, 0, 0.77, 0.104)); // travessa
   for (const x of [-0.05, 0, 0.05]) front.add(m.box(0.02, x === 0 ? 0.11 : 0.08, 0.02, goldL, x, 0.79, 0.104)); // pontas
   if (!awake) for (const y of [0.1, 0.22, 0.34]) front.add(m.box(0.22, 0.03, 0.03, m.solid('#55595e'), 0, y, 0.02)); // grade entre as colunas
   g.add(front);
+
+  // ruínas nos outros cantos do bloco (menos os dois ao lado do portão): colunas inteiras, quebradas e caídas, como partes mais destruídas do palácio
+  // as ruínas têm o mesmo dourado das colunas do pórtico
+  const stone = gold;
+  const stoneD = goldD;
+  const rr = HEX_R - 0.2;
+  const ruin = (k: number, kind: 'whole' | 'broken' | 'half' | 'fallen') => {
+    const x = Math.sin((k * Math.PI) / 3) * rr;
+    const z = Math.cos((k * Math.PI) / 3) * rr;
+    const col = new THREE.Group();
+    col.position.set(x, 0, z);
+    col.rotation.y = (k * 0.7) % 1;
+    col.add(m.box(0.14, 0.04, 0.14, goldD, 0, 0, 0)); // base (mesmo tom e tamanho das colunas do pórtico)
+    if (kind === 'fallen') {
+      // coluna caída: o fuste deitado no chão, uma ponta quebrada e um caco ao lado
+      const lying = new THREE.Group();
+      lying.position.set(0.02, 0.07, 0.16);
+      lying.rotation.y = 0.55;
+      lying.add(m.box(0.34, 0.09, 0.09, stone, 0, 0, 0));
+      lying.add(m.box(0.03, 0.11, 0.11, stone, 0.17, 0, 0));
+      col.add(lying);
+      col.add(m.box(0.08, 0.04, 0.06, stone, -0.1, 0.04, -0.05));
+    } else {
+      const h = kind === 'whole' ? 0.34 : kind === 'broken' ? 0.22 : 0.12; // a inteira tem a altura das colunas do pórtico; as quebradas são menores
+      col.add(m.box(0.09, h, 0.09, stone, 0, 0.05, 0)); // fuste
+      col.add(m.box(0.025, h * 0.9, 0.012, stoneD, 0, 0.07, 0.047)); // estria
+      if (kind === 'whole') col.add(m.box(0.15, 0.05, 0.15, goldL, 0, 0.05 + h, 0)); // capitel
+      else {
+        col.add(m.box(0.07, 0.04, 0.07, stone, -0.01, 0.05 + h, 0)); // topo quebrado, em degrau
+        col.add(m.box(0.12, 0.04, 0.09, stone, 0.14, 0.04, 0.08)); // pedaço caído ao pé
+      }
+    }
+    if (!awake) col.add(m.box(0.08, 0.06, 0.08, moss, 0.06, 0.05, 0.08)); // limo
+    g.add(col);
+  };
+  ruin(4, 'whole'); // o canto da frente à esquerda é o que mais aparece na visão inicial
+  ruin(1, 'broken');
+  ruin(2, 'fallen');
+  ruin(3, 'half');
 
   // cristal água-marinha flutuando acima do topo, girando, com os raios do ícone
   if (awake) {
