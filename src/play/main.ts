@@ -1186,7 +1186,8 @@ menuDrop.append(
 menuBtn.onclick = () => (desktopMq.matches ? setDropOpen(!!menuDrop.hidden) : setMenuOpen(!!tools.hidden));
 document.addEventListener('pointerdown', (ev) => {
   const el = ev.target as Node;
-  if (!tools.hidden && !tools.contains(el) && !menuBtn.contains(el)) setMenuOpen(false);
+  // só no celular o toque fora fecha a lista; no computador e no tablet os ícones ficam sempre à vista na barra do topo
+  if (!desktopMq.matches && !tools.hidden && !tools.contains(el) && !menuBtn.contains(el)) setMenuOpen(false);
   if (!menuDrop.hidden && !menuDrop.contains(el) && !menuBtn.contains(el)) setDropOpen(false);
 });
 tools.append(
