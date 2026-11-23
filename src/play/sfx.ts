@@ -54,7 +54,6 @@ const SOUNDS: Record<string, Note[]> = {
   // onda gigante: rugido de água subindo e caindo; aviso: dois toques de sino de navio
   wave: [{ f: 300, to: 1800, d: 0.5, w: 'noise', v: 0.5 }, { f: 1800, to: 200, d: 0.6, w: 'noise', v: 0.45, at: 0.45 }, { f: 90, to: 50, d: 0.7, w: 'square', v: 0.3, at: 0.3 }],
   waveWarning: [{ f: 880, d: 0.25, w: 'triangle', v: 0.45 }, { f: 880, d: 0.35, w: 'triangle', v: 0.4, at: 0.3 }],
-  eliminated: seq(['G4', 'E4', 'C4', 'G3'], 0.11, 'square', 0.4),
   // dado: tique enquanto gira e acorde quando para
   tick: [{ f: 1400, d: 0.025, w: 'square', v: 0.2 }],
   dieLand: [{ f: NOTE('C5'), d: 0.18, w: 'square', v: 0.3 }, { f: NOTE('G5'), d: 0.18, w: 'square', v: 0.25 }],

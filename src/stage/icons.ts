@@ -7,7 +7,7 @@ import { Models } from './models';
 import { buildSummon } from './summons';
 import { buildNereus } from './legends';
 
-export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'triton' | 'lasso' | 'siren' | 'colossus';
+export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'lull' | 'triton' | 'lasso' | 'siren' | 'colossus';
 
 let cache: Record<IconName, string> | null = null;
 
@@ -46,6 +46,13 @@ export const icons = (): Record<IconName, string> => {
     return url;
   };
 
+  // Mar parado: três ondas calmas desenhadas em SVG
+  const lullIcon =
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><g fill="none" stroke="#9fe3ff" stroke-width="7" stroke-linecap="round">' +
+        '<path d="M14 32q11-12 22 0t22 0t22 0"/><path d="M14 52q11-12 22 0t22 0t22 0"/><path d="M14 72q11-12 22 0t22 0t22 0"/></g></svg>',
+    );
   const crystal = models.decor('crystal');
   crystal.scale.setScalar(2.4);
   cache = {
@@ -53,6 +60,7 @@ export const icons = (): Record<IconName, string> => {
     leviathan: shoot(models.creature('leviathan')),
     guardian: shoot(buildNereus(models).root), // a face da Sentinela agora é o Nereu
     surge: shoot(crystal),
+    lull: lullIcon,
     triton: shoot(buildSummon(models, 'triton')),
     lasso: shoot(buildSummon(models, 'lasso')),
     siren: shoot(buildSummon(models, 'siren')),

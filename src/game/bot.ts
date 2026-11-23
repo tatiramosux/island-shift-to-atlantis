@@ -13,7 +13,8 @@ const value = (s: GameState, p: number, seek = false): number => {
   // só corre para o navio quem não está muito atrás: quem fica boiando perde metade do tesouro, mas fugir cedo e pobre perde de qualquer jeito
   const rivals = s.crystals.map((_, i) => i).filter((i) => i !== p).map((i) => basePoints(s, i));
   const behind = Math.max(...rivals) - basePoints(s, p);
-  const urgent = islandProgress(s) >= 0.9 || (s.escape != null && s.escape.by !== p); // alguém já fugiu ou a ilha está no fim
+  const lastRounds = s.fleeDeadline != null && s.fleeDeadline - s.round <= 1; // a contagem para chegar ao navio está acabando
+  const urgent = islandProgress(s) >= 0.9 || (s.escape != null && s.escape.by !== p) || lastRounds; // alguém já fugiu, a ilha está no fim ou o tempo está acabando
   const carrying = s.princess != null && s.princess.by === p && !s.princess.safe; // a princesa só vale quando chega ao navio
   // só corre para o navio depois de a Princesa ser resgatada (antes disso o BOT fica na ilha e vai atrás dela)
   const run = leaving && princessRescued(s) && (behind <= 1 || urgent || carrying) ? 1 : 0;

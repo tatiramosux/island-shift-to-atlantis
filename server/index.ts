@@ -11,7 +11,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
-import { Rng, actor, applyAction, createGame, redactFor, type Action, type GameEvent, type GameState } from '../src/engine/atlantida';
+import { Rng, actor, applyAction, createGame, redactFor, settingsFor, type Action, type GameEvent, type GameState } from '../src/engine/atlantida';
 import { autoSetup } from '../src/game/autoSetup';
 import { chooseAction } from '../src/game/bot';
 import { handleStats } from './stats';
@@ -206,7 +206,7 @@ export function startServer(port: number, host = '0.0.0.0', distDir?: string) {
         if (room.seats.length < 2) return fail('Precisa de pelo menos 2 jogadores (adicione um bot ou espere alguém entrar).');
         const seed = (Math.random() * 2 ** 32) >>> 0;
         // as peças de Atlântida são sorteadas aqui, no servidor, e só são reveladas quando a casa afunda
-        room.state = autoSetup(createGame({ players: room.seats.length, seed }), seed ^ 0x9e3779b9);
+        room.state = autoSetup(createGame({ players: room.seats.length, seed, settings: settingsFor('long', room.seats.length) }), seed ^ 0x9e3779b9);
         broadcastState(room, []);
         return runBots(room);
       }

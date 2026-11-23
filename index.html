@@ -92,6 +92,11 @@
       .turnchip { display: flex; align-items: center; gap: 8px; background: var(--glass); border: 2px solid #888; border-radius: 999px; padding: 6px 14px; white-space: nowrap; }
       .turnchip .badge { background: var(--ok); border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 700; }
       .turnchip .badge:empty { display: none; }
+      /* nome do turno: numa linha (computador e tablet) ou em duas (celular: TURN em cima, o nome embaixo) */
+      #turnText .t-short { display: none; }
+      #turnText .t-short .tl { display: block; font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); line-height: 1.1; }
+      #turnText .t-short .tn { display: block; font-size: 12px; font-weight: 700; line-height: 1.2; }
+      #turnText .t-short:empty { display: none; }
       .phases { display: flex; gap: 4px; }
       .ph { display: inline-flex; align-items: center; justify-content: center; line-height: 1; font-size: 12px; padding: 4px 9px; border-radius: 999px; background: #2a2a2a; color: #b8b8b8; white-space: nowrap; text-align: center; }
       .ph.on { background: #4a4a4a; color: #fff; outline: 1px solid #e0e0e0; font-weight: 700; }
@@ -119,6 +124,8 @@
       .score .who { display: flex; flex-direction: column; line-height: 1.15; }
       .score .who small { color: var(--muted); font-size: 11px; display: flex; gap: 3px; align-items: center; margin-top: 2px; }
       .score .turn { color: var(--accent); font-weight: 700; }
+      /* divisória curta entre o placar de um time e o do próximo: uma linha fina que não encosta nas bordas */
+      .score .sep { display: block; grid-column: 1 / -1; height: 1px; margin: 1px 4px; background: #4f4f4f; border-radius: 1px; pointer-events: none; }
       .pip { width: 9px; height: 9px; border-radius: 2px; border: 1px solid #fff9; display: inline-block; }
       .pip.float { border-radius: 50%; background: transparent !important; }
       .pip.dead { opacity: 0.25; }
@@ -299,6 +306,9 @@
       .endlist .chip { display: inline-flex; align-items: center; gap: 2px; min-width: 22px; height: 22px; padding: 0 6px; justify-content: center; border-radius: 999px; background: #fff; color: #1a1a1a; font-size: 11px; font-weight: 800; }
       .endlist .pts { min-width: 64px; text-align: right; color: #dedede; }
       .winner .actions { margin-top: 4px; }
+      /* botões do fim de partida: na mesma linha, do mesmo tamanho e centralizados um em relação ao outro (o ícone de um deslocava a linha de base) */
+      .winner .row { display: flex; align-items: center; justify-content: center; gap: 10px; }
+      .winner .row button { flex: 1 1 0; min-width: 0; height: 44px; min-height: 0; padding: 0 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; }
       .endhead { display: flex; justify-content: center; margin: -6px auto 6px; }
       .endhead.nereus { animation: nereusRage 0.18s linear infinite; --team: #ff2a2a; }
       @keyframes nereusRage { 0% { transform: translate(0, 0) rotate(-1deg); } 50% { transform: translate(2px, -2px) rotate(1deg); } 100% { transform: translate(-2px, 1px) rotate(-1deg); } }
@@ -377,6 +387,12 @@
       .phasebar .ph + .ph::before { content: ''; position: absolute; right: 100%; top: 50%; width: 14px; height: 2px; margin-top: -1px; background: #ffffff66; }
       .phasebar .ph.on { background: var(--ok); border-color: var(--ok-line); color: #fff; outline: 0; box-shadow: 0 0 10px #5bd16b88; }
       .phasebar .phases button.dice-help { background: rgba(20, 20, 20, 0.88); }
+      /* contagem de rodadas para chegar ao navio (depois de a Princesa ser resgatada) */
+      .fleetimer { margin: 6px auto 0; width: max-content; max-width: 100%; padding: 5px 12px; font-size: 12px; font-weight: 700; text-align: center; color: #fff; background: rgba(120, 70, 10, 0.92); border: 1px solid #f0b34a; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+      .fleetimer[hidden] { display: none; }
+      .fleetimer.last { background: rgba(150, 30, 30, 0.94); border-color: #ff8a80; animation: fleepulse 1s ease-in-out infinite alternate; }
+      @keyframes fleepulse { to { box-shadow: 0 0 14px #ff8a80aa; } }
+      @media (prefers-reduced-motion: reduce) { .fleetimer.last { animation: none; } }
       .topbar .score { grid-template-columns: auto auto auto; gap: 3px 6px; font-size: 12px; }
       .topbar .score .who { display: none; }
       .topbar .score .pts { font-size: 13px; min-width: 30px; }
@@ -394,13 +410,14 @@
       .logpanel { top: calc(var(--top-h, 56px) + 6px) !important; left: 6px !important; }
       .topbar { left: 0; right: 0; top: 0; background: rgba(20, 20, 20, 0.84); border-bottom: 1px solid #555; padding-top: env(safe-area-inset-top); }
       /* desktop: tudo numa linha só. Placar com os jogadores lado a lado; títulos de Convocações e Dado na lateral esquerda dos cartões */
-      @media (min-width: 1100px) {
+      @media (min-width: 761px) {
         .scorecell { gap: 10px; }
         .scorecell h2 { order: 0; }
         .scorecell h2 > span { display: inline; margin-right: 6px; font-size: 12px; white-space: nowrap; }
-        .topbar .score { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: auto; gap: 0 6px; font-size: 13px; }
-        .topbar .score .dot { margin-left: 14px; }
-        .topbar .score .dot:first-child { margin-left: 0; }
+        .topbar .score { grid-auto-flow: column; grid-template-columns: none; grid-template-rows: 1fr; align-self: stretch; gap: 0 6px; font-size: 13px; }
+        .topbar .score .dot { margin-left: 0; }
+        .topbar .score .sep { grid-column: auto; width: 1px; height: auto; align-self: stretch; margin: 4px 10px; }
+        .topbar .scorecell { padding-top: 0; padding-bottom: 0; }
         /* desktop: a mesma barra de baixo, com o título de Convocações e de Dado na lateral esquerda dos cartões */
         .dock .combo section { flex-direction: row; align-items: center; justify-content: center; gap: 10px; padding: 5px 10px; }
         .dock .combo h2 { margin: 0; white-space: nowrap; font-size: 12px; }
@@ -410,7 +427,7 @@
       /* menu: no celular a lista abre abaixo do ☰; no desktop os ícones ficam abertos na barra do topo e o ☰ abre uma lista de ações */
       .toolcell { display: none; }
       .menudrop { display: none; }
-      @media (min-width: 1100px) {
+      @media (min-width: 761px) {
         .toolcell { display: flex; flex-direction: row; align-items: center; justify-content: center; padding: 0 8px; }
         .toolcell #tools { position: static; display: flex; flex-direction: row; align-items: center; gap: 2px; padding: 0; background: none; border: 0; box-shadow: none; }
         .toolcell #tools .tools-list { display: contents; }
@@ -424,9 +441,37 @@
         .menudrop button { justify-content: flex-start; white-space: nowrap; min-height: 40px; background: transparent; border-color: transparent; }
         .menudrop button:hover:not(:disabled) { background: var(--card2); }
       }
-      @media (max-width: 1099px) {
+      /* tablet (761 a 1099 px): barra do topo compacta, para o avatar, os ícones e o placar caberem lado a lado sem se sobrepor */
+      @media (min-width: 761px) and (max-width: 1099px) {
+        .scorecell h2 > span { display: none; }
+        .scorecell { gap: 2px; padding: 5px 4px; }
+        .topbar .score { font-size: 11px; gap: 0 2px; }
+        .topbar .score .sep { margin: 4px 5px; }
+        .topbar .score .pts { min-width: 26px; font-size: 12px; }
+        .toolcell { padding: 0 2px; }
+        .toolcell #tools { gap: 0; }
+        .toolcell #tools button { width: 28px; height: 30px; }
+        .toolcell #tools #camera { gap: 0; }
+        .topbar .turncell { padding-left: 6px; padding-right: 2px; }
+        /* ícones e placar nunca encolhem (não se sobrepõem): quem cede espaço é o nome do jogador, que ganha reticências só se faltar lugar */
+        .topbar .menucell, .topbar .toolcell, .topbar .scorecell { flex: 0 0 auto; }
+        .topbar .turncell { flex: 1 1 0; min-width: 0; }
+        .topbar .turnchip { gap: 4px; font-size: 11px; flex-wrap: nowrap; min-width: 0; width: 100%; }
+        .topbar .turnchip #turnDot { flex: 0 0 auto; }
+        .topbar .turnchip b { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+      }
+      @media (max-width: 760px) {
+        #turnText .t-long { display: none; }
+        #turnText .t-short { display: block; }
+        #turnText { text-align: left; min-width: 0; }
+        #turnText .t-short .tn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .topbar .turncell { align-items: center; padding-left: 8px; padding-right: 4px; min-width: 0; }
+        .topbar .turnchip { flex-wrap: nowrap; justify-content: flex-start; align-items: center; gap: 8px; min-width: 0; }
+        .topbar .turnchip #turnDot { flex: 0 0 auto; }
+        .langsw { flex-direction: column; gap: 2px; }
+        .langsw button { min-width: 40px; min-height: 36px; padding: 0 4px; }
         .hud-tl button { width: 40px; height: 40px; }
-        .cam .zoomonly { display: none; }
+        .zoomonly { display: none; } /* no celular o zoom é com os dois dedos */
         .hud-tc { left: 74px; right: 128px; transform: none; align-items: center; } /* mesma folga (14px) entre o menu e o placar */
         .phases { flex-wrap: wrap; justify-content: center; }
         .turnchip { padding: 3px 10px; font-size: 13px; white-space: normal; text-align: center; }
@@ -462,7 +507,6 @@
 
       <div id="hud" hidden>
         <div class="hud hud-tl menu-pop" id="tools" hidden></div>
-        <div class="cam" id="camera" role="toolbar" aria-label="Camera" data-pt-aria="Câmera" hidden></div>
         <div class="hud logpanel hud-card" id="logpanel" hidden></div>
         <div class="hud hud-bc">
           <div class="actionbar" id="bar"><p class="prompt" id="msg"></p><div id="controls"></div></div>
@@ -481,6 +525,7 @@
           <div class="phases" id="phases">
             <span class="ph" data-ph="action" data-pt="1 Ação">1 Action</span><span class="ph" data-ph="flood" data-pt="2 Maré">2 Tide</span><span class="ph" data-ph="creatures" data-pt="3 Criaturas">3 Creatures</span><button type="button" class="dice-help" id="helpPhase" aria-label="Rules for this phase" data-pt-aria="Regras desta fase" aria-haspopup="dialog" title="Rules for this phase" data-pt-title="Regras desta fase"></button>
           </div>
+          <div class="fleetimer" id="fleeTimer" hidden></div>
         </div>
         <div class="hud dock" id="dock">
           <div class="drow combo">

@@ -55,8 +55,13 @@ export interface Creature {
   hex: Hex | null;
 }
 
-export type DieFace = 'octopus' | 'leviathan' | 'guardian' | 'surge';
+export type DieFace = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'lull';
 export const DIE_FACES: readonly DieFace[] = ['octopus', 'octopus', 'leviathan', 'leviathan', 'guardian', 'surge'];
+/** Faces do dado de uma partida: as 6 de sempre mais as faces de Mar parado (nada se mexe) que a duração escolhida acrescenta. */
+export const dieFacesFor = (settings: { dieLull?: number; nereus?: boolean }): DieFace[] => [
+  ...DIE_FACES.map((f): DieFace => (f === 'guardian' && settings.nereus === false ? 'lull' : f)), // sem o Nereu, a face dele vira Mar parado
+  ...Array<DieFace>(settings.dieLull ?? 0).fill('lull'),
+];
 
 export type Phase = 'setup' | 'action' | 'flood' | 'creatures' | 'ended';
 
@@ -79,10 +84,16 @@ export interface Settings {
   ending: 'castle' | 'escape';
   /** só no final por fuga: rodada em que a ilha some de qualquer jeito (0 = sem limite). */
   vanishRound: number;
+  /** só no final por fuga: quantas rodadas o time tem para chegar ao navio depois de a Princesa ser resgatada (0 = sem contagem). A ilha só some quando um time inteiro está no navio ou quando a contagem acaba. */
+  fleeRounds: number;
   /** a Sentinela de pedra entra em jogo (nas partidas curtas fica de fora). */
   guardian: boolean;
   /** Virada da maré: a onda gigante começa na rodada 2 e vira em Atlântida as fileiras que ela varre (acelera a partida). */
   tideShift: boolean;
+  /** faces extras de "Mar parado" no dado das criaturas: nada se mexe naquele turno (0 = o dado de 6 faces de sempre). */
+  dieLull: number;
+  /** o Nereu entra no dado (falso na partida curta: a face dele vira Mar parado). */
+  nereus: boolean;
 }
 
 export type MatchLength = 'short' | 'medium' | 'long';
@@ -99,16 +110,38 @@ export const DEFAULT_SETTINGS: Settings = {
   octopusReach: 1,
   ending: 'castle',
   vanishRound: 0,
+  fleeRounds: 0,
   guardian: false, // a Sentinela de pedra saiu do jogo: a face dela é do Nereu
   tideShift: false,
+  dieLull: 0,
+  nereus: true,
 };
 
 /** Duração da partida: curta e média usam o final por fuga (veja docs/modo-fuga.md); longa é o jogo original. */
 export const LENGTH_PRESETS: Record<MatchLength, Partial<Settings>> = {
-  short: { ending: 'escape', floodsPerRound: 10, vanishRound: 9, guardian: false, tideShift: true },
-  medium: { ending: 'escape', floodsPerRound: 6, vanishRound: 15, guardian: false, tideShift: true },
-  long: {},
+  short: { ending: 'escape', floodsPerRound: 10, vanishRound: 9, fleeRounds: 5, guardian: false, tideShift: true, nereus: false },
+  medium: { ending: 'escape', floodsPerRound: 3, templeWake: 20, vanishRound: 22, fleeRounds: 6, guardian: false, tideShift: true, dieLull: 1 },
+  long: { floodsPerRound: 3, templeWake: 20 },
 };
+
+/** Casas que afundam por rodada conforme o número de jogadores: com mais gente cada rodada tem mais turnos, então afunda menos por rodada e a partida mantém quase o mesmo número de rodadas. */
+const FLOODS_BY_PLAYERS: Record<MatchLength, Record<number, number>> = {
+  short: { 2: 10, 3: 8, 4: 6 },
+  medium: { 2: 3, 3: 2, 4: 2 },
+  long: { 2: 3, 3: 3, 4: 3 },
+};
+
+/** Duração recomendada para cada número de jogadores. */
+export const RECOMMENDED_LENGTH: Record<number, MatchLength> = { 2: 'short', 3: 'medium', 4: 'long' };
+
+/** Rodadas aproximadas de cada duração (média das partidas simuladas com bots). */
+export const APPROX_ROUNDS: Record<MatchLength, number> = { short: 9, medium: 11, long: 15 };
+
+/** Regras de uma partida: a duração escolhida ajustada ao número de jogadores. */
+export const settingsFor = (length: MatchLength, players: number): Partial<Settings> => ({
+  ...LENGTH_PRESETS[length],
+  floodsPerRound: FLOODS_BY_PLAYERS[length][players] ?? LENGTH_PRESETS[length].floodsPerRound ?? DEFAULT_SETTINGS.floodsPerRound,
+});
 
 export interface PendingFlood {
   /** casa escolhida para afundar. */
@@ -139,6 +172,8 @@ export interface GameState {
   wave?: number | null;
   /** final por fuga: time que chegou primeiro ao navio (a ilha some quando a vez volta a ele); undefined = ninguém ainda. */
   escape?: { by: number } | null;
+  /** só no final por fuga: rodada até a qual os times têm para chegar ao navio (começa quando a Princesa é resgatada). */
+  fleeDeadline?: number | null;
   /** a ilha já sumiu no mar (fim da partida por fuga). */
   vanished?: boolean;
   crystals: number[];

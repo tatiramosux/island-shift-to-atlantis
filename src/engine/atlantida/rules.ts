@@ -10,7 +10,7 @@ import { hex, hexAdd, hexDisk, hexDistance, hexEquals, hexKey, hexNeighbors, hex
 import { Rng, nextRandom } from './rng';
 import {
   DEFAULT_SETTINGS,
-  DIE_FACES,
+  dieFacesFor,
   type Action,
   type ActionResult,
   type AtlantisTile,
@@ -329,6 +329,11 @@ const enter = (s: GameState, b: Builder, ev: GameEvent[]) => {
     s.castleTaken = b.owner;
     s.princess = { by: b.owner, safe: false, carrier: b.id }; // no topo do Castelo estava a princesa: agora ela acompanha o time, nas mãos de quem a resgatou
     ev.push({ type: 'castleCrystal', owner: b.owner, hex: c.hex, value: 0 });
+    if (s.settings.ending === 'escape' && s.settings.fleeRounds > 0) {
+      // com a Princesa resgatada começa a contagem de rodadas para chegar ao navio
+      s.fleeDeadline = s.round + s.settings.fleeRounds;
+      ev.push({ type: 'fleeTimer', rounds: s.settings.fleeRounds });
+    }
   }
   if (c.state !== 'atlantis') return;
   switch (c.tile) {
@@ -385,7 +390,7 @@ const tritonSlide = (s: GameState, from: Hex, target: Builder, distance: number)
 const creatureOf = (s: GameState, type: CreatureType): Creature => s.creatures.find((c) => c.type === type)!;
 
 const creatureMoves = (s: GameState, p: number): Action[] => {
-  if (!s.die || s.die === 'surge') return [];
+  if (!s.die || s.die === 'surge' || s.die === 'lull') return [];
   const cr = creatureOf(s, s.die);
   if (!cr.hex) return [];
   const type = cr.type;
@@ -770,9 +775,9 @@ const endTurn = (s: GameState, ev: GameEvent[]) => {
   }
   // final por fuga: a ilha some quando a vez volta a quem fugiu primeiro (última chamada) ou na rodada limite
   if (s.settings.ending === 'escape' && !s.vanished) {
-    const lastCall = s.escape != null && s.current === s.escape.by;
-    const late = s.settings.vanishRound > 0 && s.round > s.settings.vanishRound;
-    if (lastCall || late) return vanishIsland(s, ev);
+    const late = s.fleeDeadline == null && s.settings.vanishRound > 0 && s.round > s.settings.vanishRound; // o limite só vale se a Princesa nunca foi resgatada (senão manda a contagem)
+    const timeUp = s.fleeDeadline != null && s.round > s.fleeDeadline;
+    if (late || timeUp) return vanishIsland(s, ev);
   }
   s.phase = 'action';
   s.turn += 1;
@@ -871,7 +876,7 @@ const tiePick = (s: GameState, tied: number[], aboardNow: (p: number) => boolean
 
 /**
  * Final por fuga: a ilha some no mar. Quem ainda estava em terra ou de bote fica boiando. Vence quem tiver mais pontos:
- * cada time que fugiu conta todos os seus cristais; quem ficou boiando conta só metade. Empate: quem fugiu primeiro, depois quem estava no navio.
+ * cada time que fugiu conta todos os seus cristais; quem ficou boiando conta só metade. Sempre há um vencedor. Empate: quem salvou a Princesa, depois quem fugiu primeiro, depois quem estava no navio.
  */
 const vanishIsland = (s: GameState, ev: GameEvent[]) => {
   const left = s.builders.filter((b) => b.status === 'board' || b.status === 'boat');
@@ -880,15 +885,6 @@ const vanishIsland = (s: GameState, ev: GameEvent[]) => {
   ev.push({ type: 'islandVanishes', left: left.map((b) => b.id) });
   const order = Array.from({ length: s.playerCount }, (_, i) => i);
   const aboardNow = (p: number) => s.builders.some((b) => b.owner === p && b.status === 'aboard');
-  const anyAboard = order.some(aboardNow);
-  if (!anyAboard) {
-    // ninguém fugiu: Nereu fica com o tesouro e ninguém vence
-    s.winners = [];
-    s.winReason = 'draw';
-    s.phase = 'ended';
-    ev.push({ type: 'gameOver', winners: s.winners, reason: s.winReason });
-    return;
-  }
   const best = Math.max(...order.map((p) => finalScore(s, p)));
   const tied = order.filter((p) => finalScore(s, p) === best);
   const winner = tiePick(s, tied, aboardNow);
@@ -913,6 +909,8 @@ const finalize = (s: GameState, ev: GameEvent[], justPlayed: number) => {
   if (escapeMode && !s.builders.some(isAlive) && s.builders.some((b) => b.status === 'aboard')) {
     return vanishIsland(s, ev); // todo mundo já embarcou (ou saiu do jogo): a ilha some
   }
+  // final por fuga: a ilha some quando um time inteiro está no navio dele
+  if (escapeMode && !s.vanished && order.some((p) => teamAboard(s, p))) return vanishIsland(s, ev);
   const limit = s.settings.crystalsToWin;
   const rich = limit > 0 ? order.find((p) => s.crystals[p] >= limit) : undefined;
   // Regra (jogo original): a partida acaba quando o cristal do Castelo já foi pego e algum time está todo no navio.
@@ -1087,9 +1085,13 @@ const execute = (s: GameState, a: Action, ev: GameEvent[]) => {
       return;
     }
     case 'rollDie': {
-      let face = DIE_FACES[Math.floor(rand(s) * DIE_FACES.length)];
+      const faces = dieFacesFor(s.settings);
+      let face = faces[Math.floor(rand(s) * faces.length)];
       ev.push({ type: 'die', face });
-      if (face === 'guardian' && !s.settings.guardian) {
+      if (face === 'lull') {
+        // Mar parado: nenhuma criatura se mexe neste turno
+        endTurn(s, ev);
+      } else if (face === 'guardian' && !s.settings.guardian) {
         // Nereu, rei dos mares, sobe do mar e puxa para a água um pirata de qualquer lugar do tabuleiro (menos quem está num Escudo ou em torre de 2 andares ou mais)
         const prey = s.builders.filter((b) => b.status === 'board' && b.hex && !shielded(s, b) && levelOf(s, b) < 2);
         if (prey.length) {

@@ -55,11 +55,26 @@ describe('partida curta, média e longa', () => {
     expect(start('short').settings.ending).toBe('escape');
     expect(start('medium').settings.ending).toBe('escape');
     expect(start('long').settings.ending).toBe('castle');
-    expect(start('long').settings.floodsPerRound).toBe(4);
+    expect(start('long').settings.floodsPerRound).toBe(3);
+  });
+
+  it('a partida curta não tem o Nereu: a face dele vira Mar parado e nada se mexe naquele turno', () => {
+    let s = start('short');
+    const rng = new Rng(3);
+    const faces = new Set<string>();
+    for (let i = 0; i < 1500 && s.phase !== 'ended'; i++) {
+      const r = applyAction(s, chooseAction(s, rng));
+      if (!r.ok) throw new Error(r.error);
+      r.events.filter((e) => e.type === 'die').forEach((e) => faces.add(e.face as string));
+      expect(r.events.some((e) => e.type === 'nereusPull')).toBe(false);
+      s = r.state;
+    }
+    expect(faces.has('guardian')).toBe(false);
+    expect(faces.has('lull')).toBe(true);
   });
 
   it('a Sentinela de pedra saiu do jogo: nunca entra e a face dela é do Nereu, que puxa um pirata para a água', () => {
-    let s = start('short');
+    let s = start('medium');
     const rng = new Rng(3);
     const faces = new Set<string>();
     let pulls = 0;
@@ -80,7 +95,7 @@ describe('partida curta, média e longa', () => {
     let lost = 0;
     let kept = 0;
     for (let seed = 1; seed <= 12; seed++) {
-      let s = start('short');
+      let s = start('medium');
       const rng = new Rng(seed);
       for (let i = 0; i < 2500 && s.phase !== 'ended'; i++) {
         const a = chooseAction(s, rng);
@@ -216,7 +231,7 @@ describe('final por fuga', () => {
     expect(s.winners).toEqual([1]);
   });
 
-  it('ninguém foge: na rodada limite a ilha some, Nereu fica com o tesouro e ninguém vence', () => {
+  it('ninguém foge: na rodada limite a ilha some e vence quem tem mais pontos (os boiando contam metade)', () => {
     let s = blank('short');
     put(s, 'p0b0', H(1, 1));
     put(s, 'p1b0', H(-1, -1));
@@ -226,8 +241,35 @@ describe('final por fuga', () => {
     s = playUntil(s, () => false);
     expect(s.phase).toBe('ended');
     expect(s.vanished).toBe(true);
-    expect(s.winners).toEqual([]);
-    expect(s.winReason).toBe('draw');
+    expect(s.winners).toEqual([0]); // 3 cristais contam 1; o outro time conta 0
+    expect(s.winReason).toBe('crystals');
+  });
+
+  it('a contagem de rodadas para chegar ao navio começa quando a Princesa é resgatada e, ao acabar, a ilha some', () => {
+    let s = blank('short');
+    put(s, 'p0b0', H(1, 1));
+    put(s, 'p1b0', H(-1, -1));
+    s.crystals = [1, 2];
+    s.round = 4;
+    s.castleTaken = 0;
+    s.fleeDeadline = 6; // 3 rodadas depois do resgate, na rodada 3
+    s.current = 1;
+    s = playUntil(s, (x) => x.round >= 6);
+    expect(s.phase).toBe('action'); // ainda dentro da contagem
+    s = playUntil(s, () => false);
+    expect(s.phase).toBe('ended');
+    expect(s.vanished).toBe(true);
+    expect(s.winners).toEqual([1]); // 2 cristais contam 1 contra 0
+  });
+
+  it('um pirata no navio não basta: a ilha só some quando o time inteiro está a bordo', () => {
+    let s = blank('short');
+    put(s, 'p0b1', H(2, 0));
+    s.builders.find((b) => b.id === 'p0b0')!.status = 'aboard';
+    put(s, 'p1b0', H(-2, 0));
+    s = playUntil(s, (x) => x.round >= 3);
+    expect(s.phase).toBe('action');
+    expect(s.vanished ?? false).toBe(false);
   });
 
   it('no jogo longo, nada muda: o final por fuga não dispara e a ilha não some sozinha', () => {

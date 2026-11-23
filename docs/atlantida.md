@@ -32,7 +32,7 @@ Tesouros (cristal, tridente e Maré calma) são pegos na hora, ao pisar na casa,
 
 Uma **convocação** por turno, paga com cristais: Tritão (2) empurra até 2 casas, Laço (2) rouba a Princesa de um rival até
 3 casas de distância, **Sereia (3)** rouba todos os cristais do time vizinho menos 2 (quem tem 2 ou menos não pode ser
-roubado) e Colosso de coral (2) põe uma cúpula.
+roubado) e Colosso de coral (2) põe uma cúpula (ninguém pisa nela e as ondas não a levam; o terremoto ou o Leviatã ainda podem quebrá-la).
 
 ## O Castelo e a Princesa
 

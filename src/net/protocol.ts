@@ -20,6 +20,9 @@ export type ClientMsg =
   | { t: 'action'; action: Action };
 
 declare const __NO_ONLINE__: boolean;
+declare const __BUILD_ID__: string;
+/** Versão (commit) desta publicação, para conferir se o site já tem o último envio. */
+export const BUILD_ID: string = typeof __BUILD_ID__ === 'string' ? __BUILD_ID__ : 'dev';
 /** Endereço do site que tem as salas em rede (a hospedagem estática da Vercel não tem servidor de salas). */
 export const ONLINE_SITE = 'https://island-shift-to-atlantis.onrender.com';
 /** Falso na Vercel (reconhecida na compilação pela variável VERCEL ou pelo endereço *.vercel.app) e no zip do itch.io: lá só há partida neste aparelho e contra o BOT. As salas em rede ficam só no site do Render. */

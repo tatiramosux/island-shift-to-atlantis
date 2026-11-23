@@ -7,10 +7,18 @@ A **Longa** é o jogo completo (o fim vem do Castelo). A **Curta** e a **Média*
 
 | | Curta | Média | Longa |
 |---|---|---|---|
-| Casas sorteadas por terremoto, a cada rodada | 10 | 6 | 4 |
+| Rodadas aproximadas (qualquer número de jogadores) | 9 | 11 | 15 |
+| Casas sorteadas por terremoto, a cada rodada (2 / 3 / 4 jogadores) | 10 / 8 / 6 | 3 / 2 / 2 | 3 / 3 / 3 |
+| Casas afundadas para o Castelo emergir | 12 | 20 | 20 |
 | Virada da maré (onda que vira fileiras) | desde a rodada 2 | desde a rodada 2 | só depois de a Princesa ser resgatada |
 | Final | fuga | fuga | Castelo, depois fuga |
-| A ilha some, no máximo, na rodada | 9 | 15 | não há |
+| Rodadas para chegar ao navio depois do resgate da Princesa | 5 | 6 | não há |
+| A ilha some, no máximo, na rodada | 9 | 22 | não há |
+| Dado das criaturas | sem o Nereu; entra o Mar parado | com o Nereu e 1 face de Mar parado | 6 faces de sempre |
+
+Com mais jogadores cada rodada tem mais turnos, então menos casas afundam por rodada e a partida mantém quase o mesmo número de rodadas.
+A tela inicial já marca a duração recomendada: 2 jogadores, Curta; 3 jogadores, Média; 4 jogadores, Longa (ela pode ser trocada à mão).
+As salas em rede usam a Longa. Os números vêm de simulações com bots (`npm run simular`) e ainda podem ser ajustados jogando.
 
 ## Virada da maré (Curta e Média)
 
@@ -22,14 +30,15 @@ A **Longa** é o jogo completo (o fim vem do Castelo). A **Curta** e a **Média*
 
 ## Final por fuga (Curta e Média)
 
-1. **A fuga começa** quando o primeiro pirata de qualquer time chega ao navio dele. A tela avisa que a ilha vai sumir.
-2. **Última chamada:** cada um dos outros times joga mais um turno.
-3. **A ilha some.** Todas as casas afundam no mar. Quem não embarcou fica **boiando**.
-4. **Quem vence:** entre os times com pelo menos um pirata no navio, vence quem tiver **mais pontos** (veja `atlantida.md`).
-   Quem ficou para trás conta metade. Empate: vence quem salvou a Princesa, depois quem fugiu primeiro.
-5. **Se ninguém fugir** até a rodada limite, a ilha some do mesmo jeito: Nereu fica com o tesouro e ninguém vence.
+1. **Resgate da Princesa:** quando alguém chega ao topo do Castelo e a resgata, começa uma **contagem de rodadas** na tela, embaixo das etapas
+   (Curta: 5 rodadas; Média: 6). Na última rodada o aviso fica vermelho.
+2. **A ilha some** em um destes casos: um **time inteiro** (os dois piratas) está a bordo do navio dele, a contagem acabou ou, se a Princesa
+   nunca for resgatada, a rodada limite chegou (9 na Curta, 22 na Média). Um pirata só no navio não faz a ilha sumir.
+3. Todas as casas afundam no mar. Quem não embarcou fica **boiando**.
+4. **Quem vence:** quem tiver **mais pontos** (veja `atlantida.md`). Quem ficou boiando conta metade, e quem ficou para trás pode vencer se
+   mesmo assim tiver mais. **Sempre há um vencedor.** Empate: vence quem salvou a Princesa, depois quem fugiu primeiro, depois quem estava no navio.
 
-O computador só foge depois de a Princesa ser resgatada. Se ela nunca for resgatada, ele fica na ilha até o fim.
+O computador só embarca depois de a Princesa ser resgatada (ou perto da rodada limite se ela nunca for).
 
 ## Dia e noite
 

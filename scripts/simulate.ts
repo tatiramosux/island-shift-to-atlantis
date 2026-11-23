@@ -2,7 +2,7 @@
  * Simula partidas de BOT contra BOT e mostra números para equilibrar o jogo.
  * Uso: npm run simular -- [partidas] [jogadores] [short|medium|long]
  */
-import { LENGTH_PRESETS, applyAction, createGame, islandProgress, Rng, type MatchLength } from '../src/engine/atlantida';
+import { LENGTH_PRESETS, applyAction, createGame, islandProgress, Rng, settingsFor, type MatchLength } from '../src/engine/atlantida';
 import { autoSetup } from '../src/game/autoSetup';
 import { chooseAction } from '../src/game/bot';
 
@@ -24,7 +24,7 @@ let upsets = 0; // venceu quem NÃO tinha mais cristais (o outro ficou preso na 
 let upsetGap = 0;
 
 for (let g = 0; g < games; g++) {
-  let s = autoSetup(createGame({ players, seed: g + 1, settings: LENGTH_PRESETS[length] }), g + 7);
+  let s = autoSetup(createGame({ players, seed: g + 1, settings: settingsFor(length, players) }), g + 7);
   const rng = new Rng(g + 99);
   let fullAt = 0;
   for (let i = 0; i < MAX_STEPS && s.phase !== 'ended'; i++) {
