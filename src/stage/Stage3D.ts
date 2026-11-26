@@ -628,7 +628,7 @@ export class Stage3D {
   playHomeNereus() {
     const w = this.host.clientWidth || 640;
     const two = matchMedia('(min-width: 900px) and (min-aspect-ratio: 1/1)').matches;
-    // a área livre: com duas colunas, a coluna da ilha (em cima ou embaixo dela); em pé, só em cima, nos cantos
+    // a área livre: com duas colunas, a coluna da ilha (em cima ou embaixo dela); em pé, só em cima, no meio
     const free = two ? (w - Math.min(560, w * 0.46) - Math.max(24, w * 0.03)) / w : 1;
     // na altura dos navios, junto da ilha (e do lado oposto ao navio daquela altura)
     const shipY = (this.lastState?.ships ?? []).slice(0, 2).map((hex) => {
@@ -637,12 +637,14 @@ export class Stage3D {
       return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
     });
     const pick = shipY[Math.floor(Math.random() * shipY.length)] ?? { x: 0.2, y: 0.3 };
-    const fx = two ? (pick.y < 0.5 ? free * 0.55 : free * 0.32) : pick.x < 0.5 ? 0.84 : 0.16; // junto da ilha, entre os navios, sem ficar em cima do Polvo ou do Leviatã
-    const fy = two ? (pick.y < 0.5 ? Math.max(0.24, pick.y + 0.02) : Math.min(0.9, pick.y + 0.1)) : Math.max(0.12, Math.min(0.28, pick.y));
+    const fx = two ? (pick.y < 0.5 ? free * 0.55 : free * 0.32) : 0.46; // junto da ilha, entre os navios, sem ficar em cima do Polvo ou do Leviatã
+    const fy = two ? (pick.y < 0.5 ? Math.max(0.24, pick.y + 0.02) : Math.min(0.9, pick.y + 0.1)) : 0.14; // em pé: na água acima da ilha
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(fx * 2 - 1, 1 - fy * 2), this.cam);
     const at = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
     if (!at) return;
+    // em cima da ilha, uma casa mais para o fundo: assim ele sobe do mar aberto, e não de dentro da ilha
+    if (fy < 0.5) at.add(new THREE.Vector3(-Math.cos(this.az), 0, -Math.sin(this.az)).multiplyScalar(Math.sqrt(3)));
     const N = buildNereus(this.models);
     const SC = 0.36;
     N.root.scale.setScalar(SC);
