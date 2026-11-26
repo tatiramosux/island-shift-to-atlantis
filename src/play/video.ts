@@ -82,9 +82,10 @@ export const openVideo = (name: VideoName, o: { intro?: boolean; onClose?: () =>
 };
 
 const SEEN = 'atlantida.abertura';
-/** Trailer de abertura: só na primeira visita, e nunca para quem chega por um link com parâmetros (convite de sala, TV). */
+/** Trailer de abertura: só na primeira visita, e nunca para quem chega por um convite de sala (?sala=). */
 export const openIntroOnce = () => {
-  if (location.search) return;
+  // outros parâmetros não contam: sites que embutem o jogo (como a itch.io) podem acrescentar os deles no endereço
+  if (new URLSearchParams(location.search).has('sala')) return;
   try {
     if (localStorage.getItem(SEEN)) return;
     localStorage.setItem(SEEN, 'visto');
