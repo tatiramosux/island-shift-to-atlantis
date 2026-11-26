@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { Models } from './models';
 import { buildSummon } from './summons';
 import { buildNereus } from './legends';
+import type { AtlantisTile } from '../engine/atlantida/types';
 
 export type IconName = 'octopus' | 'leviathan' | 'guardian' | 'surge' | 'lull' | 'triton' | 'lasso' | 'siren' | 'colossus';
 
@@ -66,12 +67,19 @@ export const icons = (): Record<IconName, string> => {
     siren: shoot(buildSummon(models, 'siren')),
     colossus: shoot(buildSummon(models, 'colossus')),
   };
+  for (const k of ['crystal', 'trident', 'calm', 'portal', 'shield', 'column', 'ruin'] as const) pieceCache[k] = shoot(models.decor(k));
   for (let p = 0; p < 4; p++) for (let i = 0; i < 2; i++) builderCache[`${p}-${i}`] = shoot(models.builder(p, i));
   renderer.dispose();
   return cache;
 };
 
 const builderCache: Record<string, string> = {};
+const pieceCache = {} as Record<AtlantisTile, string>;
+/** Retrato de cada peça de Atlântida, como aparece no tabuleiro (para as legendas). */
+export const pieceIcon = (tile: AtlantisTile): string => {
+  icons();
+  return pieceCache[tile];
+};
 /** Retrato do pirata (jogador, número 0 ou 1) para a barra de ações. */
 export const builderIcon = (player: number, index: number): string => {
   icons();

@@ -36,7 +36,7 @@ import { chooseAction } from '../game/bot';
 import { drawRobotFamilies, setSeatLooks, teamColor, teamName } from '../game/players';
 import { BUILD_ID, ONLINE_AVAILABLE, ONLINE_SITE, wsUrl, type SeatInfo, type ServerMsg } from '../net/protocol';
 import { FRONT_AZ, HOME_AZ, Stage3D, type Highlight } from '../stage/Stage3D';
-import { icons, teamIcons, type IconName } from '../stage/icons';
+import { icons, pieceIcon, teamIcons, type IconName } from '../stage/icons';
 import { getLang, setLang, t } from '../i18n';
 import { track } from './stats';
 import { logoSvg } from './logo';
@@ -55,6 +55,16 @@ const Trident = [
 ] as unknown as IconNode;
 const icon = (n: IconNode, size = 18) => createElement(n, { width: size, height: size, class: 'icon' }) as unknown as SVGElement;
 
+/* ---------- legendas: o desenho no lugar do nome (o nome fica no title e para leitores de tela) ---------- */
+const mark = (name: string, inner: string, cls = '') => `<span class="legi ${cls}" role="img" aria-label="${name}" title="${name}">${inner}</span>`;
+const legSvg = (n: IconNode, name: string, cls: string, size = 20) => mark(name, icon(n, size).outerHTML, cls);
+const legImg = (src: string, name: string) => mark(name, `<img src="${src}" alt="">`);
+const legRow = (m: string, text: string) => `<span class="leg">${m}<span>${text}</span></span>`;
+const legList = (rows: string[]) => `<ul class="leglist">${rows.map((r) => `<li>${r}</li>`).join('')}</ul>`;
+const gemMark = () => legSvg(Gem, t('Crystal', 'Cristal'), 'gem');
+const triMark = () => legSvg(Trident, t('Trident', 'Tridente'), 'tri');
+/** Custo em cristais: número e o desenho do cristal. */
+const costTag = (n: number) => `<span class="costtag" aria-label="${n} ${t('crystals', 'cristais')}">${n}${icon(Gem, 12).outerHTML}</span>`;
 const TILE_PT: Record<AtlantisTile, string> = { crystal: t('Crystal', 'Cristal'), column: t('Column', 'Coluna'), portal: 'Portal', trident: t('Trident', 'Tridente'), calm: t('Calm Tide', 'Maré calma'), shield: t('Shield', 'Escudo'), ruin: t('Ruin', 'Ruína') };
 const CREATURE_PT: Record<string, string> = { octopus: t('Colossus Octopus', 'Polvo-colosso'), leviathan: t('Leviathan', 'Leviatã'), guardian: t('Nereus', 'Nereu'), surge: t('Surge Tide', 'Maré viva'), lull: t('Still Sea', 'Mar parado') };
 const SUMMONS = {
@@ -726,13 +736,13 @@ bindHelp('helpPhase', t('Rules for this phase', 'Regras desta fase'), () => {
   return [...(byPhase[game.phase] ?? []), objective];
 });
 bindHelp('helpScore', t('Scoreboard: what each thing is worth', 'Placar: quanto vale cada coisa'), () => [
-  t(`<b>Crystal</b> = ${1} point. It also pays for summons.`, `<b>Cristal</b> = ${1} ponto. Também paga as convocações.`),
-  t(`<b>Trident</b> = ${TRIDENT_VALUE} points. When the quake picks the tile under your pirate, it is used by itself and the tile does not sink (you spend it).`, `<b>Tridente</b> = ${TRIDENT_VALUE} pontos. Quando o terremoto sorteia a casa do seu pirata, ele é usado sozinho e a casa não afunda (você o gasta).`),
-  t(`<b>Princess</b> safe on your ship = +${PRINCESS_BONUS} points.`, `<b>Princesa</b> a salva no seu navio = +${PRINCESS_BONUS} pontos.`),
-  t('<b>Adrift</b> (not on a ship when the island sinks): only half of your points, rounded down.', '<b>Boiando</b> (fora do navio quando a ilha afunda): só metade dos seus pontos, arredondada para baixo.'),
-  t('<b>Green box</b> = your points now. Whoever has the most wins. Tie: whoever rescued the Princess, then whoever escaped first.', '<b>Caixa verde</b> = seus pontos agora. Vence quem tiver mais. Empate: quem salvou a Princesa, depois quem fugiu primeiro.'),
+  legRow(gemMark(), t(`${1} point. It also pays for summons.`, `${1} ponto. Também paga as convocações.`)),
+  legRow(triMark(), t(`${TRIDENT_VALUE} points. When the quake picks the tile under your pirate, it is used by itself and the tile does not sink (you spend it).`, `${TRIDENT_VALUE} pontos. Quando o terremoto sorteia a casa do seu pirata, ele é usado sozinho e a casa não afunda (você o gasta).`)),
+  legRow(legSvg(Crown, t('Princess', 'Princesa'), 'crown'), t(`+${PRINCESS_BONUS} points with her safe on your ship.`, `+${PRINCESS_BONUS} pontos com ela a salvo no seu navio.`)),
+  legRow(legSvg(Waves, t('Adrift', 'Boiando'), 'wave'), t('Not on a ship when the island sinks: only half of your points, rounded down.', 'Fora do navio quando a ilha afunda: só metade dos seus pontos, arredondada para baixo.')),
+  legRow(mark(t('Green box', 'Caixa verde'), '<span class="legpts">0</span>'), t('Your points now. Whoever has the most wins. Tie: whoever rescued the Princess, then whoever escaped first.', 'Seus pontos agora. Vence quem tiver mais. Empate: quem salvou a Princesa, depois quem fugiu primeiro.')),
+  legRow(mark(t('Dot with a crown', 'Bolinha com coroa'), '<span class="legdot"></span>'), t('That team has the Princess.', 'Esse time está com a Princesa.')),
   t('Crystals and tridents are <b>resources</b>: spending them costs points. Tap a team to see its sum.', 'Cristais e tridentes são <b>recursos</b>: gastar custa pontos. Toque num time para ver a conta dele.'),
-  t('<b>Crown</b> on the dot: that team has the Princess. <b>Squares</b>: the pirates (filled = on land, circle = floating, boat = rowing, ship = escaped).', '<b>Coroinha</b> na bolinha: esse time está com a Princesa. <b>Quadradinhos</b>: os piratas (cheio = em terra, círculo = boiando, bote = remando, navio = fugiu).'),
 ]);
 
 const closeScorePop = () => document.getElementById('scorepop')?.remove();
@@ -750,10 +760,10 @@ const showScorePop = (p: number) => {
   const half = game.settings.ending === 'escape' && !game.builders.some((b) => b.owner === p && b.status === 'aboard');
   d.innerHTML =
     `<h3>${pname(p)}</h3><table>` +
-    line(t('Crystals', 'Cristais') + ` ${game.crystals[p]} × 1`, String(game.crystals[p])) +
-    line(t('Tridents', 'Tridentes') + ` ${game.tridents[p]} × ${TRIDENT_VALUE}`, String(game.tridents[p] * TRIDENT_VALUE)) +
-    line(t('Princess on the ship', 'Princesa no navio'), safe ? `+${PRINCESS_BONUS}` : game.princess?.by === p ? t('rescued, not aboard yet', 'resgatada, ainda fora do navio') : '—') +
-    (half ? line(t('Adrift: half', 'Boiando: metade'), `÷ 2`, 'half') : '') +
+    line(legRow(gemMark(), `${game.crystals[p]} × 1`), String(game.crystals[p])) +
+    line(legRow(triMark(), `${game.tridents[p]} × ${TRIDENT_VALUE}`), String(game.tridents[p] * TRIDENT_VALUE)) +
+    line(legRow(legSvg(Crown, t('Princess', 'Princesa'), 'crown'), t('on the ship', 'no navio')), safe ? `+${PRINCESS_BONUS}` : game.princess?.by === p ? t('rescued, not aboard yet', 'resgatada, ainda fora do navio') : '—') +
+    (half ? line(legRow(legSvg(Waves, t('Adrift', 'Boiando'), 'wave'), t('half', 'metade')), `÷ 2`, 'half') : '') +
     line(t('Points now', 'Pontos agora'), String(pointsNow(game, p)), 'tot') +
     `</table><p>${t('Crystals pay for summons; each trident cancels one tile sinking. Spending costs points.', 'Cristal paga convocações; cada tridente cancela uma casa afundando. Gastar custa pontos.')}</p>`;
   document.body.appendChild(d);
@@ -1494,8 +1504,8 @@ const rulesHtml = () => {
   const escape = escapeRules();
   const cost: Record<SummonKind, number> = { triton: c.tritonCost, lasso: c.lassoCost, siren: c.sirenCost, colossus: c.colossusCost };
   // convocações e peças vêm das mesmas descrições dos balões de ajuda: um texto só, sem repetir
-  const summons = (Object.keys(SUMMONS) as SummonKind[]).map((k) => `<li><b>${SUMMONS[k].name}</b> (${cost[k]} ${t('crystals', 'cristais')}): ${SUMMONS[k].tip}</li>`).join('');
-  const pieces = (['crystal', 'trident', 'calm', 'portal', 'shield', 'column', 'ruin'] as const).map((k) => `<li><b>${TILE_PT[k]}:</b> ${TILE_INFO[k].use}</li>`).join('');
+  const summons = (Object.keys(SUMMONS) as SummonKind[]).map((k) => legRow(legImg(icons()[k], SUMMONS[k].name), `${costTag(cost[k])} ${SUMMONS[k].tip}`));
+  const pieces = (['crystal', 'trident', 'calm', 'portal', 'shield', 'column', 'ruin'] as const).map((k) => legRow(legImg(pieceIcon(k), TILE_PT[k]), TILE_INFO[k].use));
   return t(`
 <h3>How to play</h3>
 <h4>Goal</h4>
@@ -1530,10 +1540,10 @@ ${escape
 </ul>
 <h4>Summons</h4>
 <p>One per turn, paid with crystals (bottom panel):</p>
-<ul>${summons}</ul>
+${legList(summons)}
 <h4>Pieces of Atlantis</h4>
 <p>Each tile hides a piece that shows when it sinks or when a pirate steps on it. Tap any tile with a piece in view to see how to use it.</p>
-<ul>${pieces}</ul>
+${legList(pieces)}
 `, `
 <h3>Como jogar</h3>
 <h4>Objetivo</h4>
@@ -1568,10 +1578,10 @@ ${escape
 </ul>
 <h4>Convocações</h4>
 <p>Uma por turno, pagas com cristais (painel de baixo):</p>
-<ul>${summons}</ul>
+${legList(summons)}
 <h4>Peças de Atlântida</h4>
 <p>Cada casa esconde uma peça que aparece quando ela afunda ou quando um pirata pisa nela. Toque em qualquer casa com uma peça à vista para ver como usá-la.</p>
-<ul>${pieces}</ul>
+${legList(pieces)}
 `);
 };
 
@@ -1584,7 +1594,7 @@ const showRules = () => {
   modal(c);
 };
 
-/** Passo a passo numerado: objetivo, a vez, as etapas, tesouros, convocações, criaturas, Templo e final (só texto). */
+/** Passo a passo numerado: objetivo, a vez, as etapas, tesouros, convocações, criaturas, Templo e final (cada um com uma foto do jogo). */
 const tutorialSteps = (): { title: string; body: string }[] => {
   const c = cfg();
   const esc = c.ending === 'escape';
@@ -1615,22 +1625,22 @@ const tutorialSteps = (): { title: string; body: string }[] => {
     {
       title: t('Treasure', 'Tesouros'),
       body: t(
-        `<p>Step on a tile of Atlantis to take what is on it:</p><ul><li><b>Crystal</b>: 1 point, and it pays for Summons.</li><li><b>Trident</b>: worth 2 points and protects a tile from the quake.</li><li><b>Calm Tide</b>: skips the next quake.</li><li><b>Shield</b>: keeps the sea and the creatures away.</li><li><b>Portal</b>: teleports you to another Portal.</li><li><b>Column</b>: a base to climb.</li></ul><p>Tap any tile with a piece to see how to use it.</p>`,
-        `<p>Pise numa casa de Atlântida para pegar o que há nela:</p><ul><li><b>Cristal</b>: 1 ponto, e paga as Convocações.</li><li><b>Tridente</b>: vale 2 pontos e protege uma casa do terremoto.</li><li><b>Maré calma</b>: pula o próximo terremoto.</li><li><b>Escudo</b>: afasta o mar e as criaturas.</li><li><b>Portal</b>: leva você a outro Portal.</li><li><b>Coluna</b>: uma base para subir.</li></ul><p>Toque numa casa com peça para ver como usar.</p>`,
+        `<p>Step on a tile of Atlantis to take what is on it:</p>${legList([legRow(legImg(pieceIcon('crystal'), TILE_PT.crystal), '1 point, and it pays for Summons.'), legRow(legImg(pieceIcon('trident'), TILE_PT.trident), 'Worth 2 points and protects a tile from the quake.'), legRow(legImg(pieceIcon('calm'), TILE_PT.calm), 'Skips the next quake.'), legRow(legImg(pieceIcon('shield'), TILE_PT.shield), 'Keeps the sea and the creatures away.'), legRow(legImg(pieceIcon('portal'), TILE_PT.portal), 'Teleports you to another Portal.'), legRow(legImg(pieceIcon('column'), TILE_PT.column), 'A base to climb.')])}<p>Tap any tile with a piece to see how to use it.</p>`,
+        `<p>Pise numa casa de Atlântida para pegar o que há nela:</p>${legList([legRow(legImg(pieceIcon('crystal'), TILE_PT.crystal), '1 ponto, e paga as Convocações.'), legRow(legImg(pieceIcon('trident'), TILE_PT.trident), 'Vale 2 pontos e protege uma casa do terremoto.'), legRow(legImg(pieceIcon('calm'), TILE_PT.calm), 'Pula o próximo terremoto.'), legRow(legImg(pieceIcon('shield'), TILE_PT.shield), 'Afasta o mar e as criaturas.'), legRow(legImg(pieceIcon('portal'), TILE_PT.portal), 'Leva você a outro Portal.'), legRow(legImg(pieceIcon('column'), TILE_PT.column), 'Uma base para subir.')])}<p>Toque numa casa com peça para ver como usar.</p>`,
       ),
     },
     {
       title: t('Summons', 'Convocações'),
       body: t(
-        `<p>Spend crystals to call a character that does <b>one action</b> and leaves. Only <b>1 summon per turn</b>, without spending an action:</p><ul><li><b>Triton</b> (${cost.triton}): a mighty push.</li><li><b>Lasso</b> (${cost.lasso}): steals the Princess from a rival.</li><li><b>Siren</b> (${cost.siren}): steals crystals from a rival.</li><li><b>Coral Colossus</b> (${cost.colossus}): an instant dome that protects a tile.</li></ul>`,
-        `<p>Gaste cristais para chamar um personagem que faz <b>uma ação</b> e vai embora. Só <b>1 convocação por turno</b>, sem gastar ação:</p><ul><li><b>Tritão</b> (${cost.triton}): um empurrão forte.</li><li><b>Laço</b> (${cost.lasso}): rouba a Princesa de um rival.</li><li><b>Sereia</b> (${cost.siren}): rouba cristais de um rival.</li><li><b>Colosso de coral</b> (${cost.colossus}): uma cúpula relâmpago que protege uma casa.</li></ul>`,
+        `<p>Spend crystals to call a character that does <b>one action</b> and leaves. Only <b>1 summon per turn</b>, without spending an action:</p>${legList([legRow(legImg(icons().triton, SUMMONS.triton.name), `${costTag(cost.triton)} A mighty push.`), legRow(legImg(icons().lasso, SUMMONS.lasso.name), `${costTag(cost.lasso)} Steals the Princess from a rival.`), legRow(legImg(icons().siren, SUMMONS.siren.name), `${costTag(cost.siren)} Steals crystals from a rival.`), legRow(legImg(icons().colossus, SUMMONS.colossus.name), `${costTag(cost.colossus)} An instant dome that protects a tile.`)])}`,
+        `<p>Gaste cristais para chamar um personagem que faz <b>uma ação</b> e vai embora. Só <b>1 convocação por turno</b>, sem gastar ação:</p>${legList([legRow(legImg(icons().triton, SUMMONS.triton.name), `${costTag(cost.triton)} Um empurrão forte.`), legRow(legImg(icons().lasso, SUMMONS.lasso.name), `${costTag(cost.lasso)} Rouba a Princesa de um rival.`), legRow(legImg(icons().siren, SUMMONS.siren.name), `${costTag(cost.siren)} Rouba cristais de um rival.`), legRow(legImg(icons().colossus, SUMMONS.colossus.name), `${costTag(cost.colossus)} Uma cúpula relâmpago que protege uma casa.`)])}`,
       ),
     },
     {
       title: t('Creatures and the sea', 'Criaturas e o mar'),
       body: t(
-        `<p>The die picks what happens in phase 3:</p><ul><li><b>Octopus</b> and <b>Leviathan</b> swim through the sea and throw pirates in the water.</li>${nereus ? '<li><b>Nereus</b> drags a random pirate on land into the sea.</li>' : ''}<li><b>Surge Tide</b>: every pirate on Atlantis gains a crystal.</li>${c.nereus === false || (c.dieLull ?? 0) > 0 ? '<li><b>Still Sea</b>: nothing moves.</li>' : ''}</ul><p>A pirate in the water just <b>floats</b>: swim back to land or to a boat. The giant wave also sweeps low tiles each round. Towers (2nd floor and up), domes and Shields are safe.</p>`,
-        `<p>O dado decide o que acontece na etapa 3:</p><ul><li><b>Polvo</b> e <b>Leviatã</b> nadam pelo mar e jogam piratas na água.</li>${nereus ? '<li>O <b>Nereu</b> arrasta para o mar um pirata sorteado em terra.</li>' : ''}<li><b>Maré viva</b>: todo pirata em Atlântida ganha um cristal.</li>${c.nereus === false || (c.dieLull ?? 0) > 0 ? '<li><b>Mar parado</b>: nada se mexe.</li>' : ''}</ul><p>Quem cai na água só <b>boia</b>: nade de volta à terra ou a um bote. A onda gigante também varre as casas baixas a cada rodada. Torres (2º andar ou mais), cúpulas e Escudos estão a salvo.</p>`,
+        `<p>The die picks what happens in phase 3:</p>${legList([legRow(legImg(icons().octopus, CREATURE_PT.octopus) + legImg(icons().leviathan, CREATURE_PT.leviathan), 'Swim through the sea and throw pirates in the water.'), ...(nereus ? [legRow(legImg(icons().guardian, CREATURE_PT.guardian), 'Drags a random pirate on land into the sea.')] : []), legRow(legImg(icons().surge, CREATURE_PT.surge), 'Every pirate on Atlantis gains a crystal.'), ...(c.nereus === false || (c.dieLull ?? 0) > 0 ? [legRow(legImg(icons().lull, CREATURE_PT.lull), 'Nothing moves.')] : [])])}<p>A pirate in the water just <b>floats</b>: swim back to land or to a boat. The giant wave also sweeps low tiles each round. Towers (2nd floor and up), domes and Shields are safe.</p>`,
+        `<p>O dado decide o que acontece na etapa 3:</p>${legList([legRow(legImg(icons().octopus, CREATURE_PT.octopus) + legImg(icons().leviathan, CREATURE_PT.leviathan), 'Nadam pelo mar e jogam piratas na água.'), ...(nereus ? [legRow(legImg(icons().guardian, CREATURE_PT.guardian), 'Arrasta para o mar um pirata sorteado em terra.')] : []), legRow(legImg(icons().surge, CREATURE_PT.surge), 'Todo pirata em Atlântida ganha um cristal.'), ...(c.nereus === false || (c.dieLull ?? 0) > 0 ? [legRow(legImg(icons().lull, CREATURE_PT.lull), 'Nada se mexe.')] : [])])}<p>Quem cai na água só <b>boia</b>: nade de volta à terra ou a um bote. A onda gigante também varre as casas baixas a cada rodada. Torres (2º andar ou mais), cúpulas e Escudos estão a salvo.</p>`,
       ),
     },
     {
@@ -1655,6 +1665,9 @@ const tutorialSteps = (): { title: string; body: string }[] => {
   ];
 };
 
+/** Foto do jogo no topo de cada passo (public/tutorial), na mesma ordem dos passos. */
+const TUTORIAL_SHOTS = ['goal', 'actions', 'phases', 'treasure', 'summons', 'creatures', 'temple', 'ending'];
+
 const showTutorial = (i: number) => {
   const steps = tutorialSteps();
   const step = steps[Math.max(0, Math.min(steps.length - 1, i))];
@@ -1667,7 +1680,8 @@ const showTutorial = (i: number) => {
   h.textContent = `${i + 1}. ${step.title}`;
   const body = document.createElement('div');
   body.innerHTML = step.body;
-  c.append(head, h, body);
+  const shot = Object.assign(document.createElement('img'), { className: 'tutshot', src: `${import.meta.env.BASE_URL}tutorial/${TUTORIAL_SHOTS[i]}.jpg`, alt: '', width: 640, height: 320 });
+  c.append(shot, head, h, body);
   c.appendChild(
     row(
       btn(i === 0 ? t('Full rules', 'Regras completas') : t('Back', 'Voltar'), () => (i === 0 ? showRules() : showTutorial(i - 1))),

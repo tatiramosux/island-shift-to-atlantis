@@ -498,43 +498,53 @@ export class Stage3D {
     c.width = 320;
     c.height = 220; // sobra espaço embaixo para o rabinho comprido: o balão fica longe do personagem
     const g = c.getContext('2d')!;
-    // letra de quadrinhos (Bangers, com alternativas parecidas caso a fonte ainda não tenha chegado)
-    const FONT = '"Bangers", "Luckiest Guy", "Comic Sans MS", "Chalkboard SE", cursive, sans-serif';
-    let px = 68;
-    g.font = `${px}px ${FONT}`;
-    (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '2px';
-    while (g.measureText(text).width > 270 && px > 20) g.font = `${--px}px ${FONT}`; // textos longos encolhem para caber
-    const bw = Math.min(304, Math.max(150, Math.ceil(g.measureText(text).width) + 56)); // o balão tem a largura do texto (com um respiro)
-    // balão e rabinho são UM desenho só: primeiro os contornos (grossos), depois os dois preenchimentos por cima,
-    // assim a linha de baixo do balão some onde o rabinho nasce e não há emenda
-    const box = () => g.roundRect(8, 8, bw, 84, 22);
-    const tail = () => {
-      g.moveTo(64, 80);
-      g.lineTo(46, 208);
-      g.lineTo(108, 80);
-      g.closePath();
+    // letra de quadrinhos (Bangers). A reserva é uma letra grossa e reta: "cursive" vira letra de convite em tablets
+    const FONT = '"Bangers", Impact, "Arial Black", sans-serif';
+    const draw = () => {
+      g.clearRect(0, 0, c.width, c.height);
+      let px = 68;
+      g.font = `${px}px ${FONT}`;
+      (g as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = '2px';
+      while (g.measureText(text).width > 270 && px > 20) g.font = `${--px}px ${FONT}`; // textos longos encolhem para caber
+      const bw = Math.min(304, Math.max(150, Math.ceil(g.measureText(text).width) + 56)); // o balão tem a largura do texto (com um respiro)
+      // balão e rabinho são UM desenho só: primeiro os contornos (grossos), depois os dois preenchimentos por cima,
+      // assim a linha de baixo do balão some onde o rabinho nasce e não há emenda
+      const box = () => g.roundRect(8, 8, bw, 84, 22);
+      const tail = () => {
+        g.moveTo(64, 80);
+        g.lineTo(46, 208);
+        g.lineTo(108, 80);
+        g.closePath();
+      };
+      g.strokeStyle = '#1b2a4a';
+      g.lineWidth = 16; // metade fica por baixo do preenchimento: contorno de 8 px visível
+      g.lineJoin = 'round';
+      g.beginPath();
+      box();
+      g.stroke();
+      g.beginPath();
+      tail();
+      g.stroke();
+      g.fillStyle = '#ffffff';
+      g.beginPath();
+      box();
+      g.fill();
+      g.beginPath();
+      tail();
+      g.fill();
+      g.fillStyle = color;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText(text, 8 + bw / 2, 52);
     };
-    g.strokeStyle = '#1b2a4a';
-    g.lineWidth = 16; // metade fica por baixo do preenchimento: contorno de 8 px visível
-    g.lineJoin = 'round';
-    g.beginPath();
-    box();
-    g.stroke();
-    g.beginPath();
-    tail();
-    g.stroke();
-    g.fillStyle = '#ffffff';
-    g.beginPath();
-    box();
-    g.fill();
-    g.beginPath();
-    tail();
-    g.fill();
-    g.fillStyle = color;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(text, 8 + bw / 2, 52);
-    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthTest: false }));
+    draw();
+    const map = new THREE.CanvasTexture(c);
+    // o desenho do balão é feito uma vez só: se a letra ainda estava chegando (primeira visita), redesenha quando ela chegar
+    void document.fonts?.load('68px Bangers').then(() => {
+      draw();
+      map.needsUpdate = true;
+    }).catch(() => {});
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map, transparent: true, depthTest: false }));
     sp.center.set(46 / 320, 12 / 220); // a pontinha do rabinho fica no ponto da posição: ele sempre aponta para quem fala
     sp.scale.set(2.6, (2.6 * 220) / 320, 1);
     sp.renderOrder = 50; // por cima dos destaques de casas e dos efeitos
