@@ -1680,7 +1680,7 @@ const showTutorial = (i: number) => {
   h.textContent = `${i + 1}. ${step.title}`;
   const body = document.createElement('div');
   body.innerHTML = step.body;
-  const shot = Object.assign(document.createElement('img'), { className: 'tutshot', src: `${import.meta.env.BASE_URL}tutorial/${TUTORIAL_SHOTS[i]}.jpg`, alt: '', width: 640, height: 320 });
+  const shot = Object.assign(document.createElement('img'), { className: 'tutshot', src: `${import.meta.env.BASE_URL}tutorial/${TUTORIAL_SHOTS[i]}.jpg?v=${BUILD_ID}`, alt: '', width: 640, height: 320 });
   c.append(shot, head, h, body);
   c.appendChild(
     row(
