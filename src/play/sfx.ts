@@ -148,8 +148,9 @@ let muted = (() => {
   }
 })();
 
+let held = false; // um vídeo está tocando: o som do jogo espera
 const audio = (): AudioContext | null => {
-  if (muted) return null;
+  if (muted || held) return null;
   if (!ctx) {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AC) return null;
@@ -177,6 +178,17 @@ export const unlockAudio = () => {
   addEventListener('keydown', go);
 };
 
+/** Segura o som do jogo (música e efeitos) enquanto um vídeo toca, sem mexer na preferência salva. */
+export const holdAudio = (on: boolean) => {
+  held = on;
+  if (on) {
+    void ctx?.suspend();
+    stopMusic();
+  } else if (ctx && !muted) {
+    audio();
+    startMusic();
+  }
+};
 export const isMuted = () => muted;
 export const setMuted = (m: boolean) => {
   muted = m;

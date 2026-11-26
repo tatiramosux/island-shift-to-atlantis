@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, RefreshCw, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Play, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, RefreshCw, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import QRCode from 'qrcode';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
@@ -39,6 +39,7 @@ import { FRONT_AZ, HOME_AZ, Stage3D, type Highlight } from '../stage/Stage3D';
 import { icons, pieceIcon, teamIcons, type IconName } from '../stage/icons';
 import { getLang, setLang, t } from '../i18n';
 import { track } from './stats';
+import { isVideoOpen, openIntroOnce, openVideo } from './video';
 import { logoSvg } from './logo';
 import { isMuted, isMusicOn, isVibeOn, setVibeOn, play, setClimax, setMuted, setMusicOn, unlockAudio, type SoundName } from './sfx';
 
@@ -402,7 +403,7 @@ const apply = (a: Action) => {
 const schedule = () => {
   if (timer) clearTimeout(timer);
   timer = null;
-  if (!inGame || session.kind !== 'bots' || game.phase === 'ended' || isHumanTurn()) return;
+  if (!inGame || session.kind !== 'bots' || game.phase === 'ended' || isHumanTurn() || isVideoOpen()) return;
   timer = setTimeout(() => apply(chooseAction(game, rng)), Math.max(560, rollUntil - Date.now(), botWaitUntil - Date.now()));
 };
 
@@ -1585,11 +1586,22 @@ ${legList(pieces)}
 `);
 };
 
+/** Abre o vídeo tutorial; na partida contra o BOT, o jogo espera o vídeo fechar. */
+const tutorialButton = (): HTMLButtonElement => {
+  const b = btn(t('Watch the tutorial', 'Ver o tutorial'), () => {
+    openVideo('how-to-play', { onClose: schedule });
+    if (timer) clearTimeout(timer);
+  }, { icon: Play });
+  b.classList.add('watchbtn');
+  return b;
+};
+
 const showRules = () => {
   track('rules');
   const c = document.createElement('div');
   c.className = 'card';
   c.innerHTML = rulesHtml();
+  c.prepend(tutorialButton());
   c.appendChild(row(btn(t('Step by step', 'Passo a passo'), () => showTutorial(0)), btn(t('Got it', 'Entendi'), closeModal, { primary: true })));
   modal(c);
 };
@@ -1713,7 +1725,7 @@ const legalRow = (withAbout: boolean): HTMLElement => {
   const d = document.createElement('div');
   d.className = 'legal';
   const items: [string, () => void][] = [[t('Privacy Policy', 'Política de Privacidade'), () => showPrivacy()], [t('Terms of Use', 'Termos de Uso'), () => showTerms()]];
-  if (withAbout) items.unshift([t('About', 'Sobre'), () => showAbout()]);
+  if (withAbout) items.unshift([t('Watch the trailer', 'Ver o trailer'), () => openVideo('trailer')], [t('About', 'Sobre'), () => showAbout()]);
   items.forEach(([label, fn]) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -1767,8 +1779,8 @@ const showPrivacy = () => {
       )}</p>` +
       t('<h4>On your device</h4>', '<h4>No seu aparelho</h4>') +
       `<p>${t(
-        'Your browser stores your preferences (language, sound, music, vibration and the last nickname) on your own device. You can clear them in your browser settings.',
-        'O seu navegador guarda no próprio aparelho as suas preferências (idioma, som, música, vibração e o último apelido). Você pode apagá-las nas configurações do navegador.',
+        'Your browser stores your preferences (language, sound, music, vibration, the last nickname and whether you have seen the opening video) on your own device. You can clear them in your browser settings.',
+        'O seu navegador guarda no próprio aparelho as suas preferências (idioma, som, música, vibração, o último apelido e se você já viu o vídeo de abertura). Você pode apagá-las nas configurações do navegador.',
       )}</p>` +
       t('<h4>Other services</h4>', '<h4>Outros serviços</h4>') +
       `<p>${t(
@@ -2253,10 +2265,10 @@ const renderHome = (notice = '') => {
 
   if (homeTab === 'bot') {
     card.append(step(1, t('How many bots?', 'Quantos bots?'), t('players controlled by the computer', 'jogadores controlados pelo computador')), choices([1, 2, 3], opts.bots, (v) => ((opts.bots = v), (opts.length = RECOMMENDED_LENGTH[v + 1]))), lengthPicker(2));
-    card.appendChild(actionsRow(btn(t('How to play', 'Como jogar'), showRules, { icon: BookOpen }), btn(t('Start match', 'Iniciar partida'), () => startLocal('bots'), { primary: true })));
+    card.appendChild(actionsRow(tutorialButton(), btn(t('Start match', 'Iniciar partida'), () => startLocal('bots'), { primary: true })));
   } else if (homeTab === 'local') {
     card.append(step(1, t('How many players?', 'Quantos jogadores?'), t('passing the device from hand to hand', 'passando o aparelho de mão em mão')), choices([2, 3, 4], opts.players, (v) => ((opts.players = v), (opts.length = RECOMMENDED_LENGTH[v]))), lengthPicker(2));
-    card.appendChild(actionsRow(btn(t('How to play', 'Como jogar'), showRules, { icon: BookOpen }), btn(t('Start match', 'Iniciar partida'), () => startLocal('hot'), { primary: true })));
+    card.appendChild(actionsRow(tutorialButton(), btn(t('Start match', 'Iniciar partida'), () => startLocal('hot'), { primary: true })));
   } else if (!ONLINE_AVAILABLE) {
     const n = document.createElement('div');
     n.className = 'notice';
@@ -2358,6 +2370,7 @@ void (document.fonts?.ready ?? Promise.resolve()).then(() =>
 );
 setTimeout(showScene, 1800); // se a fonte demorar, mostra mesmo assim
 track('visit');
+openIntroOnce();
 document.body.classList.remove('alarm');
 
 // atalho de teste (só em desenvolvimento)

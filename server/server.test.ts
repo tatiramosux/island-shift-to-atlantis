@@ -149,3 +149,15 @@ describe('servidor de salas', () => {
     a.close();
   });
 });
+
+describe('arquivos', () => {
+  it('entrega só o pedaço pedido de um vídeo', async () => {
+    const url = `http://127.0.0.1:${server.port}/video/trailer.mp4`;
+    const r = await fetch(url, { headers: { range: 'bytes=0-99' } });
+    expect(r.status).toBe(206);
+    expect(r.headers.get('content-type')).toBe('video/mp4');
+    expect(r.headers.get('content-range')).toMatch(/^bytes 0-99\/\d+$/);
+    expect((await r.arrayBuffer()).byteLength).toBe(100);
+    expect((await fetch(url, { headers: { range: 'bytes=999999999-' } })).status).toBe(416);
+  });
+});

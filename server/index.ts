@@ -46,6 +46,7 @@ const MIME: Record<string, string> = {
   '.json': 'application/json',
   '.ico': 'image/x-icon',
   '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4',
   '.webmanifest': 'application/manifest+json',
   '.map': 'application/json',
 };
@@ -74,16 +75,28 @@ export function startServer(port: number, host = '0.0.0.0', distDir?: string) {
     }
     const ext = path.extname(file);
     const cache = ext === '.html' ? 'no-cache' : url.pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=86400';
-    res.writeHead(200, {
-      'content-type': MIME[ext] ?? 'application/octet-stream',
-      'content-length': fs.statSync(file).size,
-      'cache-control': cache,
-    });
+    const size = fs.statSync(file).size;
+    const headers: http.OutgoingHttpHeaders = { 'content-type': MIME[ext] ?? 'application/octet-stream', 'cache-control': cache, 'accept-ranges': 'bytes' };
+    // pedido de um pedaço do arquivo (iPhone e iPad só tocam vídeo assim)
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '');
+    let part: { start: number; end: number } | undefined;
+    if (range && (range[1] || range[2])) {
+      const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2])); // "-500" = os últimos 500
+      const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
+      if (start >= size || start > end) {
+        res.writeHead(416, { 'content-range': `bytes */${size}` }).end();
+        return;
+      }
+      part = { start, end };
+      headers['content-range'] = `bytes ${start}-${end}/${size}`;
+    }
+    headers['content-length'] = part ? part.end - part.start + 1 : size;
+    res.writeHead(part ? 206 : 200, headers);
     if (req.method === 'HEAD') {
       res.end();
       return;
     }
-    fs.createReadStream(file).pipe(res);
+    fs.createReadStream(file, part).pipe(res);
   });
 
   /* ---------- salas ---------- */
