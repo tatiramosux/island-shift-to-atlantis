@@ -23,11 +23,11 @@ island and turns them into Atlantis. Anyone on the ground or the 1st floor falls
 higher), domes and Shields hold.
 
 **Escape.** Every team has a ship at sea. When the first pirate boards a ship, everyone else gets one last turn, and then the
-whole island sinks. Whoever is left on land is adrift on a buoy. The winner has the most crystals among the teams with a
+whole island sinks. Whoever is left on land is adrift on a buoy. The winner has the most points among the teams with a
 pirate on a ship.
 
-Pick a **Short**, **Medium** or **Long** match on the start screen (about 7, 8–12 and 16 rounds against bots). The Long
-match is the original game, where the end comes from the crystal at the top of the Temple. More details in
+Pick a **Short**, **Medium** or **Long** match on the start screen (about 9, 11 and 15 rounds against bots). The Long
+match is the full game, where the end comes from the crystal at the top of the Temple. More details in
 [`docs/modo-fuga.md`](docs/modo-fuga.md) (Portuguese) and the in-game "How to play".
 
 ## Run it
@@ -61,5 +61,4 @@ Upload the zip as an HTML project and tick "This file will be played in the brow
 
 - Made with [three.js](https://threejs.org/) (MIT), [Lucide](https://lucide.dev/) icons (ISC) and Google Fonts
   (Cinzel Decorative, Nunito; SIL Open Font License).
-- Rules inspired by well-known board game mechanics (building on levels, a sinking island, creatures chasing
-  explorers). Name, characters, art and sounds are original.
+- Name, characters, art and sounds were made for this game.

@@ -8,7 +8,7 @@ import { ORIGIN, PRINCESS_BONUS, Rng, TRIDENT_VALUE, actor, basePoints, applyTru
 const value = (s: GameState, p: number, seek = false): number => {
   // cada ponto vale 12; o tridente vale 2 pontos e ainda protege uma casa; a Princesa a salvo no navio vale o bônus todo
   let v = s.crystals[p] * 12 + s.tridents[p] * (TRIDENT_VALUE * 12 + 2) + (s.princess?.by === p && s.princess.safe ? PRINCESS_BONUS * 12 : 0);
-  // hora de levar o time para o navio (no jogo original, depois do cristal do Castelo; na fuga, com Atlântida já emersa)
+  // hora de levar o time para o navio (na partida longa, depois do cristal do Castelo; na fuga, com Atlântida já emersa)
   const leaving = leavingTime(s);
   // só corre para o navio quem não está muito atrás: quem fica boiando perde metade do tesouro, mas fugir cedo e pobre perde de qualquer jeito
   const rivals = s.crystals.map((_, i) => i).filter((i) => i !== p).map((i) => basePoints(s, i));

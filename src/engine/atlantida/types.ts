@@ -80,7 +80,7 @@ export interface Settings {
   colossusCost: number;
   /** o Polvo alcança construtores em casas com até este número de andares (0 = só no chão). */
   octopusReach: number;
-  /** 'castle' = jogo original (o fim vem do Castelo); 'escape' = fim por fuga: o primeiro navio faz a ilha sumir. */
+  /** 'castle' = partida completa (o fim vem do Castelo); 'escape' = fim por fuga: o primeiro navio faz a ilha sumir. */
   ending: 'castle' | 'escape';
   /** só no final por fuga: rodada em que a ilha some de qualquer jeito (0 = sem limite). */
   vanishRound: number;
@@ -117,7 +117,7 @@ export const DEFAULT_SETTINGS: Settings = {
   nereus: true,
 };
 
-/** Duração da partida: curta e média usam o final por fuga (veja docs/modo-fuga.md); longa é o jogo original. */
+/** Duração da partida: curta e média usam o final por fuga (veja docs/modo-fuga.md); longa é o partida completa. */
 export const LENGTH_PRESETS: Record<MatchLength, Partial<Settings>> = {
   short: { ending: 'escape', floodsPerRound: 10, vanishRound: 9, fleeRounds: 5, guardian: false, tideShift: true, nereus: false },
   medium: { ending: 'escape', floodsPerRound: 3, templeWake: 20, vanishRound: 22, fleeRounds: 6, guardian: false, tideShift: true, dieLull: 1 },

@@ -3,6 +3,7 @@
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
 import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, RefreshCw, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import QRCode from 'qrcode';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -121,7 +122,7 @@ const LENGTH_PT: Record<MatchLength, string> = { short: t('Short', 'Curta'), med
 const LENGTH_HINT: Record<MatchLength, string> = {
   short: t('about 9 rounds: the tide shifts fast; the Octopus and Leviathan attack, without Nereus', 'cerca de 9 rodadas: a maré vira rápido; o Polvo e o Leviatã atacam, sem o Nereu'),
   medium: t('about 11 rounds: the tide shifts, the Temple rises later and Nereus joins in', 'cerca de 11 rodadas: a maré vira, o Templo surge mais tarde e o Nereu entra'),
-  long: t('about 15 rounds: the original game, with the Princess of the Temple', 'cerca de 15 rodadas: o jogo original, com a Princesa do Templo'),
+  long: t('about 15 rounds: the full match, with the Princess of the Temple', 'cerca de 15 rodadas: a partida completa, com a Princesa do Templo'),
 };
 const say = (t: string) => {
   logLines.push({ text: t, round: game?.round ?? 1, at: Date.now() });
@@ -1042,6 +1043,7 @@ const renderLog = () => {
 const stage = new Stage3D($('view'), (h, x, y) => onCell(h, x, y));
 stage.nereusLine = t('MY PRINCESS!!', 'MINHA PRINCESA!!');
 stage.overboardLine = t('MAN OVERBOARD!', 'HOMEM AO MAR!');
+stage.helpLine = t('HELP ME!', 'SOCORRO!'); // o que a Princesa grita do alto do Templo
 stage.sfx = (name) => play(name as SoundName);
 // sem jogada há um tempo: todo mundo cochila (Z subindo) até alguém tocar na tela de novo
 let lastAct = Date.now();
@@ -1178,7 +1180,11 @@ musicBtns.push(musicBtn);
 syncMusic();
 /** Som na tela inicial (desliga tudo: música e efeitos): quem abre o jogo pode silenciar antes de qualquer coisa. */
 const homeSoundButton = (): HTMLButtonElement => {
-  const s = btn('', toggleSound, { icon: Volume2, title: '' });
+  // a tela inicial só tem este botão: ligar o som por aqui liga também a música (que pode ter ficado desligada numa partida)
+  const s = btn('', () => {
+    if (isMuted()) setMusicOn(true);
+    toggleSound();
+  }, { icon: Volume2, title: '' });
   soundBtns.push(s);
   paintSound(s);
   return s;
@@ -1863,7 +1869,7 @@ const showPause = () => {
   c.className = 'card';
   c.innerHTML = '<h3>Menu</h3>';
   const col = document.createElement('div');
-  col.style.cssText = 'display:grid;gap:16px';
+  col.style.cssText = 'display:grid;gap:8px';
   col.append(
     btn(t('Resume', 'Continuar'), closeModal, { primary: true }),
     btn(t('How to play', 'Como jogar'), showRules, { icon: BookOpen }),
@@ -1923,11 +1929,28 @@ const startLocal = (kind: 'bots' | 'hot') => {
 
 /** Tela inicial: os piratas ficam na parte da ilha mais perto da câmera, onde dá para ver quem são. */
 const demoGame = () => {
-  setSeatLooks([null, null, 1]); // o 3º time da amostra é a família de robôs Cobalto
-  const g = autoSetup(createGame({ players: 3, seed: 20261117 }), 7);
-  // a ilha da tela inicial é só uma amostra: uma fileira a menos que a real, para ficar mais limpa
-  for (const [k, c] of Object.entries(g.cells)) if (c.ring >= 4) delete g.cells[k];
-  // os seis piratas bem espalhados pela ilha (um a cada 60 graus, alternando as fileiras 3 e 2)
+  setSeatLooks([null, 1]); // dois times: o do capitão humano e a família de robôs Cobalto
+  const g = autoSetup(createGame({ players: 2, seed: 20261117 }), 7);
+  // a ilha inteira, com a beira (junto da praia) começando a virar Atlântida: umas casas sim, outras não, como se ela estivesse aparecendo;
+  // só algumas mostram uma peça, uma ou duas de cada, para o jogador ver que existem
+  const rim = Object.values(g.cells)
+    .filter((c) => c.ring === 4 && !c.temple)
+    .sort((p, q) => Math.atan2(hexToWorld(p.hex).z, hexToWorld(p.hex).x) - Math.atan2(hexToWorld(q.hex).z, hexToWorld(q.hex).x));
+  const sunkRim = [0, 1, 3, 4, 5, 8, 10, 11, 13, 14, 17, 19, 20, 22]; // posições da beira (em volta da ilha) já viradas
+  const peek: Record<number, 'column' | 'crystal' | 'portal' | 'calm' | 'shield' | 'ruin'> = { 0: 'column', 3: 'crystal', 5: 'portal', 8: 'calm', 11: 'crystal', 14: 'column', 17: 'portal', 20: 'shield', 22: 'ruin' };
+  sunkRim.forEach((i) => {
+    const c = rim[i];
+    if (!c) return;
+    c.state = 'atlantis';
+    c.tile = peek[i] ?? 'ruin';
+    c.taken = false;
+    c.relic = peek[i] === 'ruin'; // sem peça: mármore limpo
+  });
+  // o Templo já de pé, com a Princesa no topo pedindo socorro: quem abre o jogo entende o objetivo de cara
+  g.settings = { ...g.settings, templeWake: 1 };
+  const temple = g.cells['0,0'];
+  if (temple) temple.floors = 3;
+  // os quatro piratas bem espalhados pela ilha (um a cada 90 graus, alternando as fileiras 3 e 2)
   const angle = (h: Hex) => {
     const w = hexToWorld(h);
     return Math.atan2(w.z, w.x);
@@ -1937,10 +1960,10 @@ const demoGame = () => {
       .filter((c) => c.ring === ring && !c.temple)
       .map((c) => c.hex)
       .sort((p, q) => Math.abs(Math.atan2(Math.sin(angle(p) - a), Math.cos(angle(p) - a))) - Math.abs(Math.atan2(Math.sin(angle(q) - a), Math.cos(angle(q) - a))))[0];
-  g.builders.forEach((b, i) => (b.hex = pickAt(i % 2 ? 2 : 3, 0.4 + (i * Math.PI) / 3)));
+  g.builders.forEach((b, i) => (b.hex = pickAt(i % 2 ? 2 : 3, 0.4 + (i * Math.PI) / 2)));
   // Polvo à esquerda e Leviatã à direita, mais para o alto, na água ao lado da ilha
-  g.creatures[0].hex = { q: -1, r: -3 };
-  g.creatures[1].hex = { q: 2, r: 2 }; // uma casa acima (na tela) de onde estava
+  g.creatures[0].hex = { q: -1, r: -4 };
+  g.creatures[1].hex = { q: 2, r: 3 }; // os dois na água, junto da ilha
   // o pirata preto do canto direito de cima também sobe uma casa
   const top = g.builders[0];
   if (top.hex) top.hex = { q: top.hex.q + 1, r: top.hex.r - 1 };
@@ -1954,7 +1977,7 @@ const demoGame = () => {
  */
 const cacheKey = () => {
   const v = $('view');
-  return `r12|${getLang()}|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`; // o idioma entra na chave: o texto muda a altura do painel e, com ela, onde os navios ficam
+  return `r22|${getLang()}|${v.clientWidth}x${Math.round(v.clientHeight / 60)}`; // o idioma entra na chave: o texto muda a altura do painel e, com ela, onde os navios ficam
 };
 const placeHomeShips = () => {
   if (inGame) return;
@@ -1965,12 +1988,18 @@ const placeHomeShips = () => {
   // medidos em relação ao tamanho da ilha na tela (assim valem para qualquer formato de janela)
   const hc = stage.homeScreenOf({ q: 0, r: 0 });
   const rim = [] as { x: number; y: number }[];
-  for (let q = -3; q <= 3; q++) for (let r = -3; r <= 3; r++) if (Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) === 3) rim.push(stage.homeScreenOf({ q, r }));
+  for (let q = -4; q <= 4; q++) for (let r = -4; r <= 4; r++) if (Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r)) === 4) rim.push(stage.homeScreenOf({ q, r }));
   const hw = (Math.max(...rim.map((v) => v.x)) - Math.min(...rim.map((v) => v.x))) / 2;
   const hh = (Math.max(...rim.map((v) => v.y)) - Math.min(...rim.map((v) => v.y))) / 2;
-  const spots: { x: number; y: number; ring?: number; down?: boolean }[] = portrait
-    ? [{ x: -1.5, y: 0.2 }, { x: 0.1, y: 0.1, ring: 5 }, { x: 0.82, y: 0.29 }]
-    : [{ x: -1.5, y: 0.2 }, { x: hc.x - 1.28 * hw, y: hc.y - 0.7 * hh, ring: 5 }, { x: hc.x + 0.88 * hw, y: hc.y + 0.35 * hh, ring: 5, down: true }];
+  // duas colunas (computador e tablet deitado): os três navios ficam inteiros na coluna da ilha, sem sair da tela nem passar por trás do painel
+  const wide = matchMedia('(min-width: 900px) and (min-aspect-ratio: 1/1)').matches;
+  const panelPx = Math.min(560, v.clientWidth * 0.46) + Math.max(24, v.clientWidth * 0.03);
+  const maxX = wide ? (v.clientWidth - panelPx) / v.clientWidth - 0.08 : Infinity;
+  const spots: { x: number; y: number; ring?: number; down?: boolean }[] = wide
+    ? [{ x: hc.x - 0.75 * hw, y: hc.y - 1.1 * hh }, { x: hc.x + 0.6 * hw, y: hc.y + 1.25 * hh }]
+    : portrait
+    ? [{ x: 0.19, y: 0.22 }, { x: 0.74, y: 0.31 }]
+    : [{ x: hc.x - 1.1 * hw, y: hc.y - 0.7 * hh, ring: 5 }, { x: hc.x + 0.88 * hw, y: hc.y + 0.35 * hh, ring: 5, down: true }];
   const taken = new Set(game.creatures.filter((c) => c.hex).map((c) => hexKey(c.hex!)));
   const pool: Hex[] = [];
   for (let q = -30; q <= 30; q++)
@@ -1979,11 +2008,22 @@ const placeHomeShips = () => {
       if (d >= 5 && d <= 30) pool.push({ q, r });
     }
   const where = pool.map((h) => ({ h, s: stage.homeScreenOf(h) }));
+  // Polvo e Leviatã: na água junto da ilha (fileira 5), sempre dentro da tela e fora de trás do painel
+  [{ x: hc.x - 0.8 * hw, y: hc.y + 0.8 * hh }, { x: hc.x + 0.62 * hw, y: hc.y - 1.15 * hh }].forEach((spot, i) => {
+    const near = where
+      .filter((c) => Math.max(Math.abs(c.h.q), Math.abs(c.h.r), Math.abs(c.h.q + c.h.r)) === 5 && c.s.x > 0.07 && c.s.x < Math.min(0.93, maxX + 0.02) && c.s.y > 0.04)
+      .sort((a, b) => (a.s.x - spot.x) ** 2 + (a.s.y - spot.y) ** 2 - ((b.s.x - spot.x) ** 2 + (b.s.y - spot.y) ** 2))[0];
+    if (near && game.creatures[i]) {
+      game.creatures[i].hex = near.h;
+      taken.add(hexKey(near.h));
+    }
+  });
   game.ships = spots.map((t) => {
     let best = where[0];
     let bd = Infinity;
     for (const c of where) {
       if (taken.has(hexKey(c.h))) continue;
+      if (wide && (c.s.x < 0.08 || c.s.x > maxX || c.s.y < 0.14 || c.s.y > 0.9)) continue; // dentro da área livre, com folga para o tamanho do navio
       if (t.ring && Math.max(Math.abs(c.h.q), Math.abs(c.h.r), Math.abs(c.h.q + c.h.r)) !== t.ring) continue;
       const dd = (c.s.x - t.x) ** 2 + (c.s.y - t.y) ** 2;
       if (dd < bd) {
@@ -2006,7 +2046,7 @@ const placeHomeShips = () => {
   });
   stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
   try {
-    sessionStorage.setItem('ais-ships', JSON.stringify({ k: cacheKey(), ships: game.ships }));
+    sessionStorage.setItem('ais-ships', JSON.stringify({ k: cacheKey(), ships: game.ships, mobs: game.creatures.map((x) => x.hex) }));
   } catch {
     /* sem armazenamento: só perde o atalho */
   }
@@ -2153,6 +2193,27 @@ const langSwitch = (): HTMLElement => {
   return d;
 };
 
+/** Convite da sala em duas colunas: o código e a instrução à esquerda, o QR code (que abre o jogo já com o código) à direita. */
+const inviteBlock = (roomCode: string, codeBox: HTMLElement): HTMLElement => {
+  const url = `${location.origin}${location.pathname}?sala=${roomCode}`;
+  const d = document.createElement('div');
+  d.className = 'invite';
+  const img = document.createElement('img');
+  img.alt = t('QR code to join the room', 'QR code para entrar na sala');
+  img.width = img.height = 120;
+  QRCode.toDataURL(url, { margin: 1, width: 240, color: { dark: '#10243a', light: '#ffffff' } })
+    .then((src) => (img.src = src))
+    .catch(() => img.remove());
+  const p = document.createElement('p');
+  p.className = 'muted';
+  p.textContent = t('Point a phone camera at the QR code to join this room, or open the game and type the code.', 'Aponte a câmera do celular para o QR code para entrar nesta sala, ou abra o jogo e digite o código.');
+  const left = document.createElement('div');
+  left.className = 'invite-code';
+  left.append(codeBox, p);
+  d.append(left, img);
+  return d;
+};
+
 const renderHome = (notice = '') => {
   const home = $('home');
   home.replaceChildren();
@@ -2161,10 +2222,10 @@ const renderHome = (notice = '') => {
   const tag = document.createElement('p');
   tag.className = 'tagline';
   tag.textContent = t('The island sinks, day turns to night and the ancient city rises from below. Discover treasure and escape on your ship before the island disappears. Beware of the creatures and the other pirates.', 'A ilha afunda, o dia vira noite e a cidade antiga emerge por baixo. Descubra tesouros e fuja no seu navio antes que a ilha desapareça. Cuidado com as criaturas e com os outros piratas.');
-  home.appendChild(tag);
 
   const card = document.createElement('div');
   card.className = 'card';
+  card.appendChild(tag); // a descrição é o topo do card de configuração
   const tabs = document.createElement('div');
   tabs.className = 'tabs';
   tabs.style.gridTemplateColumns = `repeat(${ONLINE_AVAILABLE ? 3 : 2}, minmax(0, 1fr))`;
@@ -2208,7 +2269,7 @@ const renderHome = (notice = '') => {
     const cb = document.createElement('div');
     cb.className = 'codebox';
     cb.textContent = net.code;
-    card.appendChild(cb);
+    card.appendChild(inviteBlock(net.code, cb));
     const ul = document.createElement('ul');
     ul.className = 'seats';
     net.seats.forEach((s, i) => {
@@ -2261,9 +2322,10 @@ stage.setHomeMode(true);
 if (ONLINE_AVAILABLE && new URLSearchParams(location.search).get('sala')) homeTab = 'net';
 renderHome();
 try {
-  const c = JSON.parse(sessionStorage.getItem('ais-ships') ?? 'null') as { k: string; ships: Hex[] } | null;
+  const c = JSON.parse(sessionStorage.getItem('ais-ships') ?? 'null') as { k: string; ships: Hex[]; mobs?: (Hex | null)[] } | null;
   if (c && c.k === cacheKey() && c.ships.length === game.ships.length) {
-    game.ships = c.ships; // mesma tela da última vez: navios já no lugar final
+    game.ships = c.ships; // mesma tela da última vez: navios e criaturas já no lugar final
+    c.mobs?.forEach((h, i) => game.creatures[i] && (game.creatures[i].hex = h));
     stage.update({ state: game, highlights: new Map(), selectedBuilder: null });
   } else placeHomeShips();
 } catch {

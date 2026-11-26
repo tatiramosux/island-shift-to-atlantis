@@ -853,7 +853,7 @@ export const islandProgress = (s: GameState): number => {
   return cells.length ? cells.filter((c) => c.state === 'atlantis').length / cells.length : 1;
 };
 
-/** Hora de levar o time para o navio: no jogo original, depois do cristal do Castelo; na fuga, com Atlântida já emersa. */
+/** Hora de levar o time para o navio: na partida longa, depois do cristal do Castelo; na fuga, com Atlântida já emersa. */
 export const leavingTime = (s: GameState): boolean =>
   s.settings.ending === 'escape' ? s.escape != null || islandProgress(s) >= 0.75 : s.castleTaken !== null;
 
@@ -913,7 +913,7 @@ const finalize = (s: GameState, ev: GameEvent[], justPlayed: number) => {
   if (escapeMode && !s.vanished && order.some((p) => teamAboard(s, p))) return vanishIsland(s, ev);
   const limit = s.settings.crystalsToWin;
   const rich = limit > 0 ? order.find((p) => s.crystals[p] >= limit) : undefined;
-  // Regra (jogo original): a partida acaba quando o cristal do Castelo já foi pego e algum time está todo no navio.
+  // Regra (partida completa): a partida acaba quando o cristal do Castelo já foi pego e algum time está todo no navio.
   const fled = !escapeMode && s.castleTaken !== null ? order.filter((p) => teamAboard(s, p)) : [];
   const islandGone = !escapeMode && !Object.values(s.cells).some((c) => c.state === 'island' && !c.temple); // acabou o chão para afundar
   const nobodyLeft = !escapeMode && !s.builders.some(isAlive) && s.builders.some((b) => b.status === 'aboard'); // todo mundo já embarcou ou saiu do jogo

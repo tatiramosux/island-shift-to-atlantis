@@ -51,7 +51,7 @@ const playUntil = (s: GameState, stop: (s: GameState) => boolean, seed = 5): Gam
 };
 
 describe('partida curta, média e longa', () => {
-  it('curta e média usam fuga; longa é o jogo original', () => {
+  it('curta e média usam fuga; longa é o partida completa', () => {
     expect(start('short').settings.ending).toBe('escape');
     expect(start('medium').settings.ending).toBe('escape');
     expect(start('long').settings.ending).toBe('castle');

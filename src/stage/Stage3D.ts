@@ -13,7 +13,7 @@ import { buildSummon } from './summons';
 
 /** Pose isométrica: personagens, criaturas e navios ficam a 45° da câmera, mostrando a frente e um lado, como o tabuleiro. */
 const ISO_TURN = -Math.PI / 4;
-type IdleKind = 'look' | 'scratch' | 'spy' | 'watch' | 'drink' | 'wave' | 'stretch' | 'hat' | 'polish' | 'wobble' | 'fish' | 'wrist' | 'tap' | 'gun' | 'ball' | 'fence';
+type IdleKind = 'look' | 'scratch' | 'spy' | 'watch' | 'drink' | 'wave' | 'stretch' | 'hat' | 'polish' | 'wobble' | 'fish' | 'wrist' | 'tap' | 'gun' | 'ball' | 'fence' | 'coco' | 'chair' | 'selfie' | 'phone';
 export type Highlight = 'move' | 'flood' | 'build' | 'push' | 'treasure' | 'wave' | 'both';
 export interface StageScene {
   state: GameState;
@@ -58,7 +58,7 @@ interface Entity {
   burpBubble?: THREE.Sprite; // "BURP!" depois de beber da garrafa
   /** O que este pirata carrega (lido do modelo): sabre ou gancho na mão direita, pistola no cinto (só os de carne e osso). */
   traits?: { tool?: THREE.Object3D; hookTop?: THREE.Vector3; beltGun?: THREE.Object3D; fencer?: boolean };
-  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group; rod: THREE.Group; gear: THREE.Group; fish: THREE.Object3D; bobber: THREE.Object3D; pistol: THREE.Group; ball: THREE.Object3D }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
+  props?: { spy: THREE.Group; watch: THREE.Group; bottle: THREE.Group; rod: THREE.Group; gear: THREE.Group; fish: THREE.Object3D; bobber: THREE.Object3D; pistol: THREE.Group; ball: THREE.Object3D; coco: THREE.Group; selfiePhone: THREE.Group; callPhone: THREE.Group; flash: THREE.Object3D; chair: THREE.Group; book: THREE.Group; pagePivot: THREE.Group }; // luneta, relógio de bolso e garrafa verde, que aparecem na mão esquerda
   shouting?: boolean;
 }
 
@@ -263,12 +263,22 @@ export class Stage3D {
     this.target.z = Math.max(-lim, Math.min(lim, this.target.z));
     this.placeCamera();
   }
+  private shiftX = 0;
   private resize() {
     const w = this.host.clientWidth || 640;
     const h = this.host.clientHeight || 460;
     this.renderer.setSize(w, h, false);
     const half = Math.max(8.2, 9.8 / (w / h)); // em tela estreita, a ilha ocupa a largura
-    if (this.home) {
+    this.shiftX = 0;
+    if (this.home && matchMedia('(min-width: 900px) and (min-aspect-ratio: 1/1)').matches) {
+      // computador e tablet deitado: a ilha fica grande, centralizada na coluna da esquerda
+      const panel = Math.min(560, w * 0.46) + Math.max(24, w * 0.03);
+      const left = w - panel; // largura livre à esquerda do painel
+      const ppu = h / 2 / half;
+      this.zoom = Math.max(0.5, Math.min(1.7, Math.min(left / (16.5 * ppu), h / (11 * ppu))));
+      this.shiftX = (w / 2 - left / 2) / w;
+      this.shift = 0.02;
+    } else if (this.home) {
       // tela inicial: a ilha cabe inteira no espaço livre acima do logo e do painel (que ficam embaixo)
       // espaço livre = tudo que está acima do logo (medido na tela; se ainda não existir, estimativa)
       const lg = document.querySelector('.home .logo');
@@ -283,7 +293,7 @@ export class Stage3D {
     this.cam.top = half;
     this.cam.bottom = -half;
     this.cam.zoom = this.zoom;
-    if (this.shift) this.cam.setViewOffset(w, h, 0, this.shift * h, w, h);
+    if (this.shift || this.shiftX) this.cam.setViewOffset(w, h, this.shiftX * w, this.shift * h, w, h);
     else this.cam.clearViewOffset();
     this.cam.updateProjectionMatrix();
     this.placeCamera();
@@ -478,6 +488,8 @@ export class Stage3D {
   private princessBubble: THREE.Sprite | null = null;
   /** Fala de quem está boiando (o idioma vem de fora). */
   overboardLine = 'MAN OVERBOARD!';
+  /** O que a Princesa grita (o idioma vem de fora). */
+  helpLine = 'HELP ME!';
   private lastOverboard = -9;
   private lastHelp = -99;
   /** Balão de fala (letras brancas num balão colorido) que aparece sobre um personagem. */
@@ -544,7 +556,7 @@ export class Stage3D {
         P.root.scale.setScalar(1.25); // do tamanho dos piratas
         g.add(P.root);
         this.princessParts = P;
-        this.princessBubble = this.makeBubble('HELP!', '#9e1218');
+        this.princessBubble = this.makeBubble(this.helpLine, '#9e1218');
         this.princessBubble.position.set(0, 1.8, 0); // a pontinha toca acima da cabeça; o balão fica bem acima
         g.add(this.princessBubble);
         this.scene.add(g);
@@ -595,6 +607,68 @@ export class Stage3D {
 
   private shake = 0;
   private shakeOff = new THREE.Vector3();
+
+  /* ---------- tela inicial (computador e tablet): de vez em quando Nereu aparece na água procurando a Princesa ---------- */
+
+  private nereusAt = 0; // momento da próxima aparição (0 = ainda não marcada)
+
+  private tickHomeNereus() {
+    if (!this.home || !matchMedia('(min-width: 761px)').matches || matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      this.nereusAt = 0;
+      return;
+    }
+    const now = this.clock.elapsedTime;
+    if (!this.nereusAt) this.nereusAt = now + 10 + Math.random() * 6; // a primeira vem logo; depois ele some por um bom tempo
+    if (now < this.nereusAt) return;
+    this.nereusAt = now + 30 + Math.random() * 30;
+    this.playHomeNereus();
+  }
+
+  /** Aparição curta e sem som: sobe do mar em cima ou embaixo da ilha, chama a Princesa e afunda de novo. */
+  playHomeNereus() {
+    const w = this.host.clientWidth || 640;
+    const two = matchMedia('(min-width: 900px) and (min-aspect-ratio: 1/1)').matches;
+    // a área livre: com duas colunas, a coluna da ilha (em cima ou embaixo dela); em pé, só em cima, nos cantos
+    const free = two ? (w - Math.min(560, w * 0.46) - Math.max(24, w * 0.03)) / w : 1;
+    // na altura dos navios, junto da ilha (e do lado oposto ao navio daquela altura)
+    const shipY = (this.lastState?.ships ?? []).slice(0, 2).map((hex) => {
+      const wp = worldOf(hex);
+      const v = new THREE.Vector3(wp.x, 0, wp.z).project(this.cam);
+      return { x: (v.x + 1) / 2, y: (1 - v.y) / 2 };
+    });
+    const pick = shipY[Math.floor(Math.random() * shipY.length)] ?? { x: 0.2, y: 0.3 };
+    const fx = two ? (pick.y < 0.5 ? free * 0.55 : free * 0.32) : pick.x < 0.5 ? 0.84 : 0.16; // junto da ilha, entre os navios, sem ficar em cima do Polvo ou do Leviatã
+    const fy = two ? (pick.y < 0.5 ? Math.max(0.24, pick.y + 0.02) : Math.min(0.9, pick.y + 0.1)) : Math.max(0.12, Math.min(0.28, pick.y));
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(fx * 2 - 1, 1 - fy * 2), this.cam);
+    const at = ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), new THREE.Vector3());
+    if (!at) return;
+    const N = buildNereus(this.models);
+    const SC = 0.36;
+    N.root.scale.setScalar(SC);
+    N.root.position.copy(at);
+    const bubble = this.makeBubble(this.nereusLine, '#0d2f6b');
+    bubble.position.set(at.x, 2.1, at.z);
+    this.fxGroup.add(bubble);
+    const dur = 4.6;
+    const ease = (x: number) => x * x * (3 - 2 * x);
+    const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
+    this.addFx(N.root, dur, 0, (p) => {
+      const tt = p * dur;
+      const rise = ease(clamp01(tt / 1.2));
+      const sink = ease(clamp01((tt - 3.6) / 1));
+      const roar = ease(clamp01((tt - 1.3) / 0.25)) * (1 - ease(clamp01((tt - 3.1) / 0.3)));
+      N.root.rotation.y = Math.atan2(Math.cos(this.az), Math.sin(this.az)); // de frente para a câmera
+      N.body.position.y = -7 + 7 * rise - 7 * sink;
+      N.head.rotation.x = -0.35 * roar;
+      N.mouth.scale.y = N.mouth.userData.baseY * (1 + 3 * roar * Math.abs(Math.sin(tt * 11)));
+      N.armL.rotation.z = 0.15 + 0.45 * roar;
+      N.fin.rotation.z = Math.sin(tt * 5) * 0.25;
+      bubble.visible = roar > 0.5;
+      if (p >= 0.99) bubble.removeFromParent();
+    });
+    for (let i = 0; i < 3; i++) this.burst(at.x + (Math.random() - 0.5) * 1.2, 0.2, at.z + (Math.random() - 0.5) * 1.2, '#dff6ff', 7, i * 0.15, 1.8);
+  }
 
   /** Nereu sobe do mar, ruge (balão + som + tremor), agarra o pirata com o punho e o arrasta para o fundo. Sem vítima (ninguém ao alcance), só aparece e ruge. */
   private playNereusPull(victimId: string | null) {
@@ -868,7 +942,7 @@ export class Stage3D {
     // o Portal só funciona com 2 ou mais revelados (afundados); antes disso fica cinza e parado
     const portalsOn = Object.values(s.cells).filter((c) => c.state === 'atlantis' && c.tile === 'portal').length >= 2;
     this.portalsOn = portalsOn;
-    this.princessRescued = s.castleTaken !== null;
+    this.princessRescued = s.castleTaken !== null || this.home; // na tela inicial o cristal ficaria na frente da Princesa
     for (const c of Object.values(s.cells)) {
       const k = hexKey(c.hex);
       const sig = `${c.state}${c.sunk ? 'S' : ''}|${c.floors}|${c.dome}|${c.tile}|${c.temple && awake}|${c.temple && this.princessRescued}|${!!c.dug}|${!!c.taken}|${c.tile === 'portal' && portalsOn}|${!!c.relic}|${c.flora ?? ''}`;
@@ -1691,6 +1765,8 @@ export class Stage3D {
     }
     if (e.traits?.tool) e.traits.tool.rotation.set(0, 0, 0);
     if (e.traits?.beltGun) e.traits.beltGun.visible = true;
+    if (e.traits?.tool) e.traits.tool.visible = true;
+    if (e.props?.coco) e.props.coco.visible = e.props.selfiePhone.visible = e.props.callPhone.visible = e.props.chair.visible = e.props.book.visible = e.props.flash.visible = false;
   }
 
   /** Um movimento de espera suave de vez em quando, cada pirata no seu ritmo. */
@@ -1753,7 +1829,62 @@ export class Stage3D {
       ball.add(m.box(0.1, 0.018, 0.1, m.solid('#fff7e0'), 0, 0, 0)); // faixa clara no meio: deixa ver a bola girando
       ball.visible = false;
       e.group.add(ball);
-      e.props = { spy, watch, bottle, rod, gear, fish, bobber, pistol, ball };
+      // água de coco (com canudo) na mão esquerda
+      const coco = new THREE.Group();
+      coco.position.set(0, -0.32, 0.05);
+      coco.add(m.box(0.14, 0.13, 0.14, m.solid('#4f9a3a'), 0, 0, 0), m.box(0.11, 0.03, 0.11, m.solid('#e9f3d0'), 0, 0.075, 0));
+      const straw = m.box(0.025, 0.22, 0.025, m.solid('#ff4d6a', 0.4), 0.02, 0.17, -0.03);
+      straw.rotation.x = -0.35;
+      coco.add(straw);
+      // celular: um na mão direita (selfie) e outro na esquerda (ligação)
+      const handset = () => {
+        const g = new THREE.Group();
+        g.position.set(0, -0.33, 0.04);
+        g.add(m.box(0.08, 0.15, 0.025, m.solid('#22262e'), 0, 0, 0), m.box(0.064, 0.12, 0.006, m.solid('#7fd6ff', 0.5), 0, 0, -0.016));
+        return g;
+      };
+      const selfiePhone = handset();
+      const callPhone = handset();
+      const flash = m.box(0.11, 0.11, 0.02, m.solid('#ffffff', 1), 0.03, 0.08, -0.03);
+      flash.visible = false;
+      selfiePhone.add(flash);
+      // o braço sobe girando: os objetos desfazem o giro para ficarem em pé (o canudo para cima, a tela para o marujo)
+      coco.rotation.x = 1.85;
+      selfiePhone.rotation.x = 2.15;
+      callPhone.rotation.x = 2.35;
+      coco.visible = selfiePhone.visible = callPhone.visible = false;
+      e.armL!.add(coco, callPhone);
+      e.armR!.add(selfiePhone);
+      // espreguiçadeira listrada e um livro aberto (no espaço do grupo: o pirata é 1,6 maior)
+      const chair = new THREE.Group();
+      chair.scale.setScalar(1.6);
+      const woodC = m.solid('#b5793f');
+      const red = m.solid('#e8423a');
+      const cream = m.solid('#fff3cf');
+      for (let i = 0; i < 5; i++) chair.add(m.box(0.42, 0.035, 0.072, i % 2 ? cream : red, 0, 0.09, -0.04 + i * 0.072)); // assento, cobrindo as pernas
+      const back = new THREE.Group();
+      back.position.set(0, 0.11, -0.1);
+      back.rotation.x = -0.42;
+      for (let i = 0; i < 6; i++) back.add(m.box(0.42, 0.068, 0.035, i % 2 ? cream : red, 0, i * 0.068, 0));
+      chair.add(back);
+      for (const x of [-0.19, 0.19]) chair.add(m.box(0.03, 0.09, 0.03, woodC, x, 0, -0.07), m.box(0.03, 0.09, 0.03, woodC, x, 0, 0.26), m.box(0.035, 0.03, 0.34, woodC, x, 0.19, 0.07)); // pés e braços
+      const book = new THREE.Group();
+      book.scale.setScalar(1.6);
+      book.position.set(0, 0.5, 0.36);
+      book.rotation.x = -0.5;
+      for (const sx of [-1, 1]) {
+        const half = new THREE.Group();
+        half.rotation.y = -sx * 0.25;
+        half.add(m.box(0.12, 0.16, 0.014, m.solid('#2f5fb0'), sx * 0.062, 0, 0), m.box(0.105, 0.145, 0.012, m.solid('#fffaea'), sx * 0.06, 0.007, -0.012));
+        book.add(half);
+      }
+      const pagePivot = new THREE.Group();
+      pagePivot.position.set(0, 0, -0.025);
+      pagePivot.add(m.box(0.1, 0.14, 0.004, m.solid('#ffffff'), 0.05, 0.007, 0));
+      book.add(pagePivot);
+      chair.visible = book.visible = false;
+      e.group.add(chair, book);
+      e.props = { spy, watch, bottle, rod, gear, fish, bobber, pistol, ball, coco, selfiePhone, callPhone, flash, chair, book, pagePivot };
     }
     if (e.idleNext === undefined) e.idleNext = t + 6 + Math.random() * 16;
     if (!e.idle && t >= e.idleNext && (this.idleBy || t < this.nextIdleAt)) e.idleNext = t + 1 + Math.random() * 3; // outro marujo está se mexendo: espera a vez
@@ -1781,7 +1912,7 @@ export class Stage3D {
           water = Math.atan2(wn.x - here.x, wn.z - here.z);
         }
       }
-      const table: [NonNullable<Entity['idle']>['kind'], number][] = [['look', 16], ['scratch', 12], ['watch', 10], ['wave', 10], ['stretch', 10], ['hat', 8], ['polish', 8], ['spy', 6], ['drink', 6], ['wrist', 9], ['tap', 9]];
+      const table: [NonNullable<Entity['idle']>['kind'], number][] = [['look', 16], ['scratch', 12], ['watch', 10], ['wave', 10], ['stretch', 10], ['hat', 8], ['polish', 8], ['spy', 6], ['drink', 6], ['wrist', 9], ['tap', 9], ['coco', 11], ['chair', 10], ['selfie', 11], ['phone', 11]];
       if (e.captain) table.push(['wobble', 16]);
       if (e.traits?.beltGun) table.push(['gun', 12]); // quem tem pistola no cinto equilibra a pistola
       if (e.traits?.hookTop) table.push(['ball', 14]); // o marujo do gancho equilibra uma bola nele
@@ -1802,7 +1933,7 @@ export class Stage3D {
       if (kind === 'gun') this.gunBy = e.id;
       if (kind === 'spy') this.spyBy = e.id;
       if (kind === 'drink') this.drinkBy = e.id;
-      const dur: Record<string, number> = { look: 2.8, scratch: 2.2, spy: 3.4, drink: 4.8, wave: 2.8, watch: 3, stretch: 3, hat: 2.4, polish: 3, wobble: 3.4, fish: 7, wrist: 3, tap: 4.2, gun: 4.8, ball: 5.4, fence: 5.6 };
+      const dur: Record<string, number> = { look: 2.8, scratch: 2.2, spy: 3.4, drink: 4.8, wave: 2.8, watch: 3, stretch: 3, hat: 2.4, polish: 3, wobble: 3.4, fish: 7, wrist: 3, tap: 4.2, gun: 4.8, ball: 5.4, fence: 5.6, coco: 5.2, chair: 9, selfie: 4.6, phone: 5.2 };
       e.idle = { kind, t0: t, dur: dur[kind], water };
     }
     const id = e.idle;
@@ -1817,6 +1948,45 @@ export class Stage3D {
     e.props.rod.visible = e.props.gear.visible = id.kind === 'fish';
     e.props.pistol.visible = id.kind === 'gun';
     if (e.traits?.beltGun) e.traits.beltGun.visible = id.kind !== 'gun'; // a pistola do cinto está na mão
+    e.props.coco.visible = id.kind === 'coco';
+    e.props.selfiePhone.visible = id.kind === 'selfie';
+    e.props.callPhone.visible = id.kind === 'phone';
+    e.props.chair.visible = e.props.book.visible = id.kind === 'chair';
+    if (e.traits?.tool) e.traits.tool.visible = !(id.kind === 'selfie' || id.kind === 'chair'); // guarda o sabre ou o gancho para usar a mão
+    if (id.kind === 'coco') {
+      const sip = u > 0.2 && u < 0.85 ? 0.5 + 0.5 * Math.sin(u * 28) : 0; // goles no canudo
+      e.armL!.rotation.x = (-1.85 - 0.15 * sip) * kk;
+      e.armL!.rotation.z = -0.3 * kk; // traz o coco até a boca
+      e.group.rotation.x = -0.1 * sip * kk;
+      return;
+    }
+    if (id.kind === 'selfie') {
+      e.armR!.rotation.x = -0.25 + (-2.15 + 0.25) * kk; // estende o celular à frente, um pouco acima do rosto
+      e.armR!.rotation.z = 0.28 * kk;
+      e.armL!.rotation.x = -2.5 * kk; // a outra mão acena para a foto
+      e.armL!.rotation.z = (-0.55 + Math.sin(t * 7) * 0.08) * kk;
+      e.group.rotation.z = 0.09 * kk; // inclina a cabeça para a pose
+      e.props.flash.visible = (u > 0.52 && u < 0.56) || (u > 0.74 && u < 0.78);
+      return;
+    }
+    if (id.kind === 'phone') {
+      e.armL!.rotation.x = -2.35 * kk; // celular na orelha
+      e.armL!.rotation.z = 0.36 * kk;
+      e.armR!.rotation.x = -0.25 + Math.sin(t * 5) * 0.35 * kk; // a outra mão gesticula na conversa
+      e.group.rotation.y += Math.sin(u * Math.PI * 3) * 0.25 * kk;
+      e.group.rotation.x = Math.sin(t * 8) * 0.02 * kk;
+      return;
+    }
+    if (id.kind === 'chair') {
+      e.armL!.rotation.x = -1.05 * kk; // sentado na espreguiçadeira, segurando o livro
+      e.armL!.rotation.z = 0.22 * kk;
+      e.armR!.rotation.x = -0.25 + (-1.05 + 0.25) * kk;
+      e.armR!.rotation.z = -0.22 * kk;
+      e.group.rotation.x = -0.06 * kk;
+      const turn = (t - id.t0) % 3; // vira a página de vez em quando
+      e.props.pagePivot.rotation.y = turn > 2.5 ? -Math.PI * ((turn - 2.5) / 0.5) : 0;
+      return;
+    }
     if (id.kind === 'gun') {
       // tira a pistola do cinto e a equilibra na palma da mão, balançando; depois joga para o alto, gira e pega
       const P = e.props.pistol;
@@ -2136,6 +2306,7 @@ export class Stage3D {
       this.shakeOff.set((Math.random() - 0.5) * k, (Math.random() - 0.5) * k, (Math.random() - 0.5) * k);
     } else this.shakeOff.set(0, 0, 0);
     this.cam.position.add(this.shakeOff);
+    this.tickHomeNereus();
     const now = performance.now();
     for (const o of this.spinners) {
       if (o.userData.spin) o.rotation.y += dt * o.userData.spin;
