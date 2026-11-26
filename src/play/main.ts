@@ -2,7 +2,7 @@
  * Tela do jogo: tabuleiro 3D em tela cheia com cartões de vidro por cima,
  * tela inicial com 3 modos (contra BOT, neste aparelho, online) e janelas de regras e de fim de jogo.
  */
-import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
+import { ArrowRight, BookOpen, Bot, Crown, X, Footprints, Hand, Sailboat, Waves, Pointer, RefreshCw, Minimize, Maximize, CircleHelp, Crosshair, Dices, Gem, Info, Menu, Minus, Plus, RotateCcw, RotateCw, ScrollText, Users, Volume2, VolumeX, Music, Vibrate, VibrateOff, Wifi, createElement } from 'lucide';
 import { hexEquals, hexKey, hexToWorld, type Hex } from '../engine/hex';
 import {
   DEFAULT_SETTINGS,
@@ -60,7 +60,7 @@ const SUMMONS = {
   triton: { name: t('Triton', 'Tritão'), tip: t('Mighty push: throws a neighboring rival up to 2 tiles. In the water, they end up adrift.', 'Empurrão forte: joga um adversário vizinho até 2 casas. Na água, ele fica boiando.') },
   lasso: { name: t('Lasso', 'Laço'), tip: t('Steals the Princess from a rival team that has a pirate up to 3 tiles from one of yours. She must not be on the ship yet.', 'Rouba a Princesa de um time rival que tenha um pirata a até 3 casas de um seu. Ela ainda não pode estar no navio.') },
   siren: { name: t('Siren', 'Sereia'), tip: t('Song: steals all crystals but 2 from a neighboring pirate\'s team (nothing to steal if they have 2 or fewer).', 'Canto: rouba todos os cristais, menos 2, do time de um pirata vizinho (nada a roubar se tiver 2 ou menos).') },
-  colossus: { name: t('Coral Colossus', 'Colosso de coral'), tip: t('Instant dome: places a dome on any free tile except the Castle. Nobody can step on it and the waves cannot wash it away; a quake or the Leviathan can still break it.', 'Cúpula relâmpago: coloca uma cúpula em qualquer casa livre que não seja o Castelo. Ninguém pode pisar nela e as ondas não a levam; o terremoto ou o Leviatã ainda podem quebrá-la.') },
+  colossus: { name: t('Coral Colossus', 'Colosso de coral'), tip: t('Instant dome: places a dome on any free tile except the Temple. Nobody can step on it and the waves cannot wash it away; a quake or the Leviathan can still break it.', 'Cúpula relâmpago: coloca uma cúpula em qualquer casa livre que não seja o Templo. Ninguém pode pisar nela e as ondas não a levam; o terremoto ou o Leviatã ainda podem quebrá-la.') },
 } as const;
 type SummonKind = keyof typeof SUMMONS;
 type Mode = 'move' | 'push' | 'swim' | `summon:${SummonKind}`;
@@ -89,7 +89,7 @@ let timer: ReturnType<typeof setTimeout> | null = null;
 let legal: Action[] = [];
 let lastDie: string | null = null;
 let inGame = false;
-const logLines: string[] = [];
+const logLines: { text: string; round: number; at: number }[] = [];
 const opts = { bots: 1, players: 2, length: 'short' as MatchLength };
 /** O final por fuga vale na partida em curso (ou, na tela inicial, na duração escolhida). */
 const escapeRules = (): boolean => (inGame ? game.settings.ending === 'escape' : opts.length !== 'long');
@@ -120,11 +120,11 @@ let endTimer = 0; // espera curta antes do aviso de fim, enquanto a ilha some
 const LENGTH_PT: Record<MatchLength, string> = { short: t('Short', 'Curta'), medium: t('Medium', 'Média'), long: t('Long', 'Longa') };
 const LENGTH_HINT: Record<MatchLength, string> = {
   short: t('about 9 rounds: the tide shifts fast; the Octopus and Leviathan attack, without Nereus', 'cerca de 9 rodadas: a maré vira rápido; o Polvo e o Leviatã atacam, sem o Nereu'),
-  medium: t('about 11 rounds: the tide shifts, the Castle rises later and Nereus joins in', 'cerca de 11 rodadas: a maré vira, o Castelo surge mais tarde e o Nereu entra'),
-  long: t('about 15 rounds: the original game, with the Princess of the Castle', 'cerca de 15 rodadas: o jogo original, com a Princesa do Castelo'),
+  medium: t('about 11 rounds: the tide shifts, the Temple rises later and Nereus joins in', 'cerca de 11 rodadas: a maré vira, o Templo surge mais tarde e o Nereu entra'),
+  long: t('about 15 rounds: the original game, with the Princess of the Temple', 'cerca de 15 rodadas: o jogo original, com a Princesa do Templo'),
 };
 const say = (t: string) => {
-  logLines.push(t);
+  logLines.push({ text: t, round: game?.round ?? 1, at: Date.now() });
   if (logLines.length > 80) logLines.shift();
 };
 const evText = (e: GameEvent): string | null => {
@@ -133,13 +133,13 @@ const evText = (e: GameEvent): string | null => {
     case 'crystal': return t(`${P('owner')} gained 1 crystal${e.surge ? ' (Surge Tide)' : ''}.`, `${P('owner')} ganhou 1 cristal${e.surge ? ' (Maré viva)' : ''}.`);
     // tesouro (cristal, tridente, Maré calma): quem conta é o próprio evento dele, logo abaixo; assim a mesma pegada não vira duas linhas
     case 'unearth': return e.tile === 'crystal' || e.tile === 'trident' || e.tile === 'calm' ? '' : t(`${P('owner')} dug up: ${TILE_PT[e.tile as AtlantisTile]}.`, `${P('owner')} descobriu: ${TILE_PT[e.tile as AtlantisTile]}.`);
-    case 'castleCrystal': return t(`${P('owner')} rescued the Princess from the Castle!`, `${P('owner')} resgatou a Princesa do Castelo!`);
+    case 'castleCrystal': return t(`${P('owner')} rescued the Princess from the Temple!`, `${P('owner')} resgatou a Princesa do Templo!`);
     case 'princessSafe': return t(`${P('owner')} brought the Princess safely aboard (+${e.value} points)!`, `${P('owner')} levou a Princesa a salvo para o navio (+${e.value} pontos)!`);
     case 'launch': return t(`${bname(e.builderId as string)} got into a boat.`, `${bname(e.builderId as string)} entrou num bote.`);
     case 'aboard': return t(`${bname(e.builderId as string)} boarded the ship!`, `${bname(e.builderId as string)} subiu no navio!`);
     case 'escapeStarted': return t(`${P('by')} got a pirate on the ship! The island sinks when a whole team is aboard.`, `${P('by')} pôs um pirata no navio! A ilha afunda quando um time inteiro estiver a bordo.`);
     case 'fleeTimer': return t(`The Princess was rescued! The island will sink in ${e.rounds} rounds, or sooner if a whole team boards.`, `A Princesa foi resgatada! A ilha afunda em ${e.rounds} rodadas, ou antes se um time inteiro embarcar.`);
-    case 'islandVanishes': return (e.left as string[]).length ? t(`The island vanished into the sea! ${(e.left as string[]).map((id) => bname(id)).join(', ')} left adrift.`, `A ilha sumiu no mar! ${(e.left as string[]).map((id) => bname(id)).join(', ')} ficou boiando.`) : t('The island vanished into the sea! Everyone escaped.', 'A ilha sumiu no mar! Todos escaparam.');
+    case 'islandVanishes': return (e.left as string[]).length ? t(`The island vanished into the sea! ${(e.left as string[]).map((id) => bname(id)).join(', ')} left adrift.`, `A ilha sumiu no mar! ${(e.left as string[]).map((id) => bname(id)).join(', ')} ${(e.left as string[]).length > 1 ? 'ficaram' : 'ficou'} boiando.`) : t('The island vanished into the sea! Everyone escaped.', 'A ilha sumiu no mar! Todos escaparam.');
     case 'boatCapsized': return t(`The Octopus flipped ${P('owner')}'s boat: the pirate is adrift.`, `O Polvo virou o bote de ${P('owner')}: o pirata está boiando.`);
     case 'princessLost': return t(`Nereus took the Princess of ${P('owner')} back to the bottom of the sea!`, `Nereu levou a Princesa de ${P('owner')} de volta ao fundo do mar!`);
     case 'tridentTaken': return t(`${P('owner')} picked up a trident.`, `${P('owner')} pegou um tridente.`);
@@ -160,11 +160,11 @@ const evText = (e: GameEvent): string | null => {
     case 'leviathanGrab': return t('The Leviathan lassoed a pirate with its tail!', 'O Leviatã laçou um pirata com a cauda!');
     case 'crumble': return t('A tile of Atlantis crumbled: now it is open sea.', 'Uma casa de Atlântida desmoronou: virou mar aberto.');
     case 'leviathanSmash': return t('The Leviathan smashed the top block of a tile.', 'O Leviatã derrubou o bloco de cima de uma casa.');
-    case 'castleRises': return t('The Castle of Atlantis rose from the sea, with two towers and stairs! The Princess waits at the top.', 'O Castelo de Atlântida emergiu do mar, com duas torres e escadas! A Princesa espera no topo.');
+    case 'castleRises': return t('The Temple of Atlantis rose from the sea, with two towers and stairs! The Princess waits at the top.', 'O Templo de Atlântida emergiu do mar, com duas torres e escadas! A Princesa espera no topo.');
     case 'nereusPull': return t(`Nereus rose from the sea and dragged ${bname(e.builderId as string)} into the water!`, `Nereu surgiu do mar e arrastou ${bname(e.builderId as string)} para a água!`);
     case 'nereusSleeps': return t('Nereus rose from the sea, but found nobody within reach.', 'Nereu surgiu do mar, mas não achou ninguém ao alcance.');
     case 'guardianPush': return t('The Sentinel pushed a pirate.', 'A Sentinela empurrou um pirata.');
-    case 'sentinelWake': return e.falls ? t(`Sentinel water jet: ${bname(e.targetId as string)} ended up in the sea!`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi parar no mar!`) : e.pushTo ? t(`Sentinel water jet: ${bname(e.targetId as string)} was pushed away from the Castle.`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi empurrado para longe do Castelo.`) : t(`The Sentinel fired at ${bname(e.targetId as string)}, but something held the push back.`, `A Sentinela atirou em ${bname(e.targetId as string)}, mas algo segurou o empurrão.`);
+    case 'sentinelWake': return e.falls ? t(`Sentinel water jet: ${bname(e.targetId as string)} ended up in the sea!`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi parar no mar!`) : e.pushTo ? t(`Sentinel water jet: ${bname(e.targetId as string)} was pushed away from the Temple.`, `Jato de água da Sentinela: ${bname(e.targetId as string)} foi empurrado para longe do Templo.`) : t(`The Sentinel fired at ${bname(e.targetId as string)}, but something held the push back.`, `A Sentinela atirou em ${bname(e.targetId as string)}, mas algo segurou o empurrão.`);
     case 'sentinelSleeps': return t('The Sentinel keeps sleeping: no pirate within 2 tiles.', 'A Sentinela continua dormindo: não há pirata a até 2 casas.');
     case 'landed': return t(`${bname(e.builderId as string)} reached land.`, `${bname(e.builderId as string)} chegou à terra.`);
     case 'summon':
@@ -343,7 +343,7 @@ const takeState = (events: GameEvent[]) => {
     if (e.type === 'floodSkipped') toast(t('Calm Tide: the quake was skipped this round.', 'Maré calma: o terremoto foi pulado nesta rodada.'));
     if (mine && e.type === 'castleCrystal') toast(t('You rescued the Princess! Get to the ship: boarding with her gives a big bonus (+4).', 'Você resgatou a Princesa! Chegue ao navio: embarcar com ela dá um bônus grande (+4).'));
     if (mine && e.type === 'princessSafe') toast(t('Princess safe! +4 points.', 'Princesa a salvo! +4 pontos.'));
-    if (e.type === 'castleRises') toast(t('The Castle rose! Climb the stairs and towers to rescue the Princess at the top.', 'O Castelo emergiu! Suba pelas escadas e torres para resgatar a Princesa no topo.'));
+    if (e.type === 'castleRises') toast(t('The Temple rose! Climb the stairs and towers to rescue the Princess at the top.', 'O Templo emergiu! Suba pelas escadas e torres para resgatar a Princesa no topo.'));
     if (e.type === 'escapeStarted') toast(e.by === viewer() ? t('A pirate of yours is on the ship! The island sinks when your whole team is aboard.', 'Um pirata seu chegou ao navio! A ilha afunda quando o time inteiro estiver a bordo.') : t('Someone reached a ship! The island sinks when a whole team is aboard.', 'Alguém chegou a um navio! A ilha afunda quando um time inteiro estiver a bordo.'));
     if (e.type === 'fleeTimer') toast(t(`The Princess was rescued! You have ${e.rounds} rounds to get your team on the ship.`, `A Princesa foi resgatada! Vocês têm ${e.rounds} rodadas para levar o time ao navio.`));
     if (e.type === 'islandVanishes') toast(t('The island vanished into the sea!', 'A ilha sumiu no mar!'));
@@ -717,7 +717,7 @@ bindHelp('helpPhase', t('Rules for this phase', 'Regras desta fase'), () => {
     : t('<b>Goal:</b> collect treasure, rescue the Princess (+4) and take her to your ship: after she is rescued, the first team with all its pirates aboard ends the match. The most points wins.', '<b>Objetivo:</b> junte tesouro, resgate a Princesa (+4) e leve-a ao seu navio: depois que ela for resgatada, o primeiro time com todos os piratas a bordo encerra a partida. Vence quem tiver mais pontos.');
   const byPhase: Record<string, string[]> = {
     setup: [t('<b>Setup:</b> tap a free tile on the edge to place your pirate.', '<b>Preparação:</b> toque numa casa livre da borda para colocar seu pirata.')],
-    action: [t('<b>1 Action:</b> you have 3 actions. Tap your pirate, then a colored tile to walk (stepping on a closed tile away from the Castle reveals the treasure under it) or push. Summon: 1 per turn, no action spent.', '<b>1 Ação:</b> você tem 3 ações. Toque no seu pirata e depois numa casa colorida para andar (pisar numa casa fechada longe do Castelo revela o tesouro que há embaixo) ou empurrar. Convocação: 1 por turno, sem gastar ação.')],
+    action: [t('<b>1 Action:</b> you have 3 actions. Tap your pirate, then a colored tile to walk (stepping on a closed tile away from the Temple reveals the treasure under it) or push. Summon: 1 per turn, no action spent.', '<b>1 Ação:</b> você tem 3 ações. Toque no seu pirata e depois numa casa colorida para andar (pisar numa casa fechada longe do Templo revela o tesouro que há embaixo) ou empurrar. Convocação: 1 por turno, sem gastar ação.')],
     flood: [t(`<b>2 Tide (quake):</b> the table randomly picks the tiles that crumble and reveal Atlantis (nobody chooses), ${game.settings.floodsPerRound} per round. Anyone on them falls in the water and floats (a trident saves the tile under your pirate by itself). To take the treasure of a revealed tile, walk a pirate onto it.`, `<b>2 Maré (terremoto):</b> a mesa sorteia as casas que se desfazem e revelam Atlântida (ninguém escolhe), ${game.settings.floodsPerRound} por rodada. Quem estava nelas cai na água e fica boiando (um tridente salva sozinho a casa do seu pirata). Para pegar o tesouro de uma casa revelada, leve um pirata até ela.`)],
     creatures: [t('<b>3 Creatures:</b> the die picks a creature. Move it along the yellow tiles (the Octopus and Leviathan swim only in the sea and the holes where Atlantis crumbled); it lassos anyone up to 2 tiles away and throws them into the water.', '<b>3 Criaturas:</b> o dado sorteia uma criatura. Mova-a pelas casas amarelas (o Polvo e o Leviatã nadam só pelo mar e pelos buracos onde Atlântida desmoronou); ela laça quem estiver a até 2 casas e joga na água.')],
     ended: [t('The match is over.', 'A partida terminou.')],
@@ -844,7 +844,12 @@ const renderHud = () => {
     g2.title = t('Tridents', 'Tridentes');
     g2.className = 'tri';
     g2.append(icon(Trident, 14), String(game.tridents[p]));
-    res.append(g1, g2);
+    // nome do time em cima dos números (só no computador e no tablet); com 4 times, a versão curta para caber
+    const nm = document.createElement('b');
+    nm.className = 'tname' + (game.phase !== 'ended' && a === p ? ' turn' : '');
+    nm.textContent = game.playerCount > 3 ? teamName(p).replace(/^(Cap. |Capt. |Robô )| Robot$/g, '') : teamName(p);
+    nm.title = pname(p);
+    res.append(nm, g1, g2);
     const pts = document.createElement('span');
     const pnow = pointsNow(game, p);
     const half = game.settings.ending === 'escape' && !game.builders.some((b) => b.owner === p && b.status === 'aboard') && basePoints(game, p) > 0;
@@ -991,7 +996,7 @@ const renderBar = () => {
 };
 
 const refresh = () => {
-  // reta final: quem fugiu primeiro, Atlântida quase toda emersa (ou o Castelo tomado) troca a cantiga pela música de clímax
+  // reta final: quem fugiu primeiro, Atlântida quase toda emersa (ou o Templo tomado) troca a cantiga pela música de clímax
   const danger = inGame && game.phase !== 'ended' && !game.vanished && leavingTime(game);
   setClimax(danger);
   document.body.classList.toggle('alarm', danger);
@@ -1010,8 +1015,26 @@ const refresh = () => {
 
 const renderLog = () => {
   const lp = $('logpanel');
-  lp.replaceChildren(...logLines.slice(-40).map((l) => Object.assign(document.createElement('div'), { textContent: l })));
-  lp.scrollTop = lp.scrollHeight;
+  const el = (tag: string, className: string, textContent = '') => Object.assign(document.createElement(tag), { className, textContent });
+  const head = el('header', 'loghead');
+  const title = el('div', 'logtitle');
+  title.append(el('b', '', t('What happened', 'O que aconteceu')), el('small', '', t('Each line shows the match time. Newest at the bottom; tap outside to close.', 'Cada linha mostra o tempo de partida. As mais novas ficam embaixo; toque fora para fechar.')));
+  const close = btn('', () => (lp.hidden = true), { icon: X, title: t('Close', 'Fechar') });
+  close.setAttribute('aria-label', t('Close', 'Fechar'));
+  head.append(title, close);
+  const list = el('div', 'loglist');
+  let round = 0;
+  for (const l of logLines.slice(-60)) {
+    if (l.round !== round) {
+      round = l.round;
+      list.append(el('h4', '', t(`Round ${round}`, `Rodada ${round}`)));
+    }
+    const line = el('div', 'logline');
+    line.append(el('time', '', fmtTime(Math.max(0, l.at - matchStartAt))), el('span', '', l.text));
+    list.append(line);
+  }
+  lp.replaceChildren(head, list);
+  list.scrollTop = list.scrollHeight;
 };
 
 /* ---------- palco 3D ---------- */
@@ -1085,13 +1108,23 @@ const syncFs = () => {
   fsBtn.replaceChildren(icon(on ? Minimize : Maximize, 17));
   fsBtn.title = on ? t('Exit full screen', 'Sair da tela cheia') : t('Full screen', 'Tela cheia');
   fsBtn.setAttribute('aria-label', fsBtn.title);
+  fsBtn.classList.toggle('on', on);
+  fsBtn.setAttribute('aria-pressed', String(on));
 };
 document.addEventListener('fullscreenchange', syncFs);
 document.addEventListener('webkitfullscreenchange', syncFs);
 // som e música: o mesmo controle aparece na barra do jogo e na tela inicial, e os botões ficam sempre em sintonia
 const soundBtns: HTMLButtonElement[] = [];
 const musicBtns: HTMLButtonElement[] = [];
+/** Padrão de liga e desliga: ligado fica pressionado; desligado fica solto (e o ícone aparece cortado). */
+const setPressed = (b: HTMLButtonElement, on: boolean) => {
+  b.classList.toggle('on', on);
+  b.setAttribute('aria-pressed', String(on));
+};
+/** a música só está de fato ligada com o som geral ligado */
+const musicPlaying = () => isMusicOn() && !isMuted();
 const paintSound = (b: HTMLButtonElement) => {
+  setPressed(b, !isMuted());
   b.replaceChildren(icon(isMuted() ? VolumeX : Volume2, 17));
   b.title = isMuted() ? t('Turn sound on', 'Ligar o som') : t('Turn sound off', 'Desligar o som');
   b.setAttribute('aria-label', b.title);
@@ -1100,7 +1133,7 @@ const paintSound = (b: HTMLButtonElement) => {
 const paintMusic = (b: HTMLButtonElement) => {
   b.style.position = 'relative';
   b.replaceChildren(icon(Music, 17));
-  if (!isMusicOn()) {
+  if (!musicPlaying()) {
     const slash = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     slash.setAttribute('viewBox', '0 0 24 24');
     slash.setAttribute('width', '22');
@@ -1109,8 +1142,8 @@ const paintMusic = (b: HTMLButtonElement) => {
     slash.innerHTML = '<line x1="4" y1="4" x2="20" y2="20" stroke="#10243a" stroke-width="4.6" stroke-linecap="round"/><line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>';
     b.appendChild(slash);
   }
-  b.classList.toggle('on', isMusicOn());
-  b.title = isMusicOn() ? t('Turn music off', 'Desligar a música') : t('Turn music on', 'Ligar a música');
+  setPressed(b, musicPlaying());
+  b.title = musicPlaying() ? t('Turn music off', 'Desligar a música') : t('Turn music on', 'Ligar a música');
   b.setAttribute('aria-label', b.title);
 };
 const syncSound = () => {
@@ -1124,10 +1157,16 @@ const syncMusic = () => {
 const toggleSound = () => {
   setMuted(!isMuted());
   syncSound();
+  syncMusic(); // com o som geral desligado, o botão de música também aparece desligado
   if (!isMuted()) play('turn');
 };
 const toggleMusic = () => {
-  setMusicOn(!isMusicOn());
+  if (isMuted()) {
+    // pedir música com o som geral desligado liga os dois
+    setMusicOn(true);
+    setMuted(false);
+    syncSound();
+  } else setMusicOn(!isMusicOn());
   syncMusic();
 };
 const soundBtn = btn('', toggleSound, { icon: isMuted() ? VolumeX : Volume2, title: t('Sound', 'Som') });
@@ -1151,7 +1190,7 @@ const vibBtn = btn('', () => {
 }, { icon: Vibrate, title: '' });
 const syncVibe = () => {
   vibBtn.replaceChildren(icon(isVibeOn() ? Vibrate : VibrateOff, 17));
-  vibBtn.classList.toggle('on', isVibeOn());
+  setPressed(vibBtn, isVibeOn());
   vibBtn.title = isVibeOn() ? t('Turn vibration off', 'Desligar a vibração') : t('Turn vibration on', 'Ligar a vibração');
   vibBtn.setAttribute('aria-label', vibBtn.title);
 };
@@ -1189,15 +1228,18 @@ const setMenuOpen = (open: boolean) => {
 const desktopMq = matchMedia('(min-width: 761px)');
 const menuDrop = $('menudrop');
 const setDropOpen = (open: boolean) => {
+  restartItem.hidden = session.kind === 'net'; // numa sala online não dá para reiniciar sozinho
   menuDrop.hidden = !open;
   menuBtn.classList.toggle('on', open);
   menuBtn.setAttribute('aria-expanded', String(open));
 };
+const restartItem = btn(t('Restart match', 'Reiniciar partida'), () => (setDropOpen(false), askRestart()), { icon: RefreshCw });
 menuDrop.append(
   btn(t('How to play', 'Como jogar'), () => (setDropOpen(false), showRules()), { icon: BookOpen }),
   btn(t('How to move the board', 'Como mexer no tabuleiro'), () => (setDropOpen(false), showGestures()), { icon: Pointer }),
   btn(t('What happened', 'O que aconteceu'), () => (setDropOpen(false), toggleLog()), { icon: ScrollText }),
   btn(t('About', 'Sobre'), () => (setDropOpen(false), showAbout()), { icon: Info }),
+  restartItem,
   btn(t('Back to start', 'Voltar ao início'), () => (setDropOpen(false), leaveGame()), { icon: Menu }),
 );
 menuBtn.onclick = () => (desktopMq.matches ? setDropOpen(!!menuDrop.hidden) : setMenuOpen(!!tools.hidden));
@@ -1206,6 +1248,7 @@ document.addEventListener('pointerdown', (ev) => {
   // só no celular o toque fora fecha a lista; no computador e no tablet os ícones ficam sempre à vista na barra do topo
   if (!desktopMq.matches && !tools.hidden && !tools.contains(el) && !menuBtn.contains(el)) setMenuOpen(false);
   if (!menuDrop.hidden && !menuDrop.contains(el) && !menuBtn.contains(el)) setDropOpen(false);
+  if (!$('logpanel').hidden && !$('logpanel').contains(el)) $('logpanel').hidden = true;
 });
 tools.append(
   mobileOnly(btn('', () => (setMenuOpen(false), showPause()), { icon: Menu, title: t('Game menu', 'Menu do jogo') })),
@@ -1465,9 +1508,9 @@ ${escape
 <li><b>2 Tide (quake):</b> the table randomly picks ${c.floodsPerRound} tiles per round: they crumble and turn into Atlantis. Nobody chooses. A trident saves the tile under your pirate by itself.</li>
 <li><b>3 Creatures:</b> roll the die and move the creature it picks (below).</li>
 </ul>
-<h4>Castle and Princess</h4>
+<h4>Temple and Princess</h4>
 <ul>
-<li><b>Castle:</b> after ${c.templeWake} tiles have sunk (about ${rounds} ${rounds <= 1 ? 'round' : 'rounds'}) it rises from the sea by itself, with two towers (2 floors) and stairs (1 floor). Nobody builds. At the top (3rd floor) waits the one and only Princess. Rescue her and board your ship with her for +4 points. The Lasso steals her from a rival${c.nereus === false ? '' : ', and Nereus can take her back to the sea'}.</li>
+<li><b>Temple:</b> after ${c.templeWake} tiles have sunk (about ${rounds} ${rounds <= 1 ? 'round' : 'rounds'}) it rises from the sea by itself, with two towers (2 floors) and stairs (1 floor). Nobody builds. At the top (3rd floor) waits the one and only Princess. Rescue her and board your ship with her for +4 points. The Lasso steals her from a rival${c.nereus === false ? '' : ', and Nereus can take her back to the sea'}.</li>
 <li><b>High ground:</b> on a tower (2nd floor or higher) you cannot be pushed (not even by Triton), and the creatures, Nereus and the waves cannot reach you. A Shield also keeps the sea and the creatures away.</li>
 ${escape
   ? `<li><b>Tide shift:</b> from round 2, each round a wave, warned a round before by foam, sweeps the two outer rows on one side of the island: those tiles turn into Atlantis at once and anyone on the ground or 1st floor falls into the sea. Towers, domes and Shields hold.</li>`
@@ -1503,9 +1546,9 @@ ${escape
 <li><b>2 Maré (terremoto):</b> a mesa sorteia ${c.floodsPerRound} casas por rodada: elas se desfazem e viram Atlântida. Ninguém escolhe. Um tridente salva sozinho a casa do seu pirata.</li>
 <li><b>3 Criaturas:</b> role o dado e mova a criatura sorteada (abaixo).</li>
 </ul>
-<h4>Castelo e Princesa</h4>
+<h4>Templo e Princesa</h4>
 <ul>
-<li><b>Castelo:</b> depois de ${c.templeWake} casas afundadas (cerca de ${rounds} ${rounds <= 1 ? 'rodada' : 'rodadas'}) ele emerge sozinho do mar, com duas torres (2 andares) e escadas (1 andar). Ninguém constrói. No topo (3º andar) espera a única Princesa. Resgate-a e suba no seu navio com ela para ganhar +4 pontos. O Laço rouba a Princesa de um rival${c.nereus === false ? '' : ', e o Nereu pode levá-la de volta ao mar'}.</li>
+<li><b>Templo:</b> depois de ${c.templeWake} casas afundadas (cerca de ${rounds} ${rounds <= 1 ? 'rodada' : 'rodadas'}) ele emerge sozinho do mar, com duas torres (2 andares) e escadas (1 andar). Ninguém constrói. No topo (3º andar) espera a única Princesa. Resgate-a e suba no seu navio com ela para ganhar +4 pontos. O Laço rouba a Princesa de um rival${c.nereus === false ? '' : ', e o Nereu pode levá-la de volta ao mar'}.</li>
 <li><b>Terreno alto:</b> numa torre (2º andar ou mais) você não pode ser empurrado (nem pelo Tritão), e as criaturas, o Nereu e as ondas não te alcançam. O Escudo também afasta o mar e as criaturas.</li>
 ${escape
   ? `<li><b>Virada da maré:</b> a partir da rodada 2, a cada rodada uma onda, avisada uma rodada antes com espuma, varre as duas fileiras de um lado da ilha: essas casas viram Atlântida na hora e quem está no chão ou no 1º andar cai no mar. Torres, cúpulas e Escudos resistem.</li>`
@@ -1535,7 +1578,7 @@ const showRules = () => {
   modal(c);
 };
 
-/** Passo a passo numerado: objetivo, a vez, as etapas, tesouros, convocações, criaturas, Castelo e final (só texto). */
+/** Passo a passo numerado: objetivo, a vez, as etapas, tesouros, convocações, criaturas, Templo e final (só texto). */
 const tutorialSteps = (): { title: string; body: string }[] => {
   const c = cfg();
   const esc = c.ending === 'escape';
@@ -1545,8 +1588,8 @@ const tutorialSteps = (): { title: string; body: string }[] => {
     {
       title: t('The goal', 'O objetivo'),
       body: t(
-        `<p>Your team of 2 pirates explores a sinking island. <b>Collect treasure</b> (crystals, tridents), <b>rescue the Princess</b> from the Castle (+4 points) and <b>get your team on your ship</b>.</p><p>The team with the <b>most points</b> wins. Anyone left floating when the island vanishes counts <b>half</b>.</p>`,
-        `<p>Seu time de 2 piratas explora uma ilha que afunda. <b>Junte tesouros</b> (cristais, tridentes), <b>resgate a Princesa</b> do Castelo (+4 pontos) e <b>leve o time ao seu navio</b>.</p><p>Vence o time com <b>mais pontos</b>. Quem ficar boiando quando a ilha sumir conta <b>metade</b>.</p>`,
+        `<p>Your team of 2 pirates explores a sinking island. <b>Collect treasure</b> (crystals, tridents), <b>rescue the Princess</b> from the Temple (+4 points) and <b>get your team on your ship</b>.</p><p>The team with the <b>most points</b> wins. Anyone left floating when the island vanishes counts <b>half</b>.</p>`,
+        `<p>Seu time de 2 piratas explora uma ilha que afunda. <b>Junte tesouros</b> (cristais, tridentes), <b>resgate a Princesa</b> do Templo (+4 pontos) e <b>leve o time ao seu navio</b>.</p><p>Vence o time com <b>mais pontos</b>. Quem ficar boiando quando a ilha sumir conta <b>metade</b>.</p>`,
       ),
     },
     {
@@ -1585,10 +1628,10 @@ const tutorialSteps = (): { title: string; body: string }[] => {
       ),
     },
     {
-      title: t('The Castle and the Princess', 'O Castelo e a Princesa'),
+      title: t('The Temple and the Princess', 'O Templo e a Princesa'),
       body: t(
-        `<p>After ${c.templeWake} tiles have sunk, the <b>Castle</b> rises in the middle, with towers and stairs. At the top (3rd floor) waits the <b>Princess</b>.</p><p>The pirate who reaches the top rescues her and <b>carries her</b>. She is only safe, for <b>+4 points</b>, when <b>that same pirate boards the ship</b>. A rival's Lasso can steal her${nereus ? ' and Nereus can take her back to the sea' : ''}.</p>`,
-        `<p>Depois que ${c.templeWake} casas afundam, o <b>Castelo</b> emerge no meio, com torres e escadas. No topo (3º andar) espera a <b>Princesa</b>.</p><p>O pirata que chega ao topo a resgata e <b>a carrega</b>. Ela só fica a salvo, valendo <b>+4 pontos</b>, quando <b>esse mesmo pirata sobe no navio</b>. O Laço de um rival pode roubá-la${nereus ? ' e o Nereu pode levá-la de volta ao mar' : ''}.</p>`,
+        `<p>After ${c.templeWake} tiles have sunk, the <b>Temple</b> rises in the middle, with towers and stairs. At the top (3rd floor) waits the <b>Princess</b>.</p><p>The pirate who reaches the top rescues her and <b>carries her</b>. She is only safe, for <b>+4 points</b>, when <b>that same pirate boards the ship</b>. A rival's Lasso can steal her${nereus ? ' and Nereus can take her back to the sea' : ''}.</p>`,
+        `<p>Depois que ${c.templeWake} casas afundam, o <b>Templo</b> emerge no meio, com torres e escadas. No topo (3º andar) espera a <b>Princesa</b>.</p><p>O pirata que chega ao topo a resgata e <b>a carrega</b>. Ela só fica a salvo, valendo <b>+4 pontos</b>, quando <b>esse mesmo pirata sobe no navio</b>. O Laço de um rival pode roubá-la${nereus ? ' e o Nereu pode levá-la de volta ao mar' : ''}.</p>`,
       ),
     },
     {
@@ -1795,17 +1838,38 @@ const showGestures = () => {
   modal(c);
 };
 
+/** Reiniciar a partida (mesmo modo, jogadores e duração), com uma confirmação para não perder o jogo num toque sem querer. */
+const askRestart = () => {
+  const kind = session.kind;
+  if (kind === 'net') return;
+  const c = document.createElement('div');
+  c.className = 'card';
+  c.innerHTML = `<h3>${t('Restart match?', 'Reiniciar a partida?')}</h3><p>${t('The current match will be lost. A new one starts with the same players and length.', 'A partida atual será perdida. Começa uma nova com os mesmos jogadores e a mesma duração.')}</p>`;
+  c.appendChild(
+    row(
+      btn(t('Cancel', 'Cancelar'), closeModal),
+      btn(t('Restart', 'Reiniciar'), () => {
+        closeModal();
+        clearTimeout(endTimer);
+        leaveGame();
+        startLocal(kind);
+      }, { primary: true, icon: RefreshCw }),
+    ),
+  );
+  modal(c);
+};
 const showPause = () => {
   const c = document.createElement('div');
   c.className = 'card';
   c.innerHTML = '<h3>Menu</h3>';
   const col = document.createElement('div');
-  col.style.cssText = 'display:grid;gap:8px';
+  col.style.cssText = 'display:grid;gap:16px';
   col.append(
     btn(t('Resume', 'Continuar'), closeModal, { primary: true }),
     btn(t('How to play', 'Como jogar'), showRules, { icon: BookOpen }),
     btn(t('What happened', 'O que aconteceu'), () => (closeModal(), toggleLog()), { icon: ScrollText }),
     btn(t('How to move the board', 'Como mexer no tabuleiro'), showGestures, { icon: Pointer }),
+    ...(session.kind === 'net' ? [] : [btn(t('Restart match', 'Reiniciar partida'), askRestart, { icon: RefreshCw })]),
     btn(t('Back to start', 'Voltar ao início'), () => (closeModal(), leaveGame()), { icon: Menu }),
   );
   c.appendChild(col);

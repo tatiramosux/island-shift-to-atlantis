@@ -27,7 +27,7 @@ whole island sinks. Whoever is left on land is adrift on a buoy. The winner has 
 pirate on a ship.
 
 Pick a **Short**, **Medium** or **Long** match on the start screen (about 7, 8–12 and 16 rounds against bots). The Long
-match is the original game, where the end comes from the crystal at the top of the Castle. More details in
+match is the original game, where the end comes from the crystal at the top of the Temple. More details in
 [`docs/modo-fuga.md`](docs/modo-fuga.md) (Portuguese) and the in-game "How to play".
 
 ## Run it

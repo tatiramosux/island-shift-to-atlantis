@@ -6,7 +6,7 @@ originais. As partidas curta, média e longa estão em `modo-fuga.md`.
 
 ## Tabuleiro
 
-- 61 casas hexagonais: o **Castelo** no centro e 60 casas de superfície (areia, grama e pedra).
+- 61 casas hexagonais: o **Templo** no centro e 60 casas de superfície (areia, grama e pedra).
 - Cada casa esconde uma **peça de Atlântida**. Ela aparece quando a casa afunda ou quando um pirata pisa nela.
 - Cada time tem um **navio** ancorado no mar e **2 piratas**: o capitão (sabre) e o marujo (gancho).
 
@@ -34,9 +34,9 @@ Uma **convocação** por turno, paga com cristais: Tritão (2) empurra até 2 ca
 3 casas de distância, **Sereia (3)** rouba todos os cristais do time vizinho menos 2 (quem tem 2 ou menos não pode ser
 roubado) e Colosso de coral (2) põe uma cúpula (ninguém pisa nela e as ondas não a levam; o terremoto ou o Leviatã ainda podem quebrá-la).
 
-## O Castelo e a Princesa
+## O Templo e a Princesa
 
-- Ninguém constrói. Depois de **12 casas** viradas em Atlântida, o Castelo **emerge sozinho**, com 3 andares, duas
+- Ninguém constrói. Depois de **12 casas** viradas em Atlântida, o Templo **emerge sozinho**, com 3 andares, duas
   **torres** (2 andares) e três **escadas** (1 andar) ao lado. As torres e escadas **não somem** com as ondas e os
   terremotos: o caminho até a Princesa fica de pé.
 - Escadas deixam subir até 2 andares de uma vez. O caminho é: chão, escada, torre, topo.
