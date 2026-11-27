@@ -1,0 +1,139 @@
+<!doctype html>
+<!-- Página de divulgação do jogo: é o que a Vercel publica (veja vite.config.ts). O jogo em si fica na itch.io e no Render. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Island Shift to Atlantis · 3D pirate board game</title>
+  <meta name="description" content="The island sinks. Atlantis rises. Escape! A free 3D pirate board game for 2 to 4 players, in your browser.">
+  <meta name="theme-color" content="#050d1e">
+  <link rel="icon" href="/favicon.ico">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Island Shift to Atlantis">
+  <meta property="og:description" content="The island sinks. Atlantis rises. Escape! Play free in your browser.">
+  <meta property="og:url" content="https://island-shift-to-atlantis.vercel.app/">
+  <meta property="og:image" content="https://island-shift-to-atlantis.vercel.app/og-cover.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #050d1e; --panel: #0c1b36; --line: #1f3a66; --text: #e8f4ff; --muted: #a9c0dd; --aqua: #9ff3ff; --gold: #ffd23f; --ink: #14223d; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 Nunito, system-ui, sans-serif; }
+    img { display: block; max-width: 100%; height: auto; }
+    a { color: var(--aqua); }
+    a:focus-visible, video:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    h1, h2 { font-family: 'Cinzel Decorative', Georgia, serif; line-height: 1.1; margin: 0; text-wrap: balance; }
+    h2 { font-size: clamp(28px, 5vw, 40px); text-align: center; margin-bottom: 28px; }
+    h3 { margin: 14px 16px 4px; font-size: 19px; color: var(--gold); }
+    .wrap { width: min(1080px, 100%); margin: 0 auto; padding: 0 20px; }
+    section.wrap { padding-top: 44px; padding-bottom: 44px; }
+
+    .hero { display: grid; grid-template-columns: 1.15fr 0.85fr; align-items: center; gap: 24px; padding-top: 32px; padding-bottom: 32px; }
+    .hero h1 { font-weight: 900; font-size: clamp(44px, 8vw, 88px); text-shadow: 0 4px 0 #0b3b6b, 0 0 24px #1fb6c9aa; }
+    .hero h1 span { display: block; margin-top: 12px; font: 900 clamp(17px, 2.6vw, 28px) Nunito, sans-serif; letter-spacing: 0.3em; color: var(--aqua); text-shadow: none; }
+    .tag { font-size: clamp(20px, 2.6vw, 26px); font-weight: 900; margin: 24px 0 6px; }
+    .lead { color: var(--muted); margin: 0 0 26px; max-width: 34em; }
+    .hero img { width: 100%; border-radius: 24px; border: 1px solid var(--line); box-shadow: 0 18px 60px #1fb6c933; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 52px; padding: 0 28px; border-radius: 999px; font-weight: 900; text-decoration: none; border: 2px solid var(--line); color: var(--text); }
+    .btn.main { background: var(--gold); border-color: var(--gold); color: var(--ink); font-size: 19px; }
+    .btn:hover { filter: brightness(1.12); }
+    .note { font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+
+    .phone { width: min(360px, 100%); margin: 0 auto; display: block; aspect-ratio: 9 / 16; background: #000; border-radius: 20px; border: 1px solid var(--line); }
+    .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; list-style: none; margin: 0 0 36px; padding: 0; }
+    .cards li { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+    .cards img { width: 100%; aspect-ratio: 2 / 1; object-fit: cover; }
+    .cards p { margin: 0 16px 18px; color: var(--muted); }
+    .center { text-align: center; }
+
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .gallery img { width: 100%; border-radius: 16px; border: 1px solid var(--line); }
+    .devices { display: grid; grid-template-columns: 3.2fr 1fr; gap: 16px; align-items: center; margin-bottom: 16px; }
+    .devices img { border-radius: 16px; border: 1px solid var(--line); width: 100%; }
+
+    footer.wrap { border-top: 1px solid var(--line); padding-top: 32px; padding-bottom: 48px; color: var(--muted); font-size: 14px; text-align: center; }
+    footer p { margin: 8px 0; }
+
+    @media (max-width: 760px) {
+      .hero { grid-template-columns: 1fr; text-align: center; }
+      .hero img { width: min(420px, 100%); margin: 0 auto; aspect-ratio: 4 / 5; object-fit: cover; }
+      .actions { justify-content: center; }
+      .actions .btn { width: 100%; }
+      .cards, .gallery { grid-template-columns: 1fr; }
+      .devices { grid-template-columns: 1fr; }
+      .devices img:last-child { width: min(260px, 70%); margin: 0 auto; }
+      section.wrap { padding-top: 32px; padding-bottom: 32px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <header class="wrap hero">
+    <div>
+      <h1>Island Shift <span>TO ATLANTIS</span></h1>
+      <p class="tag">The island sinks. Atlantis rises. Escape!</p>
+      <p class="lead">A free 3D pirate board game for 2 to 4 players. Grab the treasure, save the Princess and sail home before the island disappears.</p>
+      <div class="actions">
+        <a class="btn main" href="https://tati-ramos.itch.io/island-shift-to-atlantis">▶ Play now</a>
+        <a class="btn" href="#trailer">Watch the trailer</a>
+      </div>
+      <p class="note">Plays in your browser, on computer, tablet and phone. No download.</p>
+    </div>
+    <img src="./img/hero.jpg" width="900" height="1250" alt="A pirate ship escaping while Nereus, the giant king of the sea, rises behind it">
+  </header>
+
+  <main>
+    <section class="wrap" id="trailer">
+      <h2>Trailer</h2>
+      <video class="phone" controls playsinline preload="none" poster="./img/poster-trailer.jpg" src="/video/trailer.mp4" aria-label="Trailer"></video>
+    </section>
+
+    <section class="wrap" id="how">
+      <h2>How to play</h2>
+      <ol class="cards">
+        <li><img src="./img/actions.jpg" width="1440" height="720" loading="lazy" alt=""><h3>1. Act</h3><p>Use your 3 actions to walk, climb, row a boat, swim or push a rival.</p></li>
+        <li><img src="./img/treasure.jpg" width="1440" height="720" loading="lazy" alt=""><h3>2. Outrun the tide</h3><p>An earthquake turns tiles into Atlantis and reveals the treasure hidden there.</p></li>
+        <li><img src="./img/creatures.jpg" width="1440" height="720" loading="lazy" alt=""><h3>3. Unleash the creatures</h3><p>Roll the die and move the creature it picks against your rivals.</p></li>
+      </ol>
+      <video class="phone" controls playsinline preload="none" poster="./img/poster-how.jpg" src="/video/how-to-play.mp4" aria-label="How to play video"></video>
+    </section>
+
+    <section class="wrap" id="screens">
+      <h2>Screenshots</h2>
+      <div class="devices">
+        <img src="./img/shot-desktop.jpg" width="1440" height="900" loading="lazy" alt="A match on a computer screen">
+        <img src="./img/shot-mobile.jpg" width="585" height="1266" loading="lazy" alt="A match on a phone">
+      </div>
+      <div class="gallery">
+        <img src="./img/goal.jpg" width="1440" height="720" loading="lazy" alt="Pirates exploring the island">
+        <img src="./img/temple.jpg" width="1440" height="720" loading="lazy" alt="The Temple with the Princess at the top">
+      </div>
+    </section>
+
+    <section class="wrap center">
+      <h2>Can you escape?</h2>
+      <div class="actions" style="justify-content: center">
+        <a class="btn main" href="https://tati-ramos.itch.io/island-shift-to-atlantis">▶ Play now</a>
+        <a class="btn" href="https://island-shift-to-atlantis.onrender.com">Online rooms with friends</a>
+      </div>
+      <p class="note">The online rooms may take about a minute to wake up on the first visit.</p>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    <p>Made for Game Off 2026 (theme: SHIFT). <a href="https://github.com/tatiramosux/island-shift-to-atlantis">Source code</a></p>
+    <p>Idea, direction, game design and playtesting: Tatiane Ramos · <a href="https://tatiramos.com.br">Website</a> · <a href="https://www.linkedin.com/in/tatiane-ramos-product-designer/">LinkedIn</a></p>
+    <p>AI usage: made with generative AI. Claude (by Anthropic), through Claude Code, was the development partner for code, 3D models, animations, sounds and texts.</p>
+    <p>This page loads fonts from Google Fonts. Game built with three.js (MIT) and Lucide icons (ISC).</p>
+  </footer>
+
+  <script>
+    // um vídeo de cada vez
+    document.addEventListener('play', (e) => document.querySelectorAll('video').forEach((v) => v !== e.target && v.pause()), true);
+  </script>
+</body>
+</html>

@@ -8,6 +8,7 @@
     "typecheck": "tsc -b",
     "simular": "tsx scripts/simulate.ts",
     "dev": "vite --host 0.0.0.0",
+    "dev:landing": "vite --mode landing",
     "build": "tsc -b && vite build",
     "build:itch": "tsc -b && vite build --mode itch",
     "server": "tsx server/index.ts",

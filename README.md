@@ -8,7 +8,8 @@ disappears into the sea.
 
 - **Play:** solo against bots or pass-and-play on one device. Runs in the browser, no install.
 - **Languages:** English (default) and Portuguese. Switch with the **EN / PT** buttons on the start screen.
-- **Online rooms:** play with friends on the Render site, https://island-shift-to-atlantis.onrender.com (the first visit can take about a minute to wake up). The itch.io and Vercel builds are offline-only: vs. bots or pass-and-play.
+- **Online rooms:** play with friends on the Render site, https://island-shift-to-atlantis.onrender.com (the first visit can take about a minute to wake up). The itch.io build is offline-only: vs. bots or pass-and-play.
+- **Promo page:** https://island-shift-to-atlantis.vercel.app (source in `landing/`; preview it with `npm run dev:landing`).
 
 ## How a match works
 
